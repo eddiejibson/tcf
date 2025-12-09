@@ -239,8 +239,7 @@ export default function Home() {
                 <p className="text-white/60 text-sm leading-relaxed">
                   Every coral goes through our strict quarantine protocol. We
                   dip, treat with antibiotics, inspect and monitor before
-                  anything hits the sales floor. Pests don&apos;t make it past
-                  us.
+                  anything is sold.
                 </p>
               </div>
             </StaggerChild>
@@ -258,8 +257,7 @@ export default function Home() {
                 </h3>
                 <p className="text-white/60 text-sm leading-relaxed">
                   Our state-of-the-art holding systems ensure every coral is
-                  properly conditioned, coloured up, and ready to be picked up
-                  or shipped to directly to your shop.
+                  properly rested and ready to go into your customer's tanks.
                 </p>
               </div>
             </StaggerChild>
@@ -298,10 +296,9 @@ export default function Home() {
               </SwipeReveal>
               <SwipeReveal direction="left" delay={0.2}>
                 <p className="text-white/60 text-base md:text-lg leading-relaxed mb-8">
-                  We&apos;re not a retail shop trying to do wholesale on the
-                  side. We&apos;re purpose-built for trade customers who need
-                  reliable stock, competitive pricing, and a partner who
-                  understands the business.
+                  Purpose-built for trade customers who need reliable stock,
+                  competitive pricing, and a partner who understands the
+                  business.
                 </p>
               </SwipeReveal>
 
@@ -328,8 +325,7 @@ export default function Home() {
                         Wholesale only
                       </h4>
                       <p className="text-white/50 text-sm">
-                        We don&apos;t compete with our customers. Trade accounts
-                        only.
+                        Dedicated exclusively to trade accounts.
                       </p>
                     </div>
                   </div>
@@ -500,10 +496,8 @@ export default function Home() {
                     Retail Veterans
                   </h3>
                   <p className="text-white/50 text-sm leading-relaxed">
-                    We&apos;ve owned and run some of the UK&apos;s most
-                    successful marine shops. We got frustrated with inconsistent
-                    supply and unreliable stock - so we built the solution
-                    ourselves.
+                    We got frustrated with inconsistent supply and unreliable
+                    stock - so we built the solution ourselves.
                   </p>
                 </div>
               </div>
@@ -562,12 +556,11 @@ export default function Home() {
                     </svg>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">
-                    No Chop Shop
+                    Sustainable Practices
                   </h3>
                   <p className="text-white/50 text-sm leading-relaxed">
-                    We don&apos;t rush stock out the door. Every coral is
-                    properly rested, quarantined, and given time to recover from
-                    shipping stress before it ever reaches your shop.
+                    Our rarest specimens are selected for aquaculture. This
+                    ensures a sustainable future and lineage security.
                   </p>
                 </div>
               </div>

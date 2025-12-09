@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useSwipeable } from "react-swipeable";
 
 const totalImages = 37;
 const images = Array.from(
@@ -68,6 +69,20 @@ export default function Gallery() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lightboxOpen, nextSlide, prevSlide, nextLightbox, prevLightbox]);
 
+  // Swipe handlers for slideshow
+  const slideshowSwipeHandlers = useSwipeable({
+    onSwipedLeft: nextSlide,
+    onSwipedRight: prevSlide,
+    trackMouse: true,
+  });
+
+  // Swipe handlers for lightbox
+  const lightboxSwipeHandlers = useSwipeable({
+    onSwipedLeft: nextLightbox,
+    onSwipedRight: prevLightbox,
+    trackMouse: true,
+  });
+
   return (
     <div className="min-h-screen bg-[#1a1f26]">
       {/* Header */}
@@ -96,7 +111,10 @@ export default function Gallery() {
       <section className="px-6 md:px-[100px] lg:px-[140px] pt-4 pb-12">
         <div className="max-w-6xl mx-auto">
           {/* Slideshow Container */}
-          <div className="relative aspect-[4/3] md:aspect-[4/3] lg:aspect-[16/10] rounded-[24px] overflow-hidden group">
+          <div
+            {...slideshowSwipeHandlers}
+            className="relative aspect-[4/3] md:aspect-[4/3] lg:aspect-[16/10] rounded-[24px] overflow-hidden group"
+          >
             {/* Images */}
             {images.map((src, index) => (
               <div
@@ -300,6 +318,7 @@ export default function Gallery() {
       {/* Lightbox Modal */}
       {lightboxOpen && (
         <div
+          {...lightboxSwipeHandlers}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center"
           onClick={closeLightbox}
         >
@@ -325,6 +344,7 @@ export default function Gallery() {
 
           {/* Image Container */}
           <div
+            {...lightboxSwipeHandlers}
             className="relative w-full h-full max-w-[90vw] max-h-[85vh] m-4"
             onClick={(e) => e.stopPropagation()}
           >
@@ -383,13 +403,13 @@ export default function Gallery() {
           </button>
 
           {/* Bottom Info Bar */}
-          <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full px-6 py-3 flex items-center gap-4 shadow-lg">
-            <span className="text-white font-medium tabular-nums">
-              {String(lightboxImage + 1).padStart(2, "0")} / {totalImages}
+          <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full px-5 md:px-6 py-3 flex items-center gap-3 md:gap-4 shadow-lg whitespace-nowrap">
+            <span className="text-white font-medium tabular-nums text-sm md:text-base">
+              {String(lightboxImage + 1).padStart(2, "0")}/{totalImages}
             </span>
-            <div className="w-px h-4 bg-white/20" />
-            <span className="text-white/60 text-sm">
-              Use arrow keys to navigate
+            <div className="w-px h-4 bg-white/20 md:hidden" />
+            <span className="text-white/60 text-sm md:hidden">
+              Swipe to navigate
             </span>
           </div>
         </div>

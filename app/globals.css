@@ -1,26 +1,352 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #2b343e;
+  --foreground: #ffffff;
+  --dark-bg-1: #0b121a;
+  --dark-bg-2: #171a1f;
+  --dark-bg-3: #282f38;
+  --blue-primary: #0984e3;
+  --purple-overlay: #71569d;
+  --text-dark: #332c2c;
 }
 
 @theme inline {
+  /* Custom Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-dark-bg-1: var(--dark-bg-1);
+  --color-dark-bg-2: var(--dark-bg-2);
+  --color-dark-bg-3: var(--dark-bg-3);
+  --color-blue-primary: var(--blue-primary);
+  --color-purple-overlay: var(--purple-overlay);
+  --color-text-dark: var(--text-dark);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Fonts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+
+  /* Letter Spacing */
+  --tracking-ultra-wide: 0.8em;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes bulkStretch {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.15);
+  }
+}
+
+.bulk-text {
+  display: inline-block;
+  animation: bulkStretch 6s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+/* Hero background animations */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  25% {
+    transform: translateY(-50px) translateX(40px) scale(1.1);
+  }
+  50% {
+    transform: translateY(-30px) translateX(-30px) scale(0.9);
+  }
+  75% {
+    transform: translateY(-80px) translateX(20px) scale(1.15);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  33% {
+    transform: translateX(60px) translateY(-50px);
+  }
+  66% {
+    transform: translateX(-40px) translateY(-80px);
+  }
+}
+
+@keyframes particle-drift {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-120px) translateX(20px);
+    opacity: 0.6;
+  }
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.hero-orb-1 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(
+    circle,
+    rgba(9, 132, 227, 0.12) 0%,
+    transparent 70%
+  );
+  top: -5%;
+  left: -5%;
+  animation: float 15s ease-in-out infinite;
+}
+
+.hero-orb-2 {
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(
+    circle,
+    rgba(9, 132, 227, 0.1) 0%,
+    transparent 70%
+  );
+  bottom: 5%;
+  left: 10%;
+  animation: drift 18s ease-in-out infinite;
+}
+
+.hero-orb-3 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle,
+    rgba(116, 185, 255, 0.08) 0%,
+    transparent 70%
+  );
+  top: 50%;
+  left: 5%;
+  animation: float 12s ease-in-out infinite reverse;
+}
+
+/* Floating particles */
+.hero-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(9, 132, 227, 0.3);
+  pointer-events: none;
+}
+
+.hero-particle-1 {
+  width: 12px;
+  height: 12px;
+  top: 15%;
+  left: 15%;
+  animation: particle-drift 6s ease-in-out infinite;
+}
+
+.hero-particle-2 {
+  width: 8px;
+  height: 8px;
+  top: 35%;
+  left: 30%;
+  animation: particle-drift 8s ease-in-out infinite 1s;
+}
+
+.hero-particle-3 {
+  width: 14px;
+  height: 14px;
+  top: 55%;
+  left: 10%;
+  animation: particle-drift 7s ease-in-out infinite 2s;
+}
+
+.hero-particle-4 {
+  width: 10px;
+  height: 10px;
+  top: 75%;
+  left: 35%;
+  animation: particle-drift 9s ease-in-out infinite 3s;
+}
+
+.hero-particle-5 {
+  width: 8px;
+  height: 8px;
+  top: 25%;
+  left: 45%;
+  animation: particle-drift 5s ease-in-out infinite 0.5s;
+}
+
+.hero-particle-6 {
+  width: 11px;
+  height: 11px;
+  top: 65%;
+  left: 25%;
+  animation: particle-drift 7.5s ease-in-out infinite 1.5s;
+}
+
+.hero-particle-7 {
+  width: 9px;
+  height: 9px;
+  top: 45%;
+  left: 5%;
+  animation: particle-drift 6.5s ease-in-out infinite 2.5s;
+}
+
+.hero-particle-8 {
+  width: 13px;
+  height: 13px;
+  top: 85%;
+  left: 18%;
+  animation: particle-drift 8.5s ease-in-out infinite 0.8s;
+}
+
+/* Mobile-specific orbs and particles - kept in upper portion only */
+.hero-orb-mobile {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.hero-orb-mobile-1 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle,
+    rgba(9, 132, 227, 0.15) 0%,
+    transparent 70%
+  );
+  top: -5%;
+  left: -10%;
+  animation: float 12s ease-in-out infinite;
+}
+
+.hero-orb-mobile-2 {
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(
+    circle,
+    rgba(116, 185, 255, 0.12) 0%,
+    transparent 70%
+  );
+  top: 20%;
+  right: -10%;
+  animation: drift 15s ease-in-out infinite;
+}
+
+.hero-particle-mobile {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(9, 132, 227, 0.4);
+  pointer-events: none;
+}
+
+.hero-particle-mobile-1 {
+  width: 10px;
+  height: 10px;
+  top: 10%;
+  left: 20%;
+  animation: particle-drift 7s ease-in-out infinite;
+}
+
+.hero-particle-mobile-2 {
+  width: 8px;
+  height: 8px;
+  top: 25%;
+  right: 25%;
+  animation: particle-drift 6s ease-in-out infinite 1s;
+}
+
+.hero-particle-mobile-3 {
+  width: 12px;
+  height: 12px;
+  top: 40%;
+  left: 30%;
+  animation: particle-drift 8s ease-in-out infinite 2s;
+}
+
+.hero-particle-mobile-4 {
+  width: 7px;
+  height: 7px;
+  top: 15%;
+  right: 15%;
+  animation: particle-drift 5s ease-in-out infinite 0.5s;
+}
+
+.hero-particle-mobile-5 {
+  width: 9px;
+  height: 9px;
+  top: 50%;
+  left: 15%;
+  animation: particle-drift 9s ease-in-out infinite 1.5s;
+}
+
+.hero-particle-mobile-6 {
+  width: 11px;
+  height: 11px;
+  top: 35%;
+  right: 10%;
+  animation: particle-drift 7.5s ease-in-out infinite 2.5s;
+}
+
+/* Noise texture for sections */
+.section-texture {
+  position: relative;
+}
+
+.section-texture > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Noise texture for dividers - overlays on top of SVG */
+.divider-texture {
+  position: relative;
+}
+
+/* Gradient overlay for depth */
+.section-gradient {
+  position: relative;
+}
+
+.section-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      ellipse 100% 60% at 50% 0%,
+      rgba(9, 132, 227, 0.12) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 90% 100%,
+      rgba(9, 132, 227, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 10% 50%,
+      rgba(116, 185, 255, 0.06) 0%,
+      transparent 40%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.section-gradient > * {
+  position: relative;
+  z-index: 1;
 }

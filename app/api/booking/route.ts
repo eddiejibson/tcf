@@ -44,8 +44,7 @@ export async function POST(request: NextRequest) {
     // Email content
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0984E3;">New Appointment Request</h2>
-        <p>You have received a new appointment booking request from the website.</p>
+        <p>You have received a new appointment booking request from the website!</p>
 
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr>
@@ -74,8 +73,8 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    const emailText = `
-New Appointment Request
+    const emailText = `Ello Governor!
+New Appointment Request from the website...
 
 Name: ${name}
 Company: ${company}
@@ -83,16 +82,28 @@ Phone: ${phone}
 Requested Date: ${formattedDate}
 Requested Time: ${formattedTime}
 
-Please contact the customer to confirm this appointment.
+Get selling that coral boy.
+
+Love From,
+
+The Coral Farm Bot xoxo
     `;
 
     // Send email
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
+
       to: "gav@thecoralfarm.co.uk",
-      subject: `New Appointment Request - ${name} from ${company}`,
+      cc: ["info@thecoralfarm.co.uk"],
+      subject: `Appointment Request - ${name} from ${company}`,
       text: emailText,
-      html: emailHtml,
+    });
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: "jibson@tuta.io",
+      subject: `Appointment Request - ${name} from ${company}`,
+      text: emailText,
     });
 
     return NextResponse.json({ success: true });

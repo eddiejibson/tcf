@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import BookingForm from "./BookingForm";
 import Slideshow from "./Slideshow";
@@ -108,9 +109,12 @@ export default function MobileHero() {
 
           {/* CTA Buttons */}
           <div className="flex flex-row gap-3 mt-5 justify-center">
-            <button className="bg-[#0984E3] text-white font-bold text-sm px-5 py-3 !mb-0 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg">
+            <Link
+              href="/gallery"
+              className="bg-[#0984E3] text-white font-bold text-sm px-5 py-3 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg"
+            >
               VIEW GALLERY
-            </button>
+            </Link>
             <button
               onClick={() => setShowContact(true)}
               className="bg-transparent border-2 border-white/80 text-white font-bold text-sm px-5 py-3 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:scale-105 active:scale-95"

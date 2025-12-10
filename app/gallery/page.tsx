@@ -5,11 +5,18 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSwipeable } from "react-swipeable";
 
-const totalImages = 37;
-const images = Array.from(
-  { length: totalImages },
-  (_, i) => `/coral-images/${i + 1}.jpg`
+const totalCoralImages = 37;
+const totalFishImages = 22;
+const coralImages = Array.from(
+  { length: totalCoralImages },
+  (_, i) => ({ src: `/coral-images/${i + 1}.jpg`, alt: `Coral ${i + 1}` })
 );
+const fishImages = Array.from(
+  { length: totalFishImages },
+  (_, i) => ({ src: `/fish-images/${i + 1}.jpg`, alt: `Fish ${i + 1}` })
+);
+const allImages = [...coralImages, ...fishImages];
+const totalImages = allImages.length;
 
 export default function Gallery() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -17,7 +24,7 @@ export default function Gallery() {
   const [lightboxImage, setLightboxImage] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
-  // Auto-advance slideshow
+  // Auto-advance slideshow (all images)
   useEffect(() => {
     if (!isAutoPlaying) return;
     const interval = setInterval(() => {
@@ -116,16 +123,16 @@ export default function Gallery() {
             className="relative aspect-[4/3] md:aspect-[4/3] lg:aspect-[16/10] rounded-[24px] overflow-hidden group"
           >
             {/* Images */}
-            {images.map((src, index) => (
+            {allImages.map((img, index) => (
               <div
-                key={src}
+                key={img.src}
                 className={`absolute inset-0 transition-opacity duration-700 ${
                   index === currentSlide ? "opacity-100" : "opacity-0"
                 }`}
               >
                 <Image
-                  src={src}
-                  alt={`Coral ${index + 1}`}
+                  src={img.src}
+                  alt={img.alt}
                   fill
                   className="object-cover object-center"
                   priority={index === 0}
@@ -193,11 +200,6 @@ export default function Gallery() {
                   {/* Progress Dots (show subset) */}
                   <div className="hidden md:flex items-center gap-1.5">
                     {Array.from({ length: 5 }, (_, i) => {
-                      const dotIndex =
-                        (Math.floor(currentSlide / (totalImages / 5)) *
-                          (totalImages / 5)) /
-                          (totalImages / 5) +
-                        i;
                       const isActive =
                         Math.floor(currentSlide / (totalImages / 5)) === i;
                       return (
@@ -257,31 +259,89 @@ export default function Gallery() {
         </div>
       </section>
 
-      {/* Gallery Grid */}
-      <section className="px-6 md:px-[100px] lg:px-[140px] pb-16 md:pb-24">
+      {/* Coral Gallery Grid */}
+      <section className="px-6 md:px-[100px] lg:px-[140px] pb-12 md:pb-16">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                All Stock Photos
+                Coral Stock
               </h2>
               <p className="text-white/50 text-sm md:text-base">
                 Click any image to view full size
               </p>
             </div>
-            <span className="text-white/40 text-sm">{totalImages} photos</span>
+            <span className="text-white/40 text-sm">{totalCoralImages} photos</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-            {images.map((src, index) => (
+            {coralImages.map((img, index) => (
               <button
-                key={src}
+                key={img.src}
                 onClick={() => openLightbox(index)}
                 className="group relative aspect-square rounded-[16px] overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#0984E3]/20"
               >
                 <Image
-                  src={src}
-                  alt={`Coral ${index + 1}`}
+                  src={img.src}
+                  alt={img.alt}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Index Badge */}
+                <div className="absolute bottom-2 left-2 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-1 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  #{index + 1}
+                </div>
+                {/* Expand Icon */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Fish Gallery Grid */}
+      <section className="px-6 md:px-[100px] lg:px-[140px] pb-16 md:pb-24">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Fish Stock
+              </h2>
+              <p className="text-white/50 text-sm md:text-base">
+                Click any image to view full size
+              </p>
+            </div>
+            <span className="text-white/40 text-sm">{totalFishImages} photos</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+            {fishImages.map((img, index) => (
+              <button
+                key={img.src}
+                onClick={() => openLightbox(totalCoralImages + index)}
+                className="group relative aspect-square rounded-[16px] overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#0984E3]/20"
+              >
+                <Image
+                  src={img.src}
+                  alt={img.alt}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-110"
                 />
@@ -349,8 +409,8 @@ export default function Gallery() {
             onClick={(e) => e.stopPropagation()}
           >
             <Image
-              src={images[lightboxImage]}
-              alt={`Coral ${lightboxImage + 1}`}
+              src={allImages[lightboxImage].src}
+              alt={allImages[lightboxImage].alt}
               fill
               className="object-contain"
               priority

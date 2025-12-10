@@ -257,7 +257,8 @@ export default function Home() {
                 </h3>
                 <p className="text-white/60 text-sm leading-relaxed">
                   Our state-of-the-art holding systems ensure every coral is
-                  properly rested and ready to go into your customer's tanks.
+                  properly rested and ready to go into your customer&apos;s
+                  tanks.
                 </p>
               </div>
             </StaggerChild>

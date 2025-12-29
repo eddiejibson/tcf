@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface PriceListFile {
@@ -32,7 +32,7 @@ function extractDateFromFilename(filename: string): string {
   });
 }
 
-export default function PriceLists() {
+function PriceListsContent() {
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -330,5 +330,19 @@ export default function PriceLists() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PriceLists() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#1a1f26] flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <PriceListsContent />
+    </Suspense>
   );
 }

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface PriceListFile {
   name: string;
@@ -32,12 +33,44 @@ function extractDateFromFilename(filename: string): string {
 }
 
 export default function PriceLists() {
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [files, setFiles] = useState<PriceListFile[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [checkingUrl, setCheckingUrl] = useState(true);
+
+  // Check for password in URL on mount
+  useEffect(() => {
+    const urlPassword = searchParams.get("p");
+    if (urlPassword) {
+      setPassword(urlPassword);
+      authenticateWithPassword(urlPassword);
+    } else {
+      setCheckingUrl(false);
+    }
+  }, [searchParams]);
+
+  const authenticateWithPassword = async (pwd: string) => {
+    try {
+      const response = await fetch("/api/price-lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFiles(data.files);
+        setIsAuthenticated(true);
+      }
+    } catch {
+      // Silent fail for URL auth
+    }
+    setCheckingUrl(false);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +153,11 @@ export default function PriceLists() {
 
       <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
         <div className="max-w-2xl mx-auto">
-          {!isAuthenticated ? (
+          {checkingUrl ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+          ) : !isAuthenticated ? (
             /* Login Form */
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
               <div className="text-center mb-8">

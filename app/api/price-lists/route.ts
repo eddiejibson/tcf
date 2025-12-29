@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const PASSWORD = "coralthefarm2026";
+const PASSWORD = "RlQ8UG";
 
 export async function POST(request: NextRequest) {
   try {

@@ -137,7 +137,7 @@ export default function PriceLists() {
                   Price Lists
                 </h1>
                 <p className="text-white/50 max-w-md mx-auto">
-                  Enter your password to access our next import lists to plan
+                  Enter your password to access our next import lists and plan
                   your shipments.
                 </p>
               </div>

@@ -16,8 +16,14 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
+function extractDateFromFilename(filename: string): string {
+  // Match date pattern DD.MM.YY at end of filename (before extension)
+  const match = filename.match(/(\d{2})\.(\d{2})\.(\d{2})\.(xlsx?|xls)$/i);
+  if (!match) return "";
+
+  const [, day, month, year] = match;
+  const date = new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+
   return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -245,11 +251,11 @@ export default function PriceLists() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-white font-medium truncate">
-                            {file.name.replace(/\.(xlsx?|xls)$/i, "")}
+                            {file.name.replace(/\s*\d{2}\.\d{2}\.\d{2}\.(xlsx?|xls)$/i, "")}
                           </p>
                           <p className="text-white/40 text-sm">
                             {formatFileSize(file.size)} &middot;{" "}
-                            {formatDate(file.modified)}
+                            {extractDateFromFilename(file.name)}
                           </p>
                         </div>
                       </div>

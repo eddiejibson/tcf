@@ -21,7 +21,7 @@ export default function ShipmentsPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Available Shipments</h1>
         <p className="text-white/50 text-sm mt-1">Browse upcoming shipments and place your order</p>

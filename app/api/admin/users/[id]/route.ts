@@ -8,12 +8,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const { role } = await request.json();
+  const { role, companyName } = await request.json();
 
   const db = await getDb();
   const repo = db.getRepository(User);
 
-  await repo.update(id, { role: role === "ADMIN" ? UserRole.ADMIN : UserRole.USER });
+  const update: Partial<User> = {};
+  if (role !== undefined) update.role = role === "ADMIN" ? UserRole.ADMIN : UserRole.USER;
+  if (companyName !== undefined) update.companyName = companyName || null;
+  await repo.update(id, update);
   const user = await repo.findOneBy({ id });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 

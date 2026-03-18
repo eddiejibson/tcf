@@ -17,8 +17,14 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2 })
   price: number;
 
+  @Column({ type: "varchar", nullable: true })
+  size: string | null;
+
   @Column({ type: "int", default: 1 })
   qtyPerBox: number;
+
+  @Column({ type: "int", nullable: true })
+  availableQty: number | null;
 
   @Column({ type: "jsonb", nullable: true })
   originalRow: Record<string, unknown>;

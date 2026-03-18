@@ -23,16 +23,16 @@ export default function AdminShipmentsPage() {
   useEffect(() => { fetchShipments(); }, [fetchShipments]);
 
   const handleStatusChange = async (id: string, status: string) => {
+    setShipments((prev) => prev.map((s) => s.id === id ? { ...s, status: status as AdminShipmentListItem["status"] } : s));
     await fetch(`/api/admin/shipments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    fetchShipments();
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-5xl">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Shipments</h1>
@@ -53,7 +53,7 @@ export default function AdminShipmentsPage() {
       ) : (
         <div className="space-y-4">
           {shipments.map((s) => (
-            <div key={s.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+            <Link key={s.id} href={`/admin/shipments/${s.id}`} className="block bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-[#0984E3]/20 flex items-center justify-center shrink-0">
@@ -71,18 +71,24 @@ export default function AdminShipmentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <select
-                    value={s.status}
-                    onChange={(e) => handleStatusChange(s.id, e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border-0 focus:outline-none cursor-pointer ${statusColors[s.status]}`}
-                  >
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="CLOSED">CLOSED</option>
-                  </select>
+                  <div className="relative" onClick={(e) => e.preventDefault()}>
+                    <select
+                      value={s.status}
+                      onChange={(e) => { e.preventDefault(); handleStatusChange(s.id, e.target.value); }}
+                      className={`appearance-none pl-3 pr-7 py-1.5 rounded-lg text-xs font-medium border-0 focus:outline-none cursor-pointer ${statusColors[s.status]}`}
+                    >
+                      <option value="DRAFT" className="bg-[#1a1f26] text-white">DRAFT</option>
+                      <option value="ACTIVE" className="bg-[#1a1f26] text-white">ACTIVE</option>
+                      <option value="CLOSED" className="bg-[#1a1f26] text-white">CLOSED</option>
+                    </select>
+                    <svg className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
           {shipments.length === 0 && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center text-white/40">

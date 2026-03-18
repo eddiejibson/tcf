@@ -27,6 +27,16 @@ export class OrderItem extends BaseEntity {
 
   @Column({ type: "decimal", precision: 10, scale: 2 })
   unitPrice: number;
+
+  @Column({ type: "uuid", nullable: true })
+  substituteProductId: string | null;
+
+  @ManyToOne("Product", { nullable: true })
+  @JoinColumn({ name: "substituteProductId" })
+  substituteProduct: Product | null;
+
+  @Column({ type: "varchar", nullable: true })
+  substituteName: string | null;
 }
 
-export type OrderItemType = Omit<OrderItem, "order" | "product">;
+export type OrderItemType = Omit<OrderItem, "order" | "product" | "substituteProduct">;

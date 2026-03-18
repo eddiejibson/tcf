@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
   }
 
   const jwt = await createSession(user);
-  const redirectUrl = user.role === "ADMIN" ? "/admin/shipments" : "/shipments";
+
+  const to = request.nextUrl.searchParams.get("to");
+  const isValidRedirect = to && to.startsWith("/") && !to.startsWith("//") && !to.includes("://");
+  const defaultRedirect = user.role === "ADMIN" ? "/admin/shipments" : "/shipments";
+  const redirectUrl = isValidRedirect ? to : defaultRedirect;
   const response = NextResponse.redirect(new URL(redirectUrl, request.url));
 
   response.cookies.set("tcf_session", jwt, {

@@ -66,19 +66,91 @@ export async function sendOrderStatusUpdate(
   orderTotal: string
 ) {
   const transporter = createTransporter();
-  const isApproved = status === "APPROVED";
+  const isAccepted = status === "ACCEPTED";
+  const isFulfillment = status === "AWAITING_FULFILLMENT";
+  const statusColor = isAccepted ? "#27ae60" : isFulfillment ? "#f39c12" : "#e74c3c";
+  const statusText = isFulfillment ? "sent for fulfillment" : status.toLowerCase();
+  const subject = isAccepted ? "Order Accepted" : isFulfillment ? "Order Sent for Fulfillment" : "Order Update";
+  const footerText = isAccepted
+    ? '<p style="color: #ffffffcc; font-size: 14px; margin-top: 16px;">Please log in to complete payment.</p>'
+    : isFulfillment
+    ? '<p style="color: #ffffffcc; font-size: 14px; margin-top: 16px;">Your order has been sent to our exporter. We will notify you once items are confirmed and payment is due.</p>'
+    : "";
   await transporter.sendMail({
     from: from(),
     to: userEmail,
-    subject: `Order ${isApproved ? "Approved" : "Update"} - The Coral Farm`,
+    subject: `${subject} - The Coral Farm`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
         <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
-        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your order for <strong style="color: #ffffff;">${shipmentName}</strong> has been <strong style="color: ${isApproved ? "#27ae60" : "#e74c3c"};">${status.toLowerCase()}</strong>.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your order for <strong style="color: #ffffff;">${shipmentName}</strong> has been <strong style="color: ${statusColor};">${statusText}</strong>.</p>
         <p style="color: #ffffffcc; font-size: 16px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        ${footerText}
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to view your order details.</p>
       </div>
     `,
-    text: `Your order for "${shipmentName}" has been ${status.toLowerCase()}. Total: ${orderTotal}`,
+    text: `Your order for "${shipmentName}" has been ${statusText}. Total: ${orderTotal}`,
+  });
+}
+
+export async function sendOrderAcceptedWithInvoice(
+  userEmail: string,
+  shipmentName: string,
+  orderTotal: string,
+  orderId: string,
+  orderRef: string,
+  invoicePdf: Buffer,
+) {
+  const transporter = createTransporter();
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
+
+  await transporter.sendMail({
+    from: from(),
+    to: userEmail,
+    subject: `Order Accepted - The Coral Farm`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your order for <strong style="color: #ffffff;">${shipmentName}</strong> has been <strong style="color: #27ae60;">accepted</strong>.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in to complete payment.</p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order &amp; Pay</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
+      </div>
+    `,
+    text: `Your order for "${shipmentName}" has been accepted. Total: ${orderTotal}. View your order and pay: ${viewUrl}`,
+    attachments: [
+      {
+        filename: `TCF-Invoice-${orderRef}.pdf`,
+        content: invoicePdf,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+}
+
+export async function sendOrderChanges(
+  userEmail: string,
+  shipmentName: string,
+  changes: string[],
+  newTotal: string
+) {
+  const transporter = createTransporter();
+  const changeList = changes.map((c) => `<li style="color: #ffffffcc; font-size: 14px; margin-bottom: 4px;">${c}</li>`).join("");
+  await transporter.sendMail({
+    from: from(),
+    to: userEmail,
+    subject: `Order Updated - The Coral Farm`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 16px;">Your accepted order for <strong style="color: #ffffff;">${shipmentName}</strong> has been updated:</p>
+        <ul style="list-style: none; padding: 0; margin: 0 0 16px 0;">${changeList}</ul>
+        <p style="color: #ffffffcc; font-size: 16px;">New Total: <strong style="color: #0984E3;">${newTotal}</strong></p>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to view the updated order.</p>
+      </div>
+    `,
+    text: `Your accepted order for "${shipmentName}" has been updated:\n${changes.join("\n")}\nNew Total: ${newTotal}`,
   });
 }

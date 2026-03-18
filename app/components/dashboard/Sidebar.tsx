@@ -9,6 +9,8 @@ const adminLinks = [
   { href: "/admin/users", label: "Users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
   { href: "/admin/shipments", label: "Shipments", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
   { href: "/admin/orders", label: "Orders", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { href: "/admin/doa", label: "DOAs", icon: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" },
+  { href: "/admin/items", label: "Items", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7v10l8 4M12 11V3" },
 ];
 
 const userLinks = [
@@ -24,7 +26,7 @@ export default function Sidebar() {
   const links = isAdmin ? adminLinks : userLinks;
 
   return (
-    <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col min-h-screen">
+    <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col h-screen sticky top-0">
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3 group">
           <Image src="/images/logo.png" alt="The Coral Farm" width={32} height={48} className="transition-transform duration-300 group-hover:scale-105" />
@@ -61,6 +63,12 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-white/5">
+        {user && user.creditBalance > 0 && (
+          <div className="px-3 py-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+            <p className="text-emerald-400/60 text-[10px] uppercase tracking-wider font-medium">Account Credit</p>
+            <p className="text-emerald-400 text-sm font-bold tabular-nums">£{Number(user.creditBalance).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        )}
         <div className="px-3 mb-3">
           <p className="text-white/80 text-sm font-medium truncate">{user?.email}</p>
           <p className="text-white/30 text-xs">{user?.role}</p>

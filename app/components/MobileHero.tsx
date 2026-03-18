@@ -65,6 +65,19 @@ export default function MobileHero() {
         </div>
 
         <div className="relative z-10 px-6 py-8 pb-4 text-center">
+          {/* Trade Login - Mobile */}
+          <div className="absolute top-6 right-6 z-20">
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 backdrop-blur-xl border border-white/15 rounded-full text-white/70 text-xs font-medium transition-all duration-300 active:scale-95"
+            >
+              <svg className="w-3.5 h-3.5 text-[#0984E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              Trade Login
+            </Link>
+          </div>
+
           {/* Logo */}
           <div className="mb-6 w-[40px] h-[60px] mx-auto">
             <Image

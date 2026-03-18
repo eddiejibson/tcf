@@ -1,20 +1,26 @@
 import { getDb } from "../db/data-source";
-import { Order, OrderStatus } from "../entities/Order";
+import { Order, OrderStatus, PaymentMethod } from "../entities/Order";
 import { OrderItem } from "../entities/OrderItem";
+import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
 import { MoreThan } from "typeorm";
 import { Shipment } from "../entities/Shipment";
-import { sendOrderNotification, sendOrderStatusUpdate } from "./email.service";
+import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges } from "./email.service";
+import { generateInvoiceBuffer } from "./invoice.service";
+import type { InvoiceData } from "../../app/lib/generate-invoice";
+import { refundCredit } from "./credit.service";
 
 const SHIPPING_COST = 25;
 const VAT_RATE = 0.2;
 
-export function calculateOrderTotals(items: { unitPrice: number; quantity: number }[], includeShipping: boolean) {
+export function calculateOrderTotals(items: { unitPrice: number; quantity: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number) {
   const subtotal = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
-  const vat = subtotal * VAT_RATE;
   const shipping = includeShipping ? SHIPPING_COST : 0;
-  const total = subtotal + vat + shipping;
-  return { subtotal, vat, shipping, total };
+  const freight = Number(freightCharge) || 0;
+  const vat = (subtotal + shipping + freight) * VAT_RATE;
+  const credit = Number(creditApplied) || 0;
+  const total = subtotal + shipping + freight + vat - credit;
+  return { subtotal, vat, shipping, freight, credit, total };
 }
 
 export function formatPrice(price: number): string {
@@ -52,9 +58,17 @@ export async function getOrderById(id: string, relations = ["items", "items.prod
   return db.getRepository(Order).findOne({ where: { id }, relations });
 }
 
-export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number }[]) {
+export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null }[]) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
+  const productRepo = db.getRepository(Product);
+
+  for (const item of items) {
+    const product = await productRepo.findOneBy({ id: item.productId });
+    if (product && product.availableQty !== null && product.availableQty < item.quantity) {
+      throw new Error(`Insufficient stock for ${product.name}: ${product.availableQty} available`);
+    }
+  }
 
   const order = orderRepo.create({
     userId,
@@ -65,6 +79,8 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
       name: item.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
+      substituteProductId: item.substituteProductId || null,
+      substituteName: item.substituteName || null,
     })),
   });
 
@@ -103,15 +119,40 @@ export async function submitOrder(orderId: string) {
 
   const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
   const adminEmails = adminUsers.map((u) => u.email);
-  const totals = calculateOrderTotals(order.items, order.includeShipping);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
 
-  try {
-    await sendOrderNotification(adminEmails, order.user.email, order.shipment.name, formatPrice(totals.total));
-  } catch (e) {
-    console.error("Failed to send order notification:", e);
-  }
+  sendOrderNotification(adminEmails, order.user.email, order.shipment.name, formatPrice(totals.total))
+    .catch((e) => console.error("Failed to send order notification:", e));
 
   return order;
+}
+
+async function deductStock(items: OrderItem[]) {
+  const db = await getDb();
+  const productRepo = db.getRepository(Product);
+
+  for (const item of items) {
+    if (!item.productId) continue;
+    const product = await productRepo.findOneBy({ id: item.productId });
+    if (product && product.availableQty !== null) {
+      product.availableQty = Math.max(0, product.availableQty - item.quantity);
+      await productRepo.save(product);
+    }
+  }
+}
+
+async function restoreStock(items: OrderItem[]) {
+  const db = await getDb();
+  const productRepo = db.getRepository(Product);
+
+  for (const item of items) {
+    if (!item.productId) continue;
+    const product = await productRepo.findOneBy({ id: item.productId });
+    if (product && product.availableQty !== null) {
+      product.availableQty = product.availableQty + item.quantity;
+      await productRepo.save(product);
+    }
+  }
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus, includeShipping?: boolean) {
@@ -119,21 +160,177 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
   const orderRepo = db.getRepository(Order);
 
   const existing = await orderRepo.findOneByOrFail({ id: orderId });
+  const prevStatus = existing.status;
+
   if (status) existing.status = status;
   if (includeShipping !== undefined) existing.includeShipping = includeShipping;
   await orderRepo.save(existing);
 
-  if (status === OrderStatus.APPROVED || status === OrderStatus.REJECTED) {
-    const order = await getOrderById(orderId);
-    if (order) {
-      const totals = calculateOrderTotals(order.items, order.includeShipping);
-      try {
-        await sendOrderStatusUpdate(order.user.email, order.shipment.name, status, formatPrice(totals.total));
-      } catch (e) {
-        console.error("Failed to send status update email:", e);
+  const order = await getOrderById(orderId);
+  if (!order) return null;
+
+  if (status === OrderStatus.ACCEPTED && prevStatus !== OrderStatus.ACCEPTED) {
+    await deductStock(order.items);
+  }
+
+  if (prevStatus === OrderStatus.ACCEPTED && status === OrderStatus.REJECTED) {
+    await restoreStock(order.items);
+    if (Number(order.creditApplied) > 0) {
+      await refundCredit(orderId, order.userId);
+    }
+  }
+
+  if (status === OrderStatus.ACCEPTED || status === OrderStatus.REJECTED || status === OrderStatus.AWAITING_FULFILLMENT) {
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    // Fire and forget — don't block the API response on email/PDF
+    if (status === OrderStatus.ACCEPTED) {
+      const invoiceData: InvoiceData = {
+        orderRef: order.id.slice(0, 8).toUpperCase(),
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+        status: "ACCEPTED",
+        customerEmail: order.user.email,
+        customerCompanyName: order.user.companyName,
+        shipmentName: order.shipment.name,
+        items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+        subtotal: totals.subtotal,
+        vat: totals.vat,
+        shipping: totals.shipping,
+        freight: totals.freight,
+        credit: totals.credit,
+        total: totals.total,
+        includeShipping: order.includeShipping,
+        paymentMethod: order.paymentMethod,
+        paymentReference: order.paymentReference,
+      };
+      generateInvoiceBuffer(invoiceData)
+        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment.name, formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
+        .catch((e) => console.error("Failed to send accepted email with invoice:", e));
+    } else {
+      sendOrderStatusUpdate(order.user.email, order.shipment.name, status, formatPrice(totals.total))
+        .catch((e) => console.error("Failed to send status update email:", e));
+    }
+  }
+
+  return order;
+}
+
+export async function updateAcceptedOrderItems(
+  orderId: string,
+  newItems: { productId?: string | null; name: string; quantity: number; unitPrice: number }[],
+  includeShipping?: boolean
+) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const itemRepo = db.getRepository(OrderItem);
+
+  const order = await getOrderById(orderId);
+  if (!order || (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_FULFILLMENT)) return null;
+
+  const oldItems = order.items;
+  const changes: string[] = [];
+
+  const oldMap = new Map(oldItems.map((i) => [i.name, i]));
+  const newMap = new Map(newItems.map((i) => [i.name, i]));
+
+  for (const [name, oldItem] of oldMap) {
+    const newItem = newMap.get(name);
+    if (!newItem) {
+      changes.push(`Removed: ${name}`);
+    } else {
+      if (newItem.quantity !== oldItem.quantity) {
+        changes.push(`${name}: qty ${oldItem.quantity} → ${newItem.quantity}`);
+      }
+      if (Number(newItem.unitPrice) !== Number(oldItem.unitPrice)) {
+        changes.push(`${name}: price ${formatPrice(Number(oldItem.unitPrice))} → ${formatPrice(Number(newItem.unitPrice))}`);
       }
     }
   }
+
+  for (const [name] of newMap) {
+    if (!oldMap.has(name)) {
+      changes.push(`Added: ${name}`);
+    }
+  }
+
+  await restoreStock(oldItems);
+
+  await itemRepo.delete({ orderId });
+  const savedItems = await itemRepo.save(
+    newItems.map((item) =>
+      itemRepo.create({
+        orderId,
+        productId: item.productId || null,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })
+    )
+  );
+
+  if (includeShipping !== undefined) {
+    const existing = await orderRepo.findOneByOrFail({ id: orderId });
+    existing.includeShipping = includeShipping;
+    await orderRepo.save(existing);
+  }
+
+  await deductStock(savedItems);
+
+  if (changes.length > 0) {
+    const updated = await getOrderById(orderId);
+    if (updated) {
+      const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
+      sendOrderChanges(updated.user.email, updated.shipment.name, changes, formatPrice(totals.total))
+        .catch((e) => console.error("Failed to send order changes email:", e));
+    }
+  }
+
+  return getOrderById(orderId);
+}
+
+export async function setPaymentMethod(orderId: string, method: PaymentMethod, reference?: string) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+
+  const existing = await orderRepo.findOneByOrFail({ id: orderId });
+  existing.paymentMethod = method;
+  if (reference) existing.paymentReference = reference;
+  await orderRepo.save(existing);
+
+  return getOrderById(orderId);
+}
+
+export async function clearPaymentMethod(orderId: string) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+
+  const existing = await orderRepo.findOneByOrFail({ id: orderId });
+  existing.paymentMethod = null;
+  existing.paymentReference = null;
+  await orderRepo.save(existing);
+
+  return getOrderById(orderId);
+}
+
+export async function confirmBankTransferSent(orderId: string) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+
+  const existing = await orderRepo.findOneByOrFail({ id: orderId });
+  if (existing.status !== OrderStatus.ACCEPTED) return null;
+  existing.status = OrderStatus.AWAITING_PAYMENT;
+  await orderRepo.save(existing);
+
+  return getOrderById(orderId);
+}
+
+export async function markOrderPaid(orderId: string, reference?: string) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+
+  const existing = await orderRepo.findOneByOrFail({ id: orderId });
+  existing.status = OrderStatus.PAID;
+  if (reference) existing.paymentReference = reference;
+  await orderRepo.save(existing);
 
   return getOrderById(orderId);
 }
@@ -144,4 +341,10 @@ export async function getAllOrders() {
     relations: ["items", "shipment", "user"],
     order: { createdAt: "DESC" },
   });
+}
+
+export async function getAvailableStock(productId: string): Promise<number | null> {
+  const db = await getDb();
+  const product = await db.getRepository(Product).findOneBy({ id: productId });
+  return product?.availableQty ?? null;
 }

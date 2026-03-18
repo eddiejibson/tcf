@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getOrderById, updateOrderStatus, updateOrderItems, calculateOrderTotals } from "@/server/services/order.service";
+import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
+import { Order, OrderStatus } from "@/server/entities/Order";
+import { getDb } from "@/server/db/data-source";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -10,7 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
   return NextResponse.json({ ...order, totals });
 }
 
@@ -21,17 +23,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   const body = await request.json();
 
-  if (body.items) {
-    await updateOrderItems(id, body.items);
+  const currentOrder = await getOrderById(id);
+  if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+  // Save freight/adminNotes FIRST so the invoice gets the correct values
+  if (body.freightCharge !== undefined || body.adminNotes !== undefined) {
+    const db = await getDb();
+    const update: Record<string, unknown> = {};
+    if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
+    if (body.adminNotes !== undefined) update.adminNotes = body.adminNotes;
+    await db.getRepository(Order).update(id, update);
   }
 
-  if (body.status || body.includeShipping !== undefined) {
-    await updateOrderStatus(id, body.status, body.includeShipping);
+  if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT)) {
+    await updateAcceptedOrderItems(id, body.items, body.includeShipping);
+    if (body.status && body.status !== currentOrder.status) {
+      await updateOrderStatus(id, body.status, body.includeShipping);
+    }
+  } else {
+    if (body.items) {
+      await updateOrderItems(id, body.items);
+    }
+
+    if (body.status || body.includeShipping !== undefined) {
+      await updateOrderStatus(id, body.status, body.includeShipping);
+    }
+  }
+
+  if (body.markPaid) {
+    await markOrderPaid(id, body.paymentReference);
   }
 
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
   return NextResponse.json({ ...order, totals });
 }

@@ -10,11 +10,12 @@ export async function GET() {
 
   return NextResponse.json(
     orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied);
       return {
         id: o.id,
         status: o.status,
         userEmail: o.user?.email,
+        userCompanyName: o.user?.companyName || null,
         shipmentName: o.shipment?.name,
         itemCount: o.items?.length || 0,
         total: totals.total,

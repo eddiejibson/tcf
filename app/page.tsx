@@ -75,6 +75,21 @@ export default function Home() {
         {/* Mobile Hero (includes content, slideshow, wave dividers, contact card) */}
         <MobileHero />
 
+        {/* Trade Login - Desktop */}
+        <div className="absolute top-6 right-8 lg:right-[100px] xl:right-[140px] z-30 hidden md:block">
+          <FadeIn delay={0.8}>
+            <Link
+              href="/login"
+              className="group flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-xl border border-white/15 rounded-full text-white/70 text-sm font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/25 hover:text-white"
+            >
+              <svg className="w-4 h-4 text-[#0984E3] transition-transform duration-300 group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              Trade Login
+            </Link>
+          </FadeIn>
+        </div>
+
         {/* Desktop Content Container */}
         <div className="relative z-20 hidden md:flex flex-row items-start justify-between h-full px-8 lg:px-[100px] xl:px-[140px] pt-8 pb-12 gap-6 lg:gap-10">
           {/* Left Side Content */}

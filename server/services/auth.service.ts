@@ -21,7 +21,11 @@ export interface JwtPayload {
   [key: string]: unknown;
 }
 
-export async function requestMagicLink(email: string): Promise<boolean> {
+function isValidRedirectPath(path: string): boolean {
+  return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
+}
+
+export async function requestMagicLink(email: string, redirectTo?: string): Promise<boolean> {
   const db = await getDb();
   const userRepo = db.getRepository(User);
   const user = await userRepo.findOneBy({ email: email.toLowerCase().trim() });
@@ -34,7 +38,10 @@ export async function requestMagicLink(email: string): Promise<boolean> {
   await linkRepo.save({ token, userId: user.id, expiresAt });
 
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
-  const url = `${baseUrl}/verify?token=${token}`;
+  let url = `${baseUrl}/verify?token=${token}`;
+  if (redirectTo && isValidRedirectPath(redirectTo)) {
+    url += `&to=${encodeURIComponent(redirectTo)}`;
+  }
   await sendMagicLink(user.email, url);
 
   return true;

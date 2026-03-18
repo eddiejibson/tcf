@@ -21,6 +21,7 @@ export async function GET() {
       deadline: s.deadline,
       shipmentDate: s.shipmentDate,
       freightCost: s.freightCost,
+      margin: s.margin,
       productCount: s.products?.length || 0,
       orderCount: s.orders?.length || 0,
       createdAt: s.createdAt,
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, deadline, shipmentDate, freightCost, status, products, sourceFilename } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, sourceFilename } = body;
 
   if (!name || !deadline || !shipmentDate) {
     return NextResponse.json({ error: "Name, deadline, and shipment date are required" }, { status: 400 });
@@ -47,17 +48,19 @@ export async function POST(request: NextRequest) {
     deadline: new Date(deadline),
     shipmentDate: new Date(shipmentDate),
     freightCost: freightCost || 0,
+    margin: margin || 0,
     status: status || ShipmentStatus.DRAFT,
     sourceFilename,
     createdById: admin.userId,
-    products: products?.map((p: { name: string; price: number; qtyPerBox: number; originalRow?: Record<string, unknown> }) => ({
+    products: products?.map((p: { name: string; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null }) => ({
       name: p.name,
       price: p.price,
+      size: p.size || null,
       qtyPerBox: p.qtyPerBox || 1,
-      originalRow: p.originalRow,
+      availableQty: p.availableQty ?? null,
     })),
   });
 
   const saved = await repo.save(shipment);
-  return NextResponse.json(saved);
+  return NextResponse.json({ id: saved.id, name: saved.name, status: saved.status });
 }

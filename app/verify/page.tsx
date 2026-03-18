@@ -14,7 +14,12 @@ function VerifyContent() {
       setStatus("error");
       return;
     }
-    window.location.href = `/api/auth/verify?token=${token}`;
+    const to = searchParams.get("to");
+    let verifyUrl = `/api/auth/verify?token=${token}`;
+    if (to) {
+      verifyUrl += `&to=${encodeURIComponent(to)}`;
+    }
+    window.location.href = verifyUrl;
   }, [searchParams]);
 
   return (

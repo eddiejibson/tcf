@@ -7,8 +7,17 @@ import type { UserOrderListItem } from "@/app/lib/types";
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
   SUBMITTED: "bg-blue-500/20 text-blue-400",
-  APPROVED: "bg-green-500/20 text-green-400",
+  AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
+  ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
+  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  PAID: "bg-emerald-500/20 text-emerald-400",
+  EXPIRED: "bg-orange-500/20 text-orange-400",
+};
+
+const statusLabels: Record<string, string> = {
+  AWAITING_FULFILLMENT: "FULFILLMENT",
+  AWAITING_PAYMENT: "AWAITING PAYMENT",
 };
 
 function formatPrice(n: number) {
@@ -27,7 +36,7 @@ export default function OrdersPage() {
   }, []);
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">My Orders</h1>
         <p className="text-white/50 text-sm mt-1">View your order history</p>
@@ -43,7 +52,10 @@ export default function OrdersPage() {
             <Link key={o.id} href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-all block">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-white font-semibold">{o.shipmentName}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/50 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</span>
+                    <h3 className="text-white font-semibold">{o.shipmentName}</h3>
+                  </div>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="text-white/40 text-sm">{o.itemCount} items</span>
                     <span className="text-white/40 text-sm">{new Date(o.createdAt).toLocaleDateString("en-GB")}</span>
@@ -51,7 +63,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-[#0984E3] font-semibold tabular-nums">{formatPrice(o.total)}</span>
-                  <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status]}`}>{o.status}</span>
+                  <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
                 </div>
               </div>
             </Link>

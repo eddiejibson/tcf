@@ -27,7 +27,9 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get("tcf_session")?.value;
   if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("to", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   try {
@@ -40,7 +42,9 @@ export async function middleware(request: NextRequest) {
 
     return NextResponse.next();
   } catch {
-    const response = NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("to", pathname);
+    const response = NextResponse.redirect(loginUrl);
     response.cookies.delete("tcf_session");
     return response;
   }

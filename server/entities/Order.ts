@@ -3,12 +3,22 @@ import { BaseEntityWithUpdate } from "./BaseEntity";
 import type { User } from "./User";
 import type { Shipment } from "./Shipment";
 import type { OrderItem } from "./OrderItem";
+import type { DoaClaim } from "./DoaClaim";
 
 export enum OrderStatus {
   DRAFT = "DRAFT",
   SUBMITTED = "SUBMITTED",
-  APPROVED = "APPROVED",
+  AWAITING_FULFILLMENT = "AWAITING_FULFILLMENT",
+  ACCEPTED = "ACCEPTED",
   REJECTED = "REJECTED",
+  AWAITING_PAYMENT = "AWAITING_PAYMENT",
+  PAID = "PAID",
+  EXPIRED = "EXPIRED",
+}
+
+export enum PaymentMethod {
+  BANK_TRANSFER = "BANK_TRANSFER",
+  CARD = "CARD",
 }
 
 @Entity("orders")
@@ -36,8 +46,29 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "boolean", default: false })
   includeShipping: boolean;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  freightCharge: number | null;
+
+  @Column({ type: "text", nullable: true })
+  adminNotes: string | null;
+
+  @Column({ type: "enum", enum: PaymentMethod, nullable: true })
+  paymentMethod: PaymentMethod | null;
+
+  @Column({ type: "varchar", nullable: true })
+  paymentReference: string | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  creditApplied: number;
+
+  @Column({ type: "boolean", default: false })
+  useCredit: boolean;
+
   @OneToMany("OrderItem", "order", { cascade: true })
   items: OrderItem[];
+
+  @OneToMany("DoaClaim", "order")
+  doaClaims: DoaClaim[];
 }
 
-export type OrderType = Omit<Order, "user" | "shipment" | "items">;
+export type OrderType = Omit<Order, "user" | "shipment" | "items" | "doaClaims">;

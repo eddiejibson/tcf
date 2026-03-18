@@ -24,6 +24,9 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   freightCost: number;
 
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  margin: number;
+
   @Column({ type: "enum", enum: ShipmentStatus, default: ShipmentStatus.DRAFT })
   status: ShipmentStatus;
 

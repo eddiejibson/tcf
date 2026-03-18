@@ -7,12 +7,16 @@ import { Shipment } from "../entities/Shipment";
 import { Product } from "../entities/Product";
 import { Order } from "../entities/Order";
 import { OrderItem } from "../entities/OrderItem";
+import { DoaClaim } from "../entities/DoaClaim";
+import { DoaItem } from "../entities/DoaItem";
+import { DoaReport } from "../entities/DoaReport";
+import { CreditTransaction } from "../entities/CreditTransaction";
 
 const ca = fs.readFileSync(
   path.join(process.cwd(), "server", "db", "ca-certificate.crt")
 ).toString();
 
-export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem];
+export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem, DoaClaim, DoaItem, DoaReport, CreditTransaction];
 
 export const baseDbConfig: DataSourceOptions = {
   type: "postgres",

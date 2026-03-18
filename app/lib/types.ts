@@ -3,6 +3,9 @@ import type { ShipmentType } from "@/server/entities/Shipment";
 import type { ProductType } from "@/server/entities/Product";
 import type { OrderType } from "@/server/entities/Order";
 import type { OrderItemType } from "@/server/entities/OrderItem";
+import type { DoaClaimType } from "@/server/entities/DoaClaim";
+import type { DoaItemType } from "@/server/entities/DoaItem";
+import type { DoaReportType } from "@/server/entities/DoaReport";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K];
@@ -13,35 +16,85 @@ export type SerializedShipment = Serialized<ShipmentType>;
 export type SerializedProduct = Serialized<ProductType>;
 export type SerializedOrder = Serialized<OrderType>;
 export type SerializedOrderItem = Serialized<OrderItemType>;
+export type SerializedDoaClaim = Serialized<DoaClaimType>;
+export type SerializedDoaItem = Serialized<DoaItemType>;
+export type SerializedDoaReport = Serialized<DoaReportType>;
 
 export interface OrderTotals {
   subtotal: number;
   vat: number;
   shipping: number;
+  freight: number;
+  credit: number;
   total: number;
 }
 
 export type UserListItem = Pick<SerializedUser, "id" | "email" | "role" | "createdAt"> & {
+  companyName: string | null;
   orderCount: number;
+  creditBalance: number;
 };
 
-export type AdminShipmentListItem = Pick<SerializedShipment, "id" | "name" | "status" | "deadline" | "shipmentDate" | "freightCost" | "createdAt"> & {
+export type AdminShipmentListItem = Pick<SerializedShipment, "id" | "name" | "status" | "deadline" | "shipmentDate" | "freightCost" | "margin" | "createdAt"> & {
   productCount: number;
   orderCount: number;
 };
 
+export interface AdminShipmentDetailProduct {
+  id: string;
+  name: string;
+  price: number;
+  size: string | null;
+  qtyPerBox: number;
+  availableQty: number | null;
+}
+
+export interface AdminShipmentDetailOrderItem {
+  id: string;
+  productId: string | null;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface AdminShipmentDetailOrder {
+  id: string;
+  status: string;
+  userEmail: string;
+  userCompanyName: string | null;
+  itemCount: number;
+  total: number;
+  createdAt: string;
+  items: AdminShipmentDetailOrderItem[];
+}
+
+export interface AdminShipmentDetail {
+  id: string;
+  name: string;
+  status: string;
+  deadline: string;
+  shipmentDate: string;
+  freightCost: number;
+  margin: number;
+  sourceFilename: string | null;
+  createdAt: string;
+  products: AdminShipmentDetailProduct[];
+  orders: AdminShipmentDetailOrder[];
+}
+
 export type AdminOrderListItem = Pick<SerializedOrder, "id" | "status" | "createdAt"> & {
   userEmail: string;
+  userCompanyName: string | null;
   shipmentName: string;
   itemCount: number;
   total: number;
 };
 
-export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice">;
+export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName">;
 
 export type AdminOrderDetail = SerializedOrder & {
-  user: { email: string };
-  shipment: { name: string };
+  user: { email: string; companyName: string | null };
+  shipment: { name: string; freightCost: number };
   items: SerializedOrderItem[];
   totals: OrderTotals;
 };
@@ -61,17 +114,54 @@ export type UserOrderListItem = Pick<SerializedOrder, "id" | "status" | "created
 };
 
 export type UserOrderDetail = SerializedOrder & {
-  shipment: { name: string };
+  shipment: { name: string; freightCost: number };
   items: SerializedOrderItem[];
   totals: OrderTotals;
+};
+
+export type DoaItemWithUrl = SerializedDoaItem & {
+  imageUrls: string[];
+  orderItem: SerializedOrderItem;
+};
+
+export type DoaClaimDetail = SerializedDoaClaim & {
+  items: DoaItemWithUrl[];
+  order: {
+    id: string;
+    shipmentId: string;
+    user: { email: string };
+    shipment: { id: string; name: string };
+    items: SerializedOrderItem[];
+  };
+};
+
+export type DoaShipmentGroup = {
+  shipment: { id: string; name: string };
+  claims: DoaClaimDetail[];
+  hasReport: boolean;
+};
+
+export type DoaReportDetail = SerializedDoaReport & {
+  shipment: { id: string; name: string };
+  downloadUrl: string | null;
 };
 
 export interface ParsedProduct {
   name: string;
   price: number | null;
+  size: string | null;
   qtyPerBox: number | null;
+  availableQty: number | null;
   originalRow?: Record<string, unknown>;
   warnings: string[];
+}
+
+export interface ColumnMapping {
+  name: number;
+  price: number;
+  size: number;
+  qtyPerBox: number;
+  stock: number;
 }
 
 export interface ParsedShipment {
@@ -81,4 +171,7 @@ export interface ParsedShipment {
   freightCost: number | null;
   items: ParsedProduct[];
   warnings: string[];
+  headers: string[];
+  columnMappings: ColumnMapping;
+  rawRows?: unknown[][];
 }

@@ -3,10 +3,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { AdminOrderDetail, EditableOrderItem } from "@/app/lib/types";
+import { generateInvoice } from "@/app/lib/generate-invoice";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+const statusColors: Record<string, string> = {
+  DRAFT: "bg-white/10 text-white/60",
+  SUBMITTED: "bg-blue-500/20 text-blue-400",
+  AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
+  ACCEPTED: "bg-green-500/20 text-green-400",
+  REJECTED: "bg-red-500/20 text-red-400",
+  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  PAID: "bg-emerald-500/20 text-emerald-400",
+  EXPIRED: "bg-orange-500/20 text-orange-400",
+};
+
+const statusLabels: Record<string, string> = {
+  AWAITING_FULFILLMENT: "AWAITING FULFILLMENT",
+  AWAITING_PAYMENT: "AWAITING PAYMENT",
+};
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
@@ -16,20 +33,48 @@ export default function AdminOrderDetailPage() {
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<EditableOrderItem[]>([]);
   const [includeShipping, setIncludeShipping] = useState(false);
+  const [freightCharge, setFreightCharge] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemQty, setNewItemQty] = useState("1");
+  const [savedSnapshot, setSavedSnapshot] = useState("");
+
+  const applyOrderData = useCallback((data: AdminOrderDetail) => {
+    setOrder(data);
+    setItems(data.items);
+    setIncludeShipping(data.includeShipping);
+    setAdminNotes(data.adminNotes || "");
+
+    let fc: string;
+    if (data.freightCharge != null && Number(data.freightCharge) !== 0) {
+      fc = String(data.freightCharge);
+    } else {
+      const shipFreight = Number(data.shipment?.freightCost) || 0;
+      const boxes = Math.ceil((data.items || []).reduce((sum: number, item: { quantity: number; product?: { qtyPerBox?: number } }) => {
+        const qtyPerBox = item.product?.qtyPerBox || 1;
+        return sum + item.quantity / qtyPerBox;
+      }, 0));
+      const est = boxes > 0 && shipFreight > 0 ? shipFreight * boxes : 0;
+      fc = est > 0 ? est.toFixed(2) : "";
+    }
+    setFreightCharge(fc);
+
+    setSavedSnapshot(JSON.stringify({
+      items: data.items.map((i: EditableOrderItem) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      includeShipping: data.includeShipping,
+      freightCharge: fc,
+      adminNotes: data.adminNotes || "",
+    }));
+  }, []);
 
   const fetchOrder = useCallback(async () => {
-    const res = await fetch(`/api/admin/orders/${params.id}`);
+    const res = await fetch(`/api/admin/orders/${params.id}`, { cache: "no-store" });
     if (res.ok) {
-      const data = await res.json();
-      setOrder(data);
-      setItems(data.items);
-      setIncludeShipping(data.includeShipping);
+      applyOrderData(await res.json());
     }
     setLoading(false);
-  }, [params.id]);
+  }, [params.id, applyOrderData]);
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
@@ -51,44 +96,103 @@ export default function AdminOrderDetailPage() {
       name: newItemName,
       quantity: parseInt(newItemQty) || 1,
       unitPrice: parseFloat(newItemPrice) || 0,
+      substituteProductId: null,
+      substituteName: null,
     }]);
     setNewItemName("");
     setNewItemPrice("");
     setNewItemQty("1");
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    await fetch(`/api/admin/orders/${params.id}`, {
+  const patchOrder = async (body: Record<string, unknown>) => {
+    const res = await fetch(`/api/admin/orders/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      applyOrderData(await res.json());
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await patchOrder({
         items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
         includeShipping,
-      }),
-    });
-    await fetchOrder();
-    setSaving(false);
+        freightCharge: freightCharge ? parseFloat(freightCharge) : null,
+        adminNotes: adminNotes || null,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStatusChange = async (status: string) => {
     setSaving(true);
-    await fetch(`/api/admin/orders/${params.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, includeShipping }),
+    try {
+      await patchOrder({
+        status,
+        items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+        includeShipping,
+        freightCharge: freightCharge ? parseFloat(freightCharge) : null,
+        adminNotes: adminNotes || null,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    setSaving(true);
+    try {
+      await patchOrder({ markPaid: true });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    await generateInvoice({
+      orderRef: order.id.slice(0, 8).toUpperCase(),
+      date: new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+      status: order.status,
+      customerEmail: order.user.email,
+      customerCompanyName: order.user.companyName,
+      shipmentName: order.shipment.name,
+      items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      subtotal: order.totals.subtotal,
+      vat: order.totals.vat,
+      shipping: order.totals.shipping,
+      freight: order.totals.freight,
+      credit: order.totals.credit,
+      total: order.totals.total,
+      includeShipping: order.includeShipping,
+      paymentMethod: order.paymentMethod,
+      paymentReference: order.paymentReference,
     });
-    await fetchOrder();
-    setSaving(false);
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-8 text-white/40">Order not found</div>;
 
   const subtotal = items.reduce((sum, i) => sum + i.quantity * Number(i.unitPrice), 0);
-  const vat = subtotal * 0.2;
   const shipping = includeShipping ? 25 : 0;
-  const total = subtotal + vat + shipping;
+  const freight = parseFloat(freightCharge) || 0;
+  const vat = (subtotal + shipping + freight) * 0.2;
+  const credit = Number(order?.creditApplied) || 0;
+  const total = subtotal + shipping + freight + vat - credit;
+  const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED"].includes(order.status);
+
+  const currentSnapshot = JSON.stringify({
+    items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+    includeShipping,
+    freightCharge,
+    adminNotes,
+  });
+  const hasChanges = savedSnapshot !== "" && currentSnapshot !== savedSnapshot;
 
   return (
     <div className="p-8 max-w-4xl">
@@ -100,17 +204,53 @@ export default function AdminOrderDetailPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
-          <p className="text-white/50 text-sm mt-1">{order.user.email} - {order.shipment.name}</p>
+          <p className="text-white/50 text-sm mt-1">{order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email} - {order.shipment.name}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {order.status === "SUBMITTED" && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleDownloadInvoice}
+            className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Invoice
+          </button>
+          {saving ? (
+            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          ) : (
             <>
-              <button onClick={() => handleStatusChange("APPROVED")} disabled={saving} className="px-4 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm font-medium rounded-xl transition-all">Approve</button>
-              <button onClick={() => handleStatusChange("REJECTED")} disabled={saving} className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-medium rounded-xl transition-all">Reject</button>
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[order.status] || "bg-white/10 text-white/60"}`}>{statusLabels[order.status] || order.status}</span>
+              {order.status === "SUBMITTED" && (
+                <>
+                  <button onClick={() => handleStatusChange("AWAITING_FULFILLMENT")} className="px-2.5 py-1 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Fulfillment</button>
+                  <button onClick={() => handleStatusChange("ACCEPTED")} className="px-2.5 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Accept</button>
+                  <button onClick={() => handleStatusChange("REJECTED")} className="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Reject</button>
+                </>
+              )}
+              {order.status === "AWAITING_FULFILLMENT" && (
+                <>
+                  <button onClick={() => handleStatusChange("ACCEPTED")} className="px-2.5 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Accept</button>
+                  <button onClick={() => handleStatusChange("REJECTED")} className="px-2.5 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Reject</button>
+                </>
+              )}
+              {(order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && (
+                <button onClick={handleMarkPaid} className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Confirm Payment</button>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {order.paymentMethod && (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6">
+          <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2">Payment</p>
+          <p className="text-white text-sm">
+            {order.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : "Card Payment"}
+            {order.paymentReference && <span className="text-white/40 ml-2">Ref: {order.paymentReference}</span>}
+          </p>
+        </div>
+      )}
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
         <div className="px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
@@ -118,42 +258,63 @@ export default function AdminOrderDetailPage() {
           <div className="w-28"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
           <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
           <div className="w-28 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
-          <div className="w-16"></div>
+          {isEditable && <div className="w-16"></div>}
         </div>
 
         {items.map((item, index) => (
-          <div key={index} className="px-6 py-3 flex items-center gap-4 border-b border-white/5">
+          <div key={index} className="px-6 py-3 border-b border-white/5">
+            <div className="flex items-center gap-4">
             <div className="flex-1">
-              <input value={item.name} onChange={(e) => updateItem(index, "name", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+              {isEditable ? (
+                <input value={item.name} onChange={(e) => updateItem(index, "name", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+              ) : (
+                <p className="text-white/90 text-sm font-medium">{item.name}</p>
+              )}
             </div>
             <div className="w-28">
-              <input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(index, "unitPrice", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+              {isEditable ? (
+                <input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(index, "unitPrice", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+              ) : (
+                <p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p>
+              )}
             </div>
             <div className="w-20">
-              <input type="number" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
+              {isEditable ? (
+                <input type="number" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
+              ) : (
+                <p className="text-white/60 text-sm text-center">{item.quantity}</p>
+              )}
             </div>
             <div className="w-28 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.quantity * Number(item.unitPrice))}</p></div>
-            <div className="w-16 text-right">
-              <button onClick={() => removeItem(index)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+            {isEditable && (
+              <div className="w-16 text-right">
+                <button onClick={() => removeItem(index)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+              </div>
+            )}
             </div>
+            {item.substituteName && (
+              <p className="text-amber-400/60 text-[11px] mt-1 ml-1">Substitute: {item.substituteName}</p>
+            )}
           </div>
         ))}
 
-        <div className="px-6 py-3 flex items-end gap-4 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex-1">
-            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+        {isEditable && (
+          <div className="px-6 py-3 flex items-end gap-4 border-b border-white/10 bg-white/[0.02]">
+            <div className="flex-1">
+              <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div className="w-28">
+              <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div className="w-20">
+              <input type="number" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div className="w-28"></div>
+            <div className="w-16">
+              <button onClick={addCustomItem} disabled={!newItemName || !newItemPrice} className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 disabled:opacity-30 transition-all">Add</button>
+            </div>
           </div>
-          <div className="w-28">
-            <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
-          </div>
-          <div className="w-20">
-            <input type="number" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
-          </div>
-          <div className="w-28"></div>
-          <div className="w-16">
-            <button onClick={addCustomItem} disabled={!newItemName || !newItemPrice} className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 disabled:opacity-30 transition-all">Add</button>
-          </div>
-        </div>
+        )}
 
         <div className="p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
@@ -161,16 +322,41 @@ export default function AdminOrderDetailPage() {
             <span className="tabular-nums">{formatPrice(subtotal)}</span>
           </div>
           <div className="flex items-center justify-between text-white/60 text-sm">
+            <span>{isEditable ? "Freight Charge" : "Freight"}</span>
+            {isEditable ? (
+              <input
+                type="number"
+                step="0.01"
+                value={freightCharge}
+                onChange={(e) => setFreightCharge(e.target.value)}
+                placeholder="0.00"
+                className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
+              />
+            ) : (
+              <span className="tabular-nums">{formatPrice(freight)}</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-white/60 text-sm">
+            {isEditable ? (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
+                Shipping (£25.00)
+              </label>
+            ) : (
+              <span>Shipping</span>
+            )}
+            <span className="tabular-nums">{formatPrice(shipping)}</span>
+          </div>
+          <div className="flex items-center justify-between text-white/60 text-sm">
             <span>VAT (20%)</span>
             <span className="tabular-nums">{formatPrice(vat)}</span>
           </div>
-          <div className="flex items-center justify-between text-white/60 text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="rounded" />
-              Shipping (£25.00)
-            </label>
-            <span className="tabular-nums">{formatPrice(shipping)}</span>
-          </div>
+          {credit > 0 && (
+            <div className="flex items-center justify-between text-emerald-400 text-sm">
+              <span>Account Credit</span>
+              <span className="tabular-nums">-{formatPrice(credit)}</span>
+            </div>
+          )}
           <div className="h-px bg-white/10" />
           <div className="flex items-center justify-between">
             <span className="text-white font-semibold">Grand Total</span>
@@ -179,11 +365,30 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all">
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+        <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Invoice Note</p>
+        {isEditable ? (
+          <textarea
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            placeholder="Add a note to this invoice (visible to customer)..."
+            rows={3}
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 resize-none"
+          />
+        ) : adminNotes ? (
+          <p className="text-white/70 text-sm whitespace-pre-wrap">{adminNotes}</p>
+        ) : (
+          <p className="text-white/20 text-sm">No notes</p>
+        )}
       </div>
+
+      {isEditable && hasChanges && (
+        <div className="flex justify-end">
+          <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all">
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,18 +7,22 @@ interface AuthUser {
   userId: string;
   email: string;
   role: "ADMIN" | "USER";
+  companyName: string | null;
+  creditBalance: number;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   logout: async () => {},
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -26,13 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setUser(data))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) setUser(await res.json());
+      else setUser(null);
+    } catch {
+      setUser(null);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchUser().finally(() => setLoading(false));
+  }, [fetchUser]);
+
+  const refreshUser = useCallback(async () => {
+    await fetchUser();
+  }, [fetchUser]);
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -41,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -18,7 +18,9 @@ export async function GET() {
       id: u.id,
       email: u.email,
       role: u.role,
+      companyName: u.companyName || null,
       orderCount: u.orders?.length || 0,
+      creditBalance: Number(u.creditBalance) || 0,
       createdAt: u.createdAt,
     }))
   );
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { email, role } = await request.json();
+  const { email, role, companyName } = await request.json();
   if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
   const db = await getDb();
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
   const user = await repo.save({
     email: email.toLowerCase().trim(),
     role: role === "ADMIN" ? UserRole.ADMIN : UserRole.USER,
+    companyName: companyName || null,
   });
 
   return NextResponse.json({ id: user.id, email: user.email, role: user.role, createdAt: user.createdAt });

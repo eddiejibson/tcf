@@ -10,7 +10,7 @@ export class MagicLink extends BaseEntity {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("User", (user: User) => user.magicLinks)
+  @ManyToOne("users", (user: User) => user.magicLinks)
   @JoinColumn({ name: "userId" })
   user: User;
 

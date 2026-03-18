@@ -16,7 +16,7 @@ export class CreditTransaction extends BaseEntity {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("User", (user: User) => user.creditTransactions)
+  @ManyToOne("users", (user: User) => user.creditTransactions)
   @JoinColumn({ name: "userId" })
   user: User;
 
@@ -32,14 +32,14 @@ export class CreditTransaction extends BaseEntity {
   @Column({ type: "uuid", nullable: true })
   orderId: string | null;
 
-  @ManyToOne("Order", { nullable: true })
+  @ManyToOne("orders", { nullable: true })
   @JoinColumn({ name: "orderId" })
   order: Order | null;
 
   @Column({ type: "uuid", nullable: true })
   doaClaimId: string | null;
 
-  @ManyToOne("DoaClaim", { nullable: true })
+  @ManyToOne("doa_claims", { nullable: true })
   @JoinColumn({ name: "doaClaimId" })
   doaClaim: DoaClaim | null;
 }

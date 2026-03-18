@@ -7,7 +7,7 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("Shipment", (shipment: Shipment) => shipment.products)
+  @ManyToOne("shipments", (shipment: Shipment) => shipment.products)
   @JoinColumn({ name: "shipmentId" })
   shipment: Shipment;
 

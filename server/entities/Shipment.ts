@@ -36,14 +36,14 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   createdById: string;
 
-  @ManyToOne("User", (user: User) => user.createdShipments)
+  @ManyToOne("users", (user: User) => user.createdShipments)
   @JoinColumn({ name: "createdById" })
   createdBy: User;
 
-  @OneToMany("Product", (product: Product) => product.shipment, { cascade: true })
+  @OneToMany("products", (product: Product) => product.shipment, { cascade: true })
   products: Product[];
 
-  @OneToMany("Order", (order: Order) => order.shipment)
+  @OneToMany("orders", (order: Order) => order.shipment)
   orders: Order[];
 }
 

@@ -8,14 +8,14 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne("Order", (order: Order) => order.items)
+  @ManyToOne("orders", (order: Order) => order.items)
   @JoinColumn({ name: "orderId" })
   order: Order;
 
   @Column({ type: "uuid", nullable: true })
   productId: string | null;
 
-  @ManyToOne("Product", { nullable: true })
+  @ManyToOne("products", { nullable: true })
   @JoinColumn({ name: "productId" })
   product: Product | null;
 
@@ -31,7 +31,7 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "uuid", nullable: true })
   substituteProductId: string | null;
 
-  @ManyToOne("Product", { nullable: true })
+  @ManyToOne("products", { nullable: true })
   @JoinColumn({ name: "substituteProductId" })
   substituteProduct: Product | null;
 

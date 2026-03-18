@@ -7,7 +7,7 @@ export class DoaReport extends BaseEntity {
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("Shipment")
+  @ManyToOne("shipments")
   @JoinColumn({ name: "shipmentId" })
   shipment: Shipment;
 

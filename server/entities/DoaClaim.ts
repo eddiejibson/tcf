@@ -14,14 +14,14 @@ export class DoaClaim extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne("Order", (order: Order) => order.doaClaims)
+  @ManyToOne("orders", (order: Order) => order.doaClaims)
   @JoinColumn({ name: "orderId" })
   order: Order;
 
   @Column({ type: "enum", enum: DoaClaimStatus, default: DoaClaimStatus.PENDING })
   status: DoaClaimStatus;
 
-  @OneToMany("DoaItem", (item: DoaItem) => item.claim, { cascade: true })
+  @OneToMany("doa_items", (item: DoaItem) => item.claim, { cascade: true })
   items: DoaItem[];
 }
 

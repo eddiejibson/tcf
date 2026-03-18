@@ -4,33 +4,38 @@ import { getUploadUrl, uploadBuffer } from "@/server/services/storage.service";
 import { v4 as uuid } from "uuid";
 
 export async function POST(request: NextRequest) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = await requireAuth();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const contentType = request.headers.get("content-type") || "";
-  const isProxy = contentType.includes("multipart/form-data");
+    const contentType = request.headers.get("content-type") || "";
+    const isProxy = contentType.includes("multipart/form-data");
 
-  if (isProxy) {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file) return NextResponse.json({ error: "file is required" }, { status: 400 });
+    if (isProxy) {
+      const formData = await request.formData();
+      const file = formData.get("file") as File | null;
+      if (!file) return NextResponse.json({ error: "file is required" }, { status: 400 });
 
-    const ext = file.name.split(".").pop() || "jpg";
+      const ext = file.name.split(".").pop() || "jpg";
+      const key = `doa-images/${user.userId}/${uuid()}.${ext}`;
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await uploadBuffer(key, buffer, file.type || "image/jpeg");
+
+      return NextResponse.json({ key });
+    }
+
+    const body = await request.json();
+    if (!body.contentType || !body.filename) {
+      return NextResponse.json({ error: "contentType and filename are required" }, { status: 400 });
+    }
+
+    const ext = body.filename.split(".").pop() || "jpg";
     const key = `doa-images/${user.userId}/${uuid()}.${ext}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await uploadBuffer(key, buffer, file.type || "image/jpeg");
+    const url = await getUploadUrl(key, body.contentType);
 
-    return NextResponse.json({ key });
+    return NextResponse.json({ url, key });
+  } catch (e) {
+    console.error("POST /api/upload/signed-url error:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
-
-  const body = await request.json();
-  if (!body.contentType || !body.filename) {
-    return NextResponse.json({ error: "contentType and filename are required" }, { status: 400 });
-  }
-
-  const ext = body.filename.split(".").pop() || "jpg";
-  const key = `doa-images/${user.userId}/${uuid()}.${ext}`;
-  const url = await getUploadUrl(key, body.contentType);
-
-  return NextResponse.json({ url, key });
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import AnimatedCounter from "./components/AnimatedCounter";
 import BookAppointmentButton from "./components/BookAppointmentButton";
 import BookingForm from "./components/BookingForm";
+import GradientDivider from "./components/GradientDivider";
 import { FadeIn, ScaleIn, SlideInLeft } from "./components/HeroAnimations";
 import MobileHero from "./components/MobileHero";
 import {
@@ -15,10 +16,11 @@ import {
   SwipeReveal,
 } from "./components/ScrollAnimations";
 import Slideshow from "./components/Slideshow";
+import SourceMap from "./components/SourceMap";
 
 export default function Home() {
   return (
-    <div className="relative w-full bg-[#2B343E]">
+    <div className="relative w-full bg-[#2B343E] dot-pattern">
       {/* ===== HERO SECTION ===== */}
       <section className="relative w-full min-h-screen md:min-h-0 md:h-[80vh] overflow-hidden">
         {/* Desktop: Right side slideshow - behind the wave */}
@@ -112,7 +114,7 @@ export default function Home() {
             {/* Main Headline */}
             <div className="space-y-2 mt-[8vh] lg:mt-[10vh]">
               <SlideInLeft delay={0.2}>
-                <h1 className="text-3xl lg:text-4xl xl:text-5xl leading-tight font-black text-white">
+                <h1 className="text-3xl lg:text-4xl xl:text-5xl leading-tight font-black gradient-text">
                   We love coral
                 </h1>
               </SlideInLeft>
@@ -209,7 +211,7 @@ export default function Home() {
             </p>
           </BlurIn>
           <GlowUp delay={0.1}>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-[0_2px_15px_rgba(255,255,255,0.15)]">
+            <h2 className="text-3xl md:text-4xl font-bold gradient-text mb-4 drop-shadow-[0_2px_15px_rgba(255,255,255,0.15)]">
               Quality you can trust
             </h2>
           </GlowUp>
@@ -223,7 +225,7 @@ export default function Home() {
           <StaggerList className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {/* Step 1 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="card-gradient-border rounded-[20px] p-6 md:p-8 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">01</span>
@@ -242,7 +244,7 @@ export default function Home() {
 
             {/* Step 2 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="card-gradient-border rounded-[20px] p-6 md:p-8 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">02</span>
@@ -261,7 +263,7 @@ export default function Home() {
 
             {/* Step 3 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="card-gradient-border rounded-[20px] p-6 md:p-8 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">03</span>
@@ -282,15 +284,7 @@ export default function Home() {
       </section>
 
       {/* ===== SLANT DIVIDER: Process to Why Us ===== */}
-      <div className="relative h-16 md:h-24 overflow-hidden divider-texture">
-        <svg
-          className="absolute w-full h-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <polygon points="0,0 100,100 0,100" fill="#1a1f26" />
-        </svg>
-      </div>
+      <GradientDivider variant="slant-left" />
 
       {/* ===== WHY US SECTION ===== */}
       <section
@@ -306,7 +300,7 @@ export default function Home() {
                 </p>
               </SwipeReveal>
               <SwipeReveal direction="left" delay={0.1}>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                <h2 className="text-3xl md:text-4xl font-bold gradient-text mb-6">
                   Built for the trade
                 </h2>
               </SwipeReveal>

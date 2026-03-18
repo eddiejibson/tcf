@@ -4,27 +4,32 @@ import { getAllDoaClaimsGrouped } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    const admin = await requireAdmin();
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const groups = await getAllDoaClaimsGrouped();
+    const groups = await getAllDoaClaimsGrouped();
 
-  const result = await Promise.all(
-    groups.map(async (group) => ({
-      ...group,
-      claims: await Promise.all(
-        group.claims.map(async (claim) => ({
-          ...claim,
-          items: await Promise.all(
-            claim.items.map(async (item) => ({
-              ...item,
-              imageUrls: await Promise.all(item.imageKeys.map((k: string) => getDownloadUrl(k))),
-            }))
-          ),
-        }))
-      ),
-    }))
-  );
+    const result = await Promise.all(
+      groups.map(async (group) => ({
+        ...group,
+        claims: await Promise.all(
+          group.claims.map(async (claim) => ({
+            ...claim,
+            items: await Promise.all(
+              claim.items.map(async (item) => ({
+                ...item,
+                imageUrls: await Promise.all((item.imageKeys || []).map((k: string) => getDownloadUrl(k))),
+              }))
+            ),
+          }))
+        ),
+      }))
+    );
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (e) {
+    console.error("GET /api/admin/doa error:", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
+  }
 }

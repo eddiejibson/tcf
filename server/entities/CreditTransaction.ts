@@ -16,7 +16,7 @@ export class CreditTransaction extends BaseEntity {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("User", "creditTransactions")
+  @ManyToOne("User", (user: User) => user.creditTransactions)
   @JoinColumn({ name: "userId" })
   user: User;
 

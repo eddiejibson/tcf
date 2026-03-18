@@ -8,7 +8,7 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne("Order", "items")
+  @ManyToOne("Order", (order: Order) => order.items)
   @JoinColumn({ name: "orderId" })
   order: Order;
 

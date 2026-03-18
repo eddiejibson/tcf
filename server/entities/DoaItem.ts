@@ -8,7 +8,7 @@ export class DoaItem extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   claimId: string;
 
-  @ManyToOne("DoaClaim", "items")
+  @ManyToOne("DoaClaim", (claim: DoaClaim) => claim.items)
   @JoinColumn({ name: "claimId" })
   claim: DoaClaim;
 

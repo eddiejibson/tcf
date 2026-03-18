@@ -24,16 +24,16 @@ export class User extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   creditBalance: number;
 
-  @OneToMany("Order", "user")
+  @OneToMany("Order", (order: Order) => order.user)
   orders: Order[];
 
-  @OneToMany("CreditTransaction", "user")
+  @OneToMany("CreditTransaction", (ct: CreditTransaction) => ct.user)
   creditTransactions: CreditTransaction[];
 
-  @OneToMany("Shipment", "createdBy")
+  @OneToMany("Shipment", (s: Shipment) => s.createdBy)
   createdShipments: Shipment[];
 
-  @OneToMany("MagicLink", "user")
+  @OneToMany("MagicLink", (ml: MagicLink) => ml.user)
   magicLinks: MagicLink[];
 }
 

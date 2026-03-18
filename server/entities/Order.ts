@@ -26,14 +26,14 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("User", "orders")
+  @ManyToOne("User", (user: User) => user.orders)
   @JoinColumn({ name: "userId" })
   user: User;
 
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("Shipment", "orders")
+  @ManyToOne("Shipment", (shipment: Shipment) => shipment.orders)
   @JoinColumn({ name: "shipmentId" })
   shipment: Shipment;
 
@@ -64,10 +64,10 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "boolean", default: false })
   useCredit: boolean;
 
-  @OneToMany("OrderItem", "order", { cascade: true })
+  @OneToMany("OrderItem", (item: OrderItem) => item.order, { cascade: true })
   items: OrderItem[];
 
-  @OneToMany("DoaClaim", "order")
+  @OneToMany("DoaClaim", (claim: DoaClaim) => claim.order)
   doaClaims: DoaClaim[];
 }
 

@@ -9,7 +9,6 @@ import {
   BlurIn,
   Float,
   GlowUp,
-  PulseGlow,
   StaggerChild,
   StaggerList,
   SwipeReveal,
@@ -210,7 +209,7 @@ export default function Home() {
             </p>
           </BlurIn>
           <GlowUp delay={0.1}>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-[0_2px_15px_rgba(255,255,255,0.15)]">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Quality you can trust
             </h2>
           </GlowUp>
@@ -224,7 +223,7 @@ export default function Home() {
           <StaggerList className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {/* Step 1 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">01</span>
@@ -243,7 +242,7 @@ export default function Home() {
 
             {/* Step 2 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">02</span>
@@ -262,7 +261,7 @@ export default function Home() {
 
             {/* Step 3 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 h-full shadow-[0_0_30px_rgba(9,132,227,0.15)] hover:shadow-[0_0_60px_rgba(9,132,227,0.4)] hover:-translate-y-2 hover:scale-[1.02]">
+              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
                 <Float intensity={5}>
                   <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
                     <span className="text-[#0984E3] font-bold text-lg">03</span>
@@ -411,44 +410,36 @@ export default function Home() {
             {/* Stats */}
             <StaggerList className="grid grid-cols-2 gap-4">
               <StaggerChild>
-                <PulseGlow className="rounded-[20px]">
-                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-[#0984E3]/30 transition-all duration-300">
+                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={20} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Years experience</p>
                   </div>
-                </PulseGlow>
               </StaggerChild>
               <StaggerChild>
-                <PulseGlow className="rounded-[20px]">
-                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-[#0984E3]/30 transition-all duration-300">
+                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={100} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Trade customers</p>
                   </div>
-                </PulseGlow>
               </StaggerChild>
               <StaggerChild>
-                <PulseGlow className="rounded-[20px]">
-                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-[#0984E3]/30 transition-all duration-300">
+                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={10} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Shipments monthly</p>
                   </div>
-                </PulseGlow>
               </StaggerChild>
               <StaggerChild>
-                <PulseGlow className="rounded-[20px]">
-                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-[#0984E3]/30 transition-all duration-300">
+                  <div className="bg-[#2B343E] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={100} suffix="%" />
                     </p>
                     <p className="text-white/50 text-sm">Exclusive Suppliers</p>
                   </div>
-                </PulseGlow>
               </StaggerChild>
             </StaggerList>
           </div>
@@ -491,12 +482,11 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {/* Retail Experience */}
             <SwipeReveal delay={0.1}>
-              <div className="group relative bg-gradient-to-b from-[#1a1f26] to-[#1a1f26]/80 rounded-[24px] p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 hover:-translate-y-1 h-full">
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0984E3]/0 to-[#0984E3]/5 rounded-[24px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0984E3]/20 to-[#0984E3]/10 flex items-center justify-center mb-6 border border-[#0984E3]/20">
+              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
                     <svg
-                      className="w-8 h-8 text-[#0984E3]"
+                      className="w-6 h-6 text-[#0984E3]"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -522,12 +512,11 @@ export default function Home() {
 
             {/* Marine Biologist */}
             <SwipeReveal delay={0.2}>
-              <div className="group relative bg-gradient-to-b from-[#1a1f26] to-[#1a1f26]/80 rounded-[24px] p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 hover:-translate-y-1 h-full">
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0984E3]/0 to-[#0984E3]/5 rounded-[24px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0984E3]/20 to-[#0984E3]/10 flex items-center justify-center mb-6 border border-[#0984E3]/20">
+              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
                     <svg
-                      className="w-8 h-8 text-[#0984E3]"
+                      className="w-6 h-6 text-[#0984E3]"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -554,12 +543,11 @@ export default function Home() {
 
             {/* Proper Quarantine */}
             <SwipeReveal delay={0.3}>
-              <div className="group relative bg-gradient-to-b from-[#1a1f26] to-[#1a1f26]/80 rounded-[24px] p-8 border border-white/5 hover:border-[#0984E3]/30 transition-all duration-500 hover:-translate-y-1 h-full">
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0984E3]/0 to-[#0984E3]/5 rounded-[24px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0984E3]/20 to-[#0984E3]/10 flex items-center justify-center mb-6 border border-[#0984E3]/20">
+              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                <div>
+                  <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
                     <svg
-                      className="w-8 h-8 text-[#0984E3]"
+                      className="w-6 h-6 text-[#0984E3]"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -636,12 +624,8 @@ export default function Home() {
       </div>
 
       {/* ===== CTA SECTION ===== */}
-      <section className="relative px-6 md:px-[100px] lg:px-[140px] py-16 md:py-24 overflow-hidden">
-        {/* Radial glow background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#0984E3]/10 rounded-full blur-[120px]" />
-        </div>
-        <div className="relative max-w-4xl mx-auto text-center">
+      <section className="px-6 md:px-[100px] lg:px-[140px] py-16 md:py-24">
+        <div className="max-w-4xl mx-auto text-center">
           <SwipeReveal>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Ready to stock up?
@@ -655,7 +639,7 @@ export default function Home() {
           </SwipeReveal>
           <SwipeReveal delay={0.2}>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <BookAppointmentButton className="bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(9,132,227,0.4)] hover:shadow-[0_0_50px_rgba(9,132,227,0.6)]">
+              <BookAppointmentButton className="bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95">
                 BOOK AN APPOINTMENT
               </BookAppointmentButton>
               <Link
@@ -670,7 +654,7 @@ export default function Home() {
       </section>
 
       {/* ===== FOOTER ===== */}
-      <footer className="px-6 md:px-[100px] lg:px-[140px] py-12 bg-[#141920] border-t border-white/10">
+      <footer className="px-6 md:px-[100px] lg:px-[140px] py-12 bg-[#1a1f26] border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start gap-10 mb-10">
             {/* Brand */}

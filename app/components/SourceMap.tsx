@@ -79,25 +79,24 @@ export default function SourceMap() {
         className="relative w-full rounded-2xl overflow-hidden"
         style={{
           aspectRatio: "784 / 459",
-          background: "#0b1117",
         }}
       >
-        {/* Real world map SVG as background - styled dark with CSS */}
+        {/* Real world map SVG as background */}
         <img
           src="/images/world-map.svg"
           alt=""
           aria-hidden
           className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
           style={{
-            opacity: 0.07,
-            filter: "invert(1) brightness(2)",
+            opacity: 0.08,
+            filter: "invert(1) brightness(1.5) sepia(1) hue-rotate(180deg) saturate(3)",
           }}
         />
 
-        {/* SVG overlay for interactive elements */}
+        {/* SVG overlay for route lines */}
         <svg
           viewBox="0 0 100 100"
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-full pointer-events-none"
           preserveAspectRatio="none"
         >
           {/* Route lines from UK to each source */}
@@ -161,7 +160,7 @@ export default function SourceMap() {
               )}
               {/* Dot */}
               <div
-                className={`relative rounded-full bg-[#0984E3] border-2 border-[#0b1117] transition-all duration-200 ${
+                className={`relative rounded-full bg-[#0984E3] border-2 border-[#1a1f26] transition-all duration-200 ${
                   isActive ? "w-3 h-3 -m-0.5" : "w-2 h-2"
                 }`}
               />

@@ -59,8 +59,8 @@ const LOCATIONS: Location[] = [
   },
 ];
 
-// UK origin (approximate position on the SVG)
-const UK = { x: 55.2, y: 26 };
+// London, UK origin (mapped from SVG coords ~405, 383)
+const UK = { x: 47.7, y: 30.8 };
 
 export default function SourceMap() {
   const [active, setActive] = useState<number | null>(null);
@@ -91,17 +91,6 @@ export default function SourceMap() {
           style={{
             opacity: 0.07,
             filter: "invert(1) brightness(2)",
-          }}
-        />
-
-        {/* Dot overlay effect - creates the dot-matrix look */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)",
-            backgroundSize: "8px 8px",
-            mixBlendMode: "screen",
           }}
         />
 

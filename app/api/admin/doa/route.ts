@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getAllDoaClaimsGrouped } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
+import { log } from "@/server/logger";
 
 export async function GET() {
   try {
@@ -29,7 +30,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (e) {
-    console.error("GET /api/admin/doa error:", e);
+    log.error("Failed to get DOA claims", e, { route: "/api/admin/doa", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

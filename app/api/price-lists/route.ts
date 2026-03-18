@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { log } from "@/server/logger";
 
 const PASSWORD = "RlQ8UG";
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ files: fileDetails });
-  } catch {
+  } catch (e) {
+    log.error("Failed to read price lists", e, { route: "/api/price-lists", method: "POST" });
     return NextResponse.json(
       { error: "Failed to read price lists" },
       { status: 500 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
 import { getUploadUrl, uploadBuffer } from "@/server/services/storage.service";
 import { v4 as uuid } from "uuid";
+import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url, key });
   } catch (e) {
-    console.error("POST /api/upload/signed-url error:", e);
+    log.error("Upload signed URL failed", e, { route: "/api/upload/signed-url", method: "POST" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

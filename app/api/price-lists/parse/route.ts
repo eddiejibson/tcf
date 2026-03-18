@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
+import { log } from "@/server/logger";
 
 const PASSWORD = "RlQ8UG";
 
@@ -234,7 +235,7 @@ export async function POST(request: NextRequest) {
         });
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        console.error(`Error parsing ${file}:`, errorMsg);
+        log.error(`Error parsing price list file: ${file}`, err, { route: "/api/price-lists/parse", method: "POST" });
         parsedFiles.push({
           filename: file,
           displayName: file.replace(/\s*\d{2}\.\d{2}\.\d{2}\.(xlsx?|xls)$/i, ""),
@@ -246,7 +247,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ files: parsedFiles });
-  } catch {
+  } catch (e) {
+    log.error("Failed to parse price lists", e, { route: "/api/price-lists/parse", method: "POST" });
     return NextResponse.json(
       { error: "Failed to parse price lists" },
       { status: 500 }

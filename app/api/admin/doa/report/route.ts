@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { generateDoaReport } from "@/server/services/doa.service";
+import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     const report = await generateDoaReport(shipmentId);
     return NextResponse.json(report, { status: 201 });
   } catch (e) {
-    console.error("POST /api/admin/doa/report error:", e);
+    log.error("Failed to generate DOA report", e, { route: "/api/admin/doa/report", method: "POST" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

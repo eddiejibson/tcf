@@ -3,6 +3,7 @@ import { requireAuth } from "@/server/middleware/auth";
 import { getOrderById } from "@/server/services/order.service";
 import { createDoaClaim, getDoaClaimByOrderId } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
+import { log } from "@/server/logger";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,7 +27,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
     return NextResponse.json({ ...claim, items: itemsWithUrls });
   } catch (e) {
-    console.error("GET /api/orders/[id]/doa error:", e);
+    log.error("Failed to get DOA claim", e, { route: "/api/orders/[id]/doa", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const claim = await createDoaClaim(id, items);
     return NextResponse.json(claim, { status: 201 });
   } catch (e) {
-    console.error("POST /api/orders/[id]/doa error:", e);
+    log.error("Failed to create DOA claim", e, { route: "/api/orders/[id]/doa", method: "POST" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

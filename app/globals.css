@@ -351,104 +351,14 @@ body {
   z-index: 1;
 }
 
-/* ===== PREMIUM REDESIGN: Keyframes ===== */
-
-/* Pulsing rings for map source dots */
+/* Pulsing rings for source map dots */
 @keyframes source-ping {
   0% {
     transform: scale(1);
-    opacity: 0.6;
-  }
-  70% {
-    transform: scale(2.5);
-    opacity: 0;
+    opacity: 0.5;
   }
   100% {
-    transform: scale(2.5);
+    transform: scale(3);
     opacity: 0;
   }
-}
-
-/* Rotating conic-gradient border */
-@property --border-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes border-gradient-rotate {
-  to {
-    --border-angle: 360deg;
-  }
-}
-
-/* Shifting gradient for dividers */
-@keyframes gradient-mesh-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* ===== PREMIUM REDESIGN: Utility Classes ===== */
-
-/* Gradient text: white to blue */
-.gradient-text {
-  background: linear-gradient(135deg, #ffffff 0%, #0984E3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Animated gradient border on hover */
-.card-gradient-border {
-  position: relative;
-  background: #1a1f26;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.5s ease;
-}
-
-.card-gradient-border::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from var(--border-angle),
-    transparent 30%,
-    #0984E3 50%,
-    transparent 70%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  animation: border-gradient-rotate 3s linear infinite;
-  pointer-events: none;
-}
-
-.card-gradient-border:hover::before {
-  opacity: 1;
-}
-
-.card-gradient-border:hover {
-  border-color: transparent;
-}
-
-/* Subtle dot grid background texture */
-.dot-pattern {
-  background-image: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.07) 1px,
-    transparent 1px
-  );
-  background-size: 24px 24px;
 }

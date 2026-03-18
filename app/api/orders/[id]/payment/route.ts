@@ -3,6 +3,7 @@ import { requireAuth } from "@/server/middleware/auth";
 import { getOrderById, setPaymentMethod, clearPaymentMethod, confirmBankTransferSent, markOrderPaid, calculateOrderTotals } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { createPaymentLink, isPaymentLinkPaid, BANK_DETAILS } from "@/server/services/payment.service";
+import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await setPaymentMethod(id, PaymentMethod.CARD, link.paymentLinkId);
       return NextResponse.json({ method: "CARD", paymentUrl: link.url });
     } catch (e) {
-      console.error("Square payment link error:", e);
+      log.error("Square payment link creation failed", e, { route: "/api/orders/[id]/payment", method: "POST", meta: { orderId: id } });
       return NextResponse.json({ error: "Failed to create payment link" }, { status: 500 });
     }
   }

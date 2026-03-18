@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { log } from "@/server/logger";
 
 const PASSWORD = "RlQ8UG";
 
@@ -41,7 +42,8 @@ export async function POST(request: NextRequest) {
         "Content-Disposition": `attachment; filename="${sanitizedFilename}"`,
       },
     });
-  } catch {
+  } catch (e) {
+    log.error("Failed to download price list file", e, { route: "/api/price-lists/download", method: "POST" });
     return NextResponse.json(
       { error: "Failed to download file" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { Order, OrderStatus, PaymentMethod } from "../entities/Order";
 import { OrderItem } from "../entities/OrderItem";
 import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
+import { log } from "../logger";
 import { MoreThan } from "typeorm";
 import { Shipment } from "../entities/Shipment";
 import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges } from "./email.service";
@@ -122,7 +123,7 @@ export async function submitOrder(orderId: string) {
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
 
   sendOrderNotification(adminEmails, order.user.email, order.shipment.name, formatPrice(totals.total))
-    .catch((e) => console.error("Failed to send order notification:", e));
+    .catch((e) => log.error("Failed to send order notification", e));
 
   return order;
 }
@@ -204,10 +205,10 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
       };
       generateInvoiceBuffer(invoiceData)
         .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment.name, formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
-        .catch((e) => console.error("Failed to send accepted email with invoice:", e));
+        .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
       sendOrderStatusUpdate(order.user.email, order.shipment.name, status, formatPrice(totals.total))
-        .catch((e) => console.error("Failed to send status update email:", e));
+        .catch((e) => log.error("Failed to send status update email", e));
     }
   }
 
@@ -280,7 +281,7 @@ export async function updateAcceptedOrderItems(
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
       sendOrderChanges(updated.user.email, updated.shipment.name, changes, formatPrice(totals.total))
-        .catch((e) => console.error("Failed to send order changes email:", e));
+        .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
 

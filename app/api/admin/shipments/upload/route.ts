@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { parseExcelBuffer } from "@/server/services/excel-parser.service";
 import type { ColumnMapping } from "@/app/lib/types";
+import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin();
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(parsed);
   } catch (e) {
-    console.error("Excel parse error:", e);
+    log.error("Excel parse failed", e, { route: "/api/admin/shipments/upload", method: "POST" });
     return NextResponse.json({ error: "Failed to parse Excel file" }, { status: 500 });
   }
 }

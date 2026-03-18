@@ -3,6 +3,7 @@ import { DoaClaim, DoaClaimStatus } from "../entities/DoaClaim";
 import { DoaItem } from "../entities/DoaItem";
 import { DoaReport } from "../entities/DoaReport";
 import { Order } from "../entities/Order";
+import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
 import { addDoaCredit } from "./credit.service";
@@ -173,7 +174,7 @@ export async function generateDoaReport(shipmentId: string) {
           const filename = `${item.itemName.replace(/[^a-zA-Z0-9]/g, "_")}_${key.split("/").pop()}`;
           zip.file(filename, buffer);
         } catch (e) {
-          console.error(`Failed to fetch image ${key}:`, e);
+          log.error(`Failed to fetch DOA image: ${key}`, e);
         }
       }
     }
@@ -209,7 +210,7 @@ export async function generateDoaReport(shipmentId: string) {
           claim.id
         );
       } catch (e) {
-        console.error(`Failed to add DOA credit for claim ${claim.id}:`, e);
+        log.error(`Failed to add DOA credit for claim ${claim.id}`, e);
       }
     }
   }

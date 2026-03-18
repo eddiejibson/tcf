@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -108,7 +109,7 @@ The Coral Farm Bot xoxo
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Booking error:", error);
+    log.error("Booking email failed", error, { route: "/api/booking", method: "POST" });
     return NextResponse.json(
       { error: "Failed to process booking" },
       { status: 500 }

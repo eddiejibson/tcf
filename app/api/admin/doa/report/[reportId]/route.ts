@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDoaReport, getDoaReportDownloadUrl } from "@/server/services/doa.service";
+import { log } from "@/server/logger";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ reportId: string }> }) {
   try {
@@ -15,7 +16,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ report
 
     return NextResponse.json({ ...report, downloadUrl });
   } catch (e) {
-    console.error("GET /api/admin/doa/report/[reportId] error:", e);
+    log.error("Failed to get DOA report", e, { route: "/api/admin/doa/report/[reportId]", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

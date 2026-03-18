@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDoaClaimById, updateDoaItemApprovals, approveAllItemsForClaim } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
+import { log } from "@/server/logger";
 
 async function itemsWithUrls(claim: NonNullable<Awaited<ReturnType<typeof getDoaClaimById>>>) {
   return Promise.all(
@@ -23,7 +24,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ claimI
 
     return NextResponse.json({ ...claim, items: await itemsWithUrls(claim) });
   } catch (e) {
-    console.error("GET /api/admin/doa/[claimId] error:", e);
+    log.error("Failed to get DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }
@@ -49,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ ...claim, items: await itemsWithUrls(claim) });
   } catch (e) {
-    console.error("PATCH /api/admin/doa/[claimId] error:", e);
+    log.error("Failed to update DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "PATCH" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

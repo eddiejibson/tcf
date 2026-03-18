@@ -6,18 +6,29 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typeorm": "tsx node_modules/.bin/typeorm -d server/db/data-source.cli.ts",
+    "migration:generate": "npm run typeorm -- migration:generate server/migrations/Migration",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "db:seed": "tsx server/seed.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
+    "dotenv": "^17.3.1",
     "framer-motion": "^12.23.25",
+    "jose": "^6.2.1",
     "next": "^16.0.8",
     "nodemailer": "^7.0.11",
+    "pg": "^8.20.0",
     "react": "19.2.0",
     "react-countup": "^6.5.3",
     "react-dom": "19.2.0",
     "react-intersection-observer": "^10.0.0",
     "react-swipeable": "^7.0.2",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -26,9 +37,11 @@
     "@types/nodemailer": "^7.0.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "^16.0.8",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

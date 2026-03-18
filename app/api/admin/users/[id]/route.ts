@@ -13,7 +13,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const db = await getDb();
   const repo = db.getRepository(User);
 
-  const update: Partial<User> = {};
+  const update: { role?: UserRole; companyName?: string | null } = {};
   if (role !== undefined) update.role = role === "ADMIN" ? UserRole.ADMIN : UserRole.USER;
   if (companyName !== undefined) update.companyName = companyName || null;
   await repo.update(id, update);

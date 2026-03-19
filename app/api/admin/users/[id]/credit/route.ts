@@ -3,12 +3,14 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole } from "@/server/entities/User";
 import { getCreditBalance, getCreditHistory, addManualCredit } from "@/server/services/credit.service";
+import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const [balance, transactions] = await Promise.all([
     getCreditBalance(id),
     getCreditHistory(id),
@@ -22,6 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Block credit adjustments for admin users
   const db = await getDb();

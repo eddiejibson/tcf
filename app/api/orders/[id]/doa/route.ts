@@ -4,6 +4,7 @@ import { getOrderById } from "@/server/services/order.service";
 import { createDoaClaim, getDoaClaimByOrderId } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { log } from "@/server/logger";
+import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,6 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
+    if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -38,6 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
+    if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

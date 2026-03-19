@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { updateCategory, deleteCategory } from "@/server/services/category.service";
+import { isUuid } from "@/server/utils";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = await request.json();
 
   const data: Record<string, unknown> = {};
@@ -25,6 +27,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
     await deleteCategory(id);

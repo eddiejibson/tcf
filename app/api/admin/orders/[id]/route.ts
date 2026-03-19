@@ -4,12 +4,14 @@ import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderI
 import { Order, OrderStatus } from "@/server/entities/Order";
 import { getDb } from "@/server/db/data-source";
 import { log } from "@/server/logger";
+import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
@@ -22,6 +24,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
     const body = await request.json();

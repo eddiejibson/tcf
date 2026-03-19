@@ -3,6 +3,7 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getDoaClaimById, updateDoaItemApprovals, approveAllItemsForClaim } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { log } from "@/server/logger";
+import { isUuid } from "@/server/utils";
 
 async function itemsWithUrls(claim: NonNullable<Awaited<ReturnType<typeof getDoaClaimById>>>) {
   return Promise.all(
@@ -19,6 +20,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ claimI
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { claimId } = await params;
+    if (!isUuid(claimId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const claim = await getDoaClaimById(claimId);
     if (!claim) return NextResponse.json({ error: "Claim not found" }, { status: 404 });
 
@@ -35,6 +37,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { claimId } = await params;
+    if (!isUuid(claimId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const body = await request.json();
 
     let claim;

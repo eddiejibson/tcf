@@ -77,6 +77,7 @@ export async function getAllDoaClaimsGrouped() {
 
   const reportRepo = db.getRepository(DoaReport);
   for (const [shipmentId, group] of shipmentMap) {
+    if (shipmentId === "catalog") continue;
     const report = await reportRepo.findOne({ where: { shipmentId } });
     group.hasReport = !!report;
   }

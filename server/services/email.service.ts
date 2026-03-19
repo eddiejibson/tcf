@@ -1,15 +1,38 @@
 import nodemailer from "nodemailer";
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+let _transporter: nodemailer.Transporter | null = null;
+
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      pool: true,
+      maxConnections: 3,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+    });
+  }
+  return _transporter;
+}
+
+async function sendWithRetry(mailOptions: nodemailer.SendMailOptions, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const transporter = getTransporter();
+      await transporter.sendMail(mailOptions);
+      return;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      // Reset transporter on connection errors so next attempt gets a fresh one
+      _transporter = null;
+    }
+  }
 }
 
 function from() {
@@ -17,8 +40,7 @@ function from() {
 }
 
 export async function sendMagicLink(email: string, url: string) {
-  const transporter = createTransporter();
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: email,
     subject: "Your login link - The Coral Farm",
@@ -41,8 +63,7 @@ export async function sendOrderNotification(
   shipmentName: string,
   orderTotal: string
 ) {
-  const transporter = createTransporter();
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: adminEmails,
     subject: `New Order Submitted - ${userEmail}`,
@@ -65,7 +86,6 @@ export async function sendOrderStatusUpdate(
   status: string,
   orderTotal: string
 ) {
-  const transporter = createTransporter();
   const isAccepted = status === "ACCEPTED";
   const isFulfillment = status === "AWAITING_FULFILLMENT";
   const statusColor = isAccepted ? "#27ae60" : isFulfillment ? "#f39c12" : "#e74c3c";
@@ -76,7 +96,7 @@ export async function sendOrderStatusUpdate(
     : isFulfillment
     ? '<p style="color: #ffffffcc; font-size: 14px; margin-top: 16px;">Your order has been sent to our exporter. We will notify you once items are confirmed and payment is due.</p>'
     : "";
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: userEmail,
     subject: `${subject} - The Coral Farm`,
@@ -101,11 +121,10 @@ export async function sendOrderAcceptedWithInvoice(
   orderRef: string,
   invoicePdf: Buffer,
 ) {
-  const transporter = createTransporter();
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
   const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
 
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: userEmail,
     subject: `Order Accepted - The Coral Farm`,
@@ -136,9 +155,8 @@ export async function sendOrderChanges(
   changes: string[],
   newTotal: string
 ) {
-  const transporter = createTransporter();
   const changeList = changes.map((c) => `<li style="color: #ffffffcc; font-size: 14px; margin-bottom: 4px;">${c}</li>`).join("");
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: userEmail,
     subject: `Order Updated - The Coral Farm`,
@@ -162,9 +180,8 @@ export async function sendOrderPaidNotification(
   orderTotal: string,
   paymentMethod: string,
 ) {
-  const transporter = createTransporter();
   const methodLabel = paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : paymentMethod === "CARD" ? "Card Payment" : paymentMethod;
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: adminEmails,
     subject: `Order Paid - #${orderRef} - ${userEmail}`,
@@ -189,11 +206,10 @@ export async function sendAdminOrderCreated(
   orderId: string,
   invoicePdf: Buffer
 ) {
-  const transporter = createTransporter();
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
   const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
 
-  await transporter.sendMail({
+  await sendWithRetry({
     from: from(),
     to: userEmail,
     subject: `Order Created For You - The Coral Farm`,

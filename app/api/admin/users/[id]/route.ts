@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole } from "@/server/entities/User";
+import { isUuid } from "@/server/utils";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const { role, companyName } = await request.json();
 
   const db = await getDb();
@@ -28,6 +30,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const db = await getDb();
   const result = await db.getRepository(User).delete(id);
 

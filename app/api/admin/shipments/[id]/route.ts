@@ -3,12 +3,14 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { Shipment } from "@/server/entities/Shipment";
 import { calculateOrderTotals } from "@/server/services/order.service";
+import { isUuid } from "@/server/utils";
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const db = await getDb();
 
   const shipment = await db.getRepository(Shipment).findOneBy({ id });
@@ -49,6 +51,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const db = await getDb();
   const shipment = await db.getRepository(Shipment).findOne({
     where: { id },
@@ -102,6 +105,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = await request.json();
 
   const db = await getDb();

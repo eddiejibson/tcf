@@ -4,6 +4,7 @@ import { getOrderById, setPaymentMethod, clearPaymentMethod, confirmBankTransfer
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { createPaymentLink, isPaymentLinkPaid, BANK_DETAILS } from "@/server/services/payment.service";
 import { log } from "@/server/logger";
+import { isUuid } from "@/server/utils";
 
 function generateIwocaPayUrl(orderId: string, total: number, companyName?: string | null, email?: string) {
   const slug = (companyName || email?.split("@")[0] || "customer")
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -92,6 +94,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -106,6 +109,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.userId !== user.userId && user.role !== "ADMIN") {

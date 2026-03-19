@@ -317,9 +317,133 @@ function detectColumnsSmart(data: unknown[][], headerRowIndex: number): PackingC
   return { name: nameCol, size: sizeCol, qty: qtyCol === -1 ? -1 : qtyCol, headers };
 }
 
+// --- Subtotal/total row blocklist ---
+
+const SUBTOTAL_PATTERN = /^(sub[\s-]?total|total|grand[\s-]?total|sum|shipping|freight|discount|vat|tax|delivery|postage|carriage|handling|p&p|p\+p)$/i;
+
+// --- Order column detection ---
+
+interface OrderColumnResult {
+  colIndex: number;
+  type: "orderId" | "customer";
+}
+
+function detectOrderColumn(
+  data: unknown[][],
+  headerRowIndex: number,
+  nameCol: number,
+  sizeCol: number,
+  qtyCol: number,
+): OrderColumnResult | null {
+  const dataStartRow = headerRowIndex + 1;
+  const maxScanRows = Math.min(30, data.length - dataStartRow);
+  if (maxScanRows < 1) return null;
+
+  const headerRow = data[headerRowIndex] || [];
+  const totalCols = headerRow.length;
+
+  let bestCol: OrderColumnResult | null = null;
+  let bestScore = 0;
+
+  for (let col = 0; col < totalCols; col++) {
+    // Skip columns already identified as name/size/qty
+    if (col === nameCol || col === sizeCol || col === qtyCol) continue;
+
+    let hexIdHits = 0;
+    let emailHits = 0;
+    const distinctValues = new Map<string, number>();
+    let totalNonEmpty = 0;
+    let totalTextLength = 0;
+    let numericOnlyCount = 0;
+
+    for (let r = dataStartRow; r < dataStartRow + maxScanRows && r < data.length; r++) {
+      const val = data[r]?.[col];
+      if (val === null || val === undefined) continue;
+      const str = String(val).trim();
+      if (!str) continue;
+
+      totalNonEmpty++;
+
+      // Check for hex ID pattern
+      const cleaned = str.replace(/^#/, "");
+      if (/^[0-9A-Fa-f]{6,8}$/.test(cleaned)) {
+        hexIdHits++;
+      }
+
+      // Check for email
+      if (/@/.test(str)) {
+        emailHits++;
+      }
+
+      // Check if purely numeric
+      if (/^-?\d+(\.\d+)?$/.test(str)) {
+        numericOnlyCount++;
+      }
+
+      totalTextLength += str.length;
+
+      const key = str.toLowerCase().trim();
+      distinctValues.set(key, (distinctValues.get(key) || 0) + 1);
+    }
+
+    if (totalNonEmpty < 2) continue;
+
+    const distinctCount = distinctValues.size;
+    const avgTextLen = totalTextLength / totalNonEmpty;
+
+    // Skip columns where most values are all numeric (qty/price column)
+    if (numericOnlyCount / totalNonEmpty > 0.7) continue;
+
+    // Skip columns where most values are unique long text (name column)
+    if (distinctCount > totalNonEmpty * 0.8 && avgTextLen > 15) continue;
+
+    let score = 0;
+
+    // Hex IDs found → highest priority
+    if (hexIdHits >= 2 || (hexIdHits >= 1 && hexIdHits / totalNonEmpty > 0.3)) {
+      score = 100 + hexIdHits;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCol = { colIndex: col, type: "orderId" };
+      }
+      continue;
+    }
+
+    // Emails found → strong signal for customer column
+    if (emailHits >= 2 || (emailHits >= 1 && emailHits / totalNonEmpty > 0.3)) {
+      score = 80 + emailHits;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCol = { colIndex: col, type: "customer" };
+      }
+      continue;
+    }
+
+    // Repeating text groups: 2-10 distinct values where each appears multiple times
+    if (distinctCount >= 2 && distinctCount <= 10) {
+      const allRepeating = [...distinctValues.values()].every((count) => count >= 2);
+      const mostRepeating = [...distinctValues.values()].filter((count) => count >= 2).length / distinctCount > 0.5;
+
+      if (allRepeating || mostRepeating) {
+        // Bonus if the header suggests order/customer
+        const header = String(headerRow[col] ?? "").trim().toLowerCase();
+        const headerBonus = /order|customer|client|ref|account|company|buyer/i.test(header) ? 20 : 0;
+        score = 50 + headerBonus + (allRepeating ? 10 : 0);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCol = { colIndex: col, type: "customer" };
+        }
+      }
+    }
+  }
+
+  return bestCol;
+}
+
 // --- Order separator detection ---
 
-function isOrderSeparator(row: unknown[], totalCols: number): { label: string } | null {
+function isOrderSeparator(row: unknown[], totalCols: number, qtyCol?: number): { label: string } | null {
   const cells = row.map((c) => String(c ?? "").trim());
   const nonEmpty = cells.filter((c) => c.length > 0);
 
@@ -335,6 +459,18 @@ function isOrderSeparator(row: unknown[], totalCols: number): { label: string } 
     return { label: label || firstNonEmpty };
   }
 
+  // "Customer: X" / "Client: X" patterns
+  const customerMatch = firstNonEmpty.match(/^(?:customer|client)\s*:\s*(.+)$/i);
+  if (customerMatch && nonEmpty.length <= 2) {
+    return { label: customerMatch[1].trim() };
+  }
+
+  // "Ref: XXX" / "Reference: XXX" patterns
+  const refMatch = firstNonEmpty.match(/^(?:ref|reference)\s*:\s*(.+)$/i);
+  if (refMatch && nonEmpty.length <= 2) {
+    return { label: refMatch[1].trim() };
+  }
+
   // Standalone hex ID (UUID prefix like "876E751E" or "#876E751E")
   if (nonEmpty.length <= 2) {
     const cleaned = firstNonEmpty.replace(/^#/, "");
@@ -343,14 +479,38 @@ function isOrderSeparator(row: unknown[], totalCols: number): { label: string } 
     }
   }
 
+  // Divider rows — cells containing only dashes, equals, or asterisks
+  if (nonEmpty.length >= 1 && nonEmpty.every((c) => /^[-=*]{3,}$/.test(c))) {
+    return { label: "---" };
+  }
+
   // Single small number (order separator like "1", "2", "3")
   if (nonEmpty.length === 1 && /^\d+$/.test(firstNonEmpty) && parseInt(firstNonEmpty) > 0 && parseInt(firstNonEmpty) < 100) {
     return { label: firstNonEmpty };
   }
 
+  // Numbered with dot — "1.", "2.", "3." etc.
+  if (nonEmpty.length <= 2) {
+    const dotNumberMatch = firstNonEmpty.match(/^(\d+)\.\s*(.*)$/);
+    if (dotNumberMatch) {
+      const num = parseInt(dotNumberMatch[1]);
+      if (num > 0 && num < 100) {
+        return { label: dotNumberMatch[2]?.trim() || dotNumberMatch[1] };
+      }
+    }
+  }
+
   // Row with 1-2 cells filled and most empty, where the text doesn't look like a product name
   // (i.e., it's short, or all-caps, or looks like a header/label)
   if (fillRatio <= 0.3 && nonEmpty.length <= 2 && firstNonEmpty.length > 0) {
+    // Tighten: if the qty column has a numeric value, this is NOT a separator — it's a product
+    if (qtyCol !== undefined && qtyCol >= 0) {
+      const qtyVal = cells[qtyCol];
+      if (qtyVal && /^\d+(\.\d+)?$/.test(qtyVal) && parseFloat(qtyVal) > 0) {
+        return null;
+      }
+    }
+
     // Don't treat rows with realistic product names as separators
     // Separators tend to be short labels, email-like, or contain "order"
     const looksLikeLabel = firstNonEmpty.length < 50 && (
@@ -358,6 +518,7 @@ function isOrderSeparator(row: unknown[], totalCols: number): { label: string } 
       /@/.test(firstNonEmpty) || // email
       /^[A-Z0-9\s#_-]+$/.test(firstNonEmpty) || // ALL CAPS or IDs
       /customer/i.test(firstNonEmpty) ||
+      /client/i.test(firstNonEmpty) ||
       firstNonEmpty.split(/\s+/).length <= 3 // very few words
     );
     if (looksLikeLabel) {
@@ -376,6 +537,9 @@ function extractItemFromRow(row: unknown[], mappings: PackingColumnMapping): Pac
 
   // Skip rows that look like just a number (probably a separator/index)
   if (/^\d+$/.test(nameVal) && nameVal.length < 4) return null;
+
+  // Skip subtotal/total/shipping rows
+  if (SUBTOTAL_PATTERN.test(nameVal)) return null;
 
   if (mappings.qty < 0) return null;
 
@@ -522,7 +686,7 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
         for (let i = headerRowIndex + 1; i < data.length; i++) {
           const row = data[i];
           if (!row) continue;
-          const sep = isOrderSeparator(row, totalCols);
+          const sep = isOrderSeparator(row, totalCols, mappings.qty);
           if (sep) separators.push({ rowIndex: i, label: sep.label });
         }
 
@@ -539,7 +703,7 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
             const items: PackingListItem[] = [];
             for (const row of rawRows) {
               if (!row) continue;
-              if (isOrderSeparator(row, totalCols)) continue;
+              if (isOrderSeparator(row, totalCols, qtyCol)) continue;
               const item = extractItemFromRow(row, colMappings);
               if (item) items.push(item);
             }
@@ -551,6 +715,54 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
           mappings.qty = multiQtyCols[0];
           resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
           return;
+        }
+
+        // Check for order/customer column-based grouping (priority over separators)
+        const orderCol = detectOrderColumn(data, headerRowIndex, mappings.name, mappings.size, mappings.qty);
+        if (orderCol) {
+          const groups = new Map<string, unknown[][]>();
+          const groupOrder: string[] = [];
+
+          for (const row of rawRows) {
+            if (!row) continue;
+            // Skip separator rows
+            if (isOrderSeparator(row, totalCols, mappings.qty)) continue;
+
+            const val = String(row[orderCol.colIndex] ?? "").trim();
+            if (!val) continue;
+
+            // Clean up the group key — strip # prefix for hex IDs
+            let key = val;
+            if (orderCol.type === "orderId") {
+              key = val.replace(/^#/, "").toUpperCase();
+            }
+
+            if (!groups.has(key)) {
+              groups.set(key, []);
+              groupOrder.push(key);
+            }
+            groups.get(key)!.push(row);
+          }
+
+          if (groups.size >= 2) {
+            const orders: PackingListOrder[] = [];
+            for (const key of groupOrder) {
+              const rows = groups.get(key)!;
+              const items: PackingListItem[] = [];
+              for (const row of rows) {
+                const item = extractItemFromRow(row, mappings);
+                if (item) items.push(item);
+              }
+              if (items.length > 0) {
+                orders.push({ label: key, items });
+              }
+            }
+
+            if (orders.length >= 2) {
+              resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
+              return;
+            }
+          }
         }
 
         // Build orders using separator-based splitting

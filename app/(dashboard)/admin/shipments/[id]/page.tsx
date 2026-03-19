@@ -274,19 +274,68 @@ export default function AdminShipmentDetailPage() {
       return;
     }
 
-    // Auto-map: first try matching by order ID in label, then fall back to position
+    // Track which system orders have already been matched to avoid double-mapping
+    const usedSystemOrderIds = new Set<string>();
+
     const mappings: OrderMapping[] = packingOrders.map((po, i) => {
       const labelUpper = po.label.replace(/^#/, "").toUpperCase().trim();
-      const matchedOrder = processableOrders.find((o) =>
+      const labelLower = po.label.toLowerCase().trim();
+      const available = processableOrders.filter((o) => !usedSystemOrderIds.has(o.id));
+
+      // 1. Hex ID prefix match
+      let matched = available.find((o) =>
         o.id.slice(0, 8).toUpperCase() === labelUpper ||
         o.id.toUpperCase().startsWith(labelUpper)
       );
-      const emailMatch = !matchedOrder ? processableOrders.find((o) =>
-        po.label.toLowerCase().includes(o.userEmail.split("@")[0].toLowerCase())
-      ) : undefined;
+
+      // 2. Full email match
+      if (!matched) {
+        matched = available.find((o) =>
+          labelLower.includes(o.userEmail.toLowerCase())
+        );
+      }
+
+      // 3. Company name exact match (case-insensitive)
+      if (!matched) {
+        matched = available.find((o) =>
+          o.userCompanyName && o.userCompanyName.toLowerCase() === labelLower
+        );
+      }
+
+      // 4. Email username partial match
+      if (!matched) {
+        matched = available.find((o) => {
+          const username = o.userEmail.split("@")[0].toLowerCase();
+          return username.length >= 3 && labelLower.includes(username);
+        });
+      }
+
+      // 5. Fuzzy company name — tokenize both, 2+ word overlap = match
+      if (!matched) {
+        const labelWords = new Set(labelLower.replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 2));
+        if (labelWords.size >= 2) {
+          matched = available.find((o) => {
+            if (!o.userCompanyName) return false;
+            const companyWords = new Set(o.userCompanyName.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 2));
+            const overlap = [...labelWords].filter((w) => companyWords.has(w)).length;
+            return overlap >= 2;
+          });
+        }
+      }
+
+      // 6. Positional fallback — use next available order by position
+      if (!matched) {
+        matched = available[0] || processableOrders[i];
+      }
+
+      const systemOrderId = matched?.id || "";
+      if (systemOrderId) {
+        usedSystemOrderIds.add(systemOrderId);
+      }
+
       return {
         packingOrderIndex: i,
-        systemOrderId: matchedOrder?.id || emailMatch?.id || processableOrders[i]?.id || "",
+        systemOrderId,
       };
     });
     setOrderMappings(mappings);

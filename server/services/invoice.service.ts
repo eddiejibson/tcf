@@ -132,7 +132,7 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
-  doc.text(data.shipmentName, col2X, y + 6);
+  doc.text(data.shipmentName || "Direct Order", col2X, y + 6);
 
   // Payment info row
   if (data.paymentMethod) {

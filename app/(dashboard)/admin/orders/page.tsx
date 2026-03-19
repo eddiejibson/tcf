@@ -38,9 +38,17 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Orders</h1>
-        <p className="text-white/50 text-sm mt-1">Review and manage customer orders</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Orders</h1>
+          <p className="text-white/50 text-sm mt-1">Review and manage customer orders</p>
+        </div>
+        <Link
+          href="/admin/orders/new"
+          className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl text-sm transition-all"
+        >
+          New Order
+        </Link>
       </div>
 
       {loading ? (
@@ -66,7 +74,7 @@ export default function AdminOrdersPage() {
                 <p className="text-white/90 text-sm font-medium">{o.userCompanyName || o.userEmail}</p>
                 {o.userCompanyName && <p className="text-white/40 text-xs">{o.userEmail}</p>}
               </div>
-              <div className="w-40"><p className="text-white/60 text-sm truncate">{o.shipmentName}</p></div>
+              <div className="w-40"><p className="text-white/60 text-sm truncate">{o.shipmentName || "Direct Order"}</p></div>
               <div className="w-20 text-center"><p className="text-white/60 text-sm">{o.itemCount}</p></div>
               <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(o.total)}</p></div>
               <div className="w-28 text-center">

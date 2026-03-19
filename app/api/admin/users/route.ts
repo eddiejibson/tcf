@@ -3,12 +3,16 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole } from "@/server/entities/User";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const { searchParams } = new URL(request.url);
+  const excludeAdmins = searchParams.get("role") === "USER";
+
   const db = await getDb();
   const users = await db.getRepository(User).find({
+    where: excludeAdmins ? { role: UserRole.USER } : undefined,
     order: { createdAt: "DESC" },
     relations: ["orders"],
   });

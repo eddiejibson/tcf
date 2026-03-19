@@ -154,3 +154,32 @@ export async function sendOrderChanges(
     text: `Your accepted order for "${shipmentName}" has been updated:\n${changes.join("\n")}\nNew Total: ${newTotal}`,
   });
 }
+
+export async function sendAdminOrderCreated(
+  userEmail: string,
+  orderRef: string,
+  orderTotal: string,
+  orderId: string
+) {
+  const transporter = createTransporter();
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
+
+  await transporter.sendMail({
+    from: from(),
+    to: userEmail,
+    subject: `Order Created For You - The Coral Farm`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">An order has been created for you by The Coral Farm.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Please log in to view the order and complete payment.</p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order &amp; Pay</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
+      </div>
+    `,
+    text: `An order has been created for you by The Coral Farm. Order #${orderRef}, Total: ${orderTotal}. View and pay: ${viewUrl}`,
+  });
+}

@@ -54,7 +54,7 @@ export default function OrdersPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-white/50 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</span>
-                    <h3 className="text-white font-semibold">{o.shipmentName}</h3>
+                    <h3 className="text-white font-semibold">{o.shipmentName || "Direct Order"}</h3>
                   </div>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-white/40 text-sm">{o.itemCount} items</span>
@@ -71,7 +71,11 @@ export default function OrdersPage() {
           {orders.length === 0 && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
               <p className="text-white/40 mb-4">No orders yet</p>
-              <Link href="/shipments" className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors">Browse Shipments</Link>
+              <div className="flex items-center justify-center gap-4">
+                <Link href="/shipments" className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors">Browse Shipments</Link>
+                <span className="text-white/20">|</span>
+                <Link href="/catalog" className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors">Browse Catalog</Link>
+              </div>
             </div>
           )}
         </div>

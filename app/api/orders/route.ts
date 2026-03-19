@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
-import { getUserOrders, createOrder, calculateOrderTotals } from "@/server/services/order.service";
+import { getUserOrders, createOrder, createCatalogOrder, calculateOrderTotals } from "@/server/services/order.service";
 
 export async function GET() {
   const user = await requireAuth();
@@ -14,7 +14,7 @@ export async function GET() {
       return {
         id: o.id,
         status: o.status,
-        shipmentName: o.shipment?.name,
+        shipmentName: o.shipment?.name || null,
         itemCount: o.items?.length || 0,
         total: totals.total,
         createdAt: o.createdAt,
@@ -28,8 +28,17 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { shipmentId, items } = await request.json();
-  if (!shipmentId || !items?.length) {
-    return NextResponse.json({ error: "Shipment ID and items are required" }, { status: 400 });
+  if (!items?.length) {
+    return NextResponse.json({ error: "Items are required" }, { status: 400 });
+  }
+
+  if (!shipmentId) {
+    // Catalog order
+    const order = await createCatalogOrder(user.userId, items.map((i: { catalogProductId: string; quantity: number }) => ({
+      catalogProductId: i.catalogProductId,
+      quantity: i.quantity,
+    })));
+    return NextResponse.json(order);
   }
 
   const order = await createOrder(user.userId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({

@@ -8,7 +8,7 @@ async function squareFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${SQUARE_BASE_URL}${path}`, {
     ...options,
     headers: {
-      "Square-Version": "2024-01-18",
+      "Square-Version": "2026-01-22",
       "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
       ...options.headers,
@@ -22,7 +22,7 @@ async function squareFetch(path: string, options: RequestInit = {}) {
 
 let cachedLocationId: string | null = null;
 
-async function getLocationId(): Promise<string> {
+export async function getLocationId(): Promise<string> {
   if (cachedLocationId) return cachedLocationId;
   const data = await squareFetch("/v2/locations");
   const location = data.locations?.[0];
@@ -69,6 +69,30 @@ export async function isPaymentLinkPaid(paymentLinkId: string): Promise<boolean>
   } catch {
     return false;
   }
+}
+
+export async function processCardPayment(sourceId: string, totalPence: number, orderId: string) {
+  const locationId = await getLocationId();
+  const data = await squareFetch("/v2/payments", {
+    method: "POST",
+    body: JSON.stringify({
+      idempotency_key: randomUUID(),
+      source_id: sourceId,
+      amount_money: {
+        amount: totalPence,
+        currency: "GBP",
+      },
+      location_id: locationId,
+      reference_id: orderId,
+      note: `The Coral Farm - Order #${orderId.slice(0, 8).toUpperCase()}`,
+      autocomplete: true,
+    }),
+  });
+
+  return {
+    paymentId: data.payment.id,
+    status: data.payment.status,
+  };
 }
 
 export const BANK_DETAILS = {

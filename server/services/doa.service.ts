@@ -64,10 +64,10 @@ export async function getAllDoaClaimsGrouped() {
   }>();
 
   for (const claim of claims) {
-    const shipmentId = claim.order.shipmentId;
+    const shipmentId = claim.order.shipmentId || "catalog";
     if (!shipmentMap.has(shipmentId)) {
       shipmentMap.set(shipmentId, {
-        shipment: { id: shipmentId, name: claim.order.shipment.name },
+        shipment: { id: shipmentId, name: claim.order.shipment?.name || "Catalog Order" },
         claims: [],
         hasReport: false,
       });

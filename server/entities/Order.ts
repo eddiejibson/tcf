@@ -31,12 +31,12 @@ export class Order extends BaseEntityWithUpdate {
   @JoinColumn({ name: "userId" })
   user: Relation<User>;
 
-  @Column({ type: "uuid" })
-  shipmentId: string;
+  @Column({ type: "uuid", nullable: true })
+  shipmentId: string | null;
 
-  @ManyToOne(() => Shipment, (shipment) => shipment.orders)
+  @ManyToOne(() => Shipment, (shipment) => shipment.orders, { nullable: true })
   @JoinColumn({ name: "shipmentId" })
-  shipment: Relation<Shipment>;
+  shipment: Relation<Shipment> | null;
 
   @Column({ type: "enum", enum: OrderStatus, default: OrderStatus.DRAFT })
   status: OrderStatus;

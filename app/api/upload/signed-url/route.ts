@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = body.filename.split(".").pop() || "jpg";
-    const key = `doa-images/${user.userId}/${uuid()}.${ext}`;
+    const prefix = body.purpose === "catalog" ? "catalog-images" : "doa-images";
+    const key = `${prefix}/${user.userId}/${uuid()}.${ext}`;
     const url = await getUploadUrl(key, body.contentType);
 
     return NextResponse.json({ url, key });

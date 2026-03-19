@@ -4,6 +4,46 @@ import { getDb } from "@/server/db/data-source";
 import { Shipment } from "@/server/entities/Shipment";
 import { calculateOrderTotals } from "@/server/services/order.service";
 
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  const db = await getDb();
+
+  const shipment = await db.getRepository(Shipment).findOneBy({ id });
+  if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
+
+  await db.transaction(async (manager) => {
+    await manager.query(
+      `DELETE FROM credit_transactions WHERE "doaClaimId" IN (SELECT id FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1))`,
+      [id]
+    );
+    await manager.query(
+      `DELETE FROM doa_items WHERE "claimId" IN (SELECT id FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1))`,
+      [id]
+    );
+    await manager.query(
+      `DELETE FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
+      [id]
+    );
+    await manager.query(
+      `DELETE FROM credit_transactions WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
+      [id]
+    );
+    await manager.query(
+      `DELETE FROM order_items WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
+      [id]
+    );
+    await manager.query(`DELETE FROM orders WHERE "shipmentId" = $1`, [id]);
+    await manager.query(`DELETE FROM products WHERE "shipmentId" = $1`, [id]);
+    await manager.query(`DELETE FROM doa_reports WHERE "shipmentId" = $1`, [id]);
+    await manager.query(`DELETE FROM shipments WHERE id = $1`, [id]);
+  });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

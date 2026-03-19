@@ -18,3 +18,7 @@ export { DoaReport } from "./DoaReport";
 export type { DoaReportType } from "./DoaReport";
 export { CreditTransaction, CreditType } from "./CreditTransaction";
 export type { CreditTransactionType } from "./CreditTransaction";
+export { Category } from "./Category";
+export type { CategoryType } from "./Category";
+export { CatalogProduct, CatalogProductType, StockMode, StockLevel } from "./CatalogProduct";
+export type { CatalogProductRecord } from "./CatalogProduct";

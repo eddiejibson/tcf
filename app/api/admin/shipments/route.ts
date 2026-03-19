@@ -3,18 +3,29 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { Shipment, ShipmentStatus } from "@/server/entities/Shipment";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = await getDb();
-  const shipments = await db.getRepository(Shipment).find({
-    relations: ["products", "orders"],
-    order: { createdAt: "DESC" },
-  });
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+  const limit = 10;
+  const skip = (page - 1) * limit;
 
-  return NextResponse.json(
-    shipments.map((s) => ({
+  const db = await getDb();
+  const repo = db.getRepository(Shipment);
+
+  const [shipments, total] = await repo
+    .createQueryBuilder("s")
+    .loadRelationCountAndMap("s.productCount", "s.products")
+    .loadRelationCountAndMap("s.orderCount", "s.orders")
+    .orderBy("s.createdAt", "DESC")
+    .skip(skip)
+    .take(limit)
+    .getManyAndCount();
+
+  return NextResponse.json({
+    shipments: shipments.map((s) => ({
       id: s.id,
       name: s.name,
       status: s.status,
@@ -22,11 +33,14 @@ export async function GET() {
       shipmentDate: s.shipmentDate,
       freightCost: s.freightCost,
       margin: s.margin,
-      productCount: s.products?.length || 0,
-      orderCount: s.orders?.length || 0,
+      productCount: (s as unknown as { productCount: number }).productCount,
+      orderCount: (s as unknown as { orderCount: number }).orderCount,
       createdAt: s.createdAt,
-    }))
-  );
+    })),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
 }
 
 export async function POST(request: NextRequest) {

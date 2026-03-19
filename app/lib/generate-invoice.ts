@@ -12,7 +12,7 @@ export interface InvoiceData {
   status: string;
   customerEmail: string;
   customerCompanyName?: string | null;
-  shipmentName: string;
+  shipmentName: string | null;
   items: InvoiceItem[];
   subtotal: number;
   vat: number;
@@ -160,7 +160,7 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
-  doc.text(data.shipmentName, col2X, y + 6);
+  doc.text(data.shipmentName || "Direct Order", col2X, y + 6);
 
   // Payment info row
   if (data.paymentMethod) {

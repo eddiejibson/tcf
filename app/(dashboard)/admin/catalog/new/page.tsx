@@ -1,0 +1,184 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import type { CategoryNode } from "@/app/lib/types";
+import CategoryPicker from "@/app/components/CategoryPicker";
+
+export default function NewCatalogProductPage() {
+  const router = useRouter();
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [type, setType] = useState("COLONY");
+  const [categoryId, setCategoryId] = useState("");
+  const [imageKey, setImageKey] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [stockMode, setStockMode] = useState("EXACT");
+  const [stockQty, setStockQty] = useState("");
+  const [stockLevel, setStockLevel] = useState("AVERAGE");
+  const [uploading, setUploading] = useState(false);
+
+  const fetchCategories = useCallback(async () => {
+    const res = await fetch("/api/admin/categories");
+    if (res.ok) setCategories(await res.json());
+  }, []);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+      if (isLocalhost) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/upload/signed-url", { method: "POST", body: formData });
+        const data = await res.json();
+        setImageKey(data.key);
+      } else {
+        const res = await fetch("/api/upload/signed-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentType: file.type || "image/jpeg", filename: `photo.${ext}`, purpose: "catalog" }),
+        });
+        const data = await res.json();
+        setImageKey(data.key);
+        await fetch(data.url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+      }
+      setImagePreview(URL.createObjectURL(file));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!name || !price || !categoryId) return;
+    setSaving(true);
+    const res = await fetch("/api/admin/catalog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        price: parseFloat(price),
+        type,
+        categoryId,
+        imageKey,
+        stockMode,
+        stockQty: stockMode === "EXACT" ? parseInt(stockQty) || 0 : null,
+        stockLevel: stockMode === "ROUGH" ? stockLevel : null,
+      }),
+    });
+    if (res.ok) {
+      router.push("/admin/catalog");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl">
+      <button onClick={() => router.push("/admin/catalog")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+        Back to Catalog
+      </button>
+
+      <h1 className="text-2xl font-bold text-white mb-8">New Product</h1>
+
+      <div className="space-y-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5 overflow-visible relative z-10">
+          <div>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Price</label>
+              <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white">
+                <option value="COLONY">Colony</option>
+                <option value="FRAG">Frag</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Category</label>
+            <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />
+          </div>
+
+          <div>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Image</label>
+            {imagePreview ? (
+              <div className="flex items-center gap-4">
+                <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl" />
+                <button onClick={() => { setImageKey(null); setImagePreview(null); }} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-white/40 transition-colors">
+                {uploading ? (
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                )}
+                <span className="text-white/40 text-sm">{uploading ? "Uploading..." : "Upload image"}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5">
+          <div>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3 block">Stock Mode</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="stockMode" value="EXACT" checked={stockMode === "EXACT"} onChange={() => setStockMode("EXACT")} className="text-[#0984E3] focus:ring-[#0984E3]/30" />
+                <span className="text-white/80 text-sm">Exact Quantity</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="stockMode" value="ROUGH" checked={stockMode === "ROUGH"} onChange={() => setStockMode("ROUGH")} className="text-[#0984E3] focus:ring-[#0984E3]/30" />
+                <span className="text-white/80 text-sm">Rough Level</span>
+              </label>
+            </div>
+          </div>
+
+          {stockMode === "EXACT" ? (
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Stock Quantity</label>
+              <input type="number" value={stockQty} onChange={(e) => setStockQty(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+          ) : (
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Stock Level</label>
+              <select value={stockLevel} onChange={(e) => setStockLevel(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white">
+                <option value="LOW">Low</option>
+                <option value="AVERAGE">Average</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !name || !price || !categoryId}
+            className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white font-medium rounded-xl transition-all"
+          >
+            {saving ? "Creating..." : "Create Product"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

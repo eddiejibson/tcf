@@ -6,6 +6,8 @@ import type { OrderItemType } from "@/server/entities/OrderItem";
 import type { DoaClaimType } from "@/server/entities/DoaClaim";
 import type { DoaItemType } from "@/server/entities/DoaItem";
 import type { DoaReportType } from "@/server/entities/DoaReport";
+import type { CategoryType } from "@/server/entities/Category";
+import type { CatalogProductRecord } from "@/server/entities/CatalogProduct";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K];
@@ -19,6 +21,33 @@ export type SerializedOrderItem = Serialized<OrderItemType>;
 export type SerializedDoaClaim = Serialized<DoaClaimType>;
 export type SerializedDoaItem = Serialized<DoaItemType>;
 export type SerializedDoaReport = Serialized<DoaReportType>;
+export type SerializedCategory = Serialized<CategoryType>;
+export type SerializedCatalogProduct = Serialized<CatalogProductRecord>;
+
+export interface CategoryNode {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  children: CategoryNode[];
+}
+
+export interface CatalogProductListItem {
+  id: string;
+  name: string;
+  price: number;
+  type: string;
+  categoryId: string;
+  categoryName: string;
+  imageKey: string | null;
+  imageUrl: string | null;
+  stockMode: string;
+  stockQty: number | null;
+  stockLevel: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface OrderTotals {
   subtotal: number;
@@ -85,16 +114,16 @@ export interface AdminShipmentDetail {
 export type AdminOrderListItem = Pick<SerializedOrder, "id" | "status" | "createdAt"> & {
   userEmail: string;
   userCompanyName: string | null;
-  shipmentName: string;
+  shipmentName: string | null;
   itemCount: number;
   total: number;
 };
 
-export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName">;
+export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName" | "catalogProductId">;
 
 export type AdminOrderDetail = SerializedOrder & {
   user: { email: string; companyName: string | null };
-  shipment: { name: string; freightCost: number };
+  shipment: { name: string; freightCost: number } | null;
   items: SerializedOrderItem[];
   totals: OrderTotals;
 };
@@ -108,13 +137,13 @@ export type ShipmentDetail = Pick<SerializedShipment, "id" | "name" | "deadline"
 };
 
 export type UserOrderListItem = Pick<SerializedOrder, "id" | "status" | "createdAt"> & {
-  shipmentName: string;
+  shipmentName: string | null;
   itemCount: number;
   total: number;
 };
 
 export type UserOrderDetail = SerializedOrder & {
-  shipment: { name: string; freightCost: number };
+  shipment: { name: string; freightCost: number } | null;
   items: SerializedOrderItem[];
   totals: OrderTotals;
 };

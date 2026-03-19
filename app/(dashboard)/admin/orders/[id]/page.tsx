@@ -50,7 +50,7 @@ export default function AdminOrderDetailPage() {
     if (data.freightCharge != null && Number(data.freightCharge) !== 0) {
       fc = String(data.freightCharge);
     } else {
-      const shipFreight = Number(data.shipment?.freightCost) || 0;
+      const shipFreight = Number(data.shipment?.freightCost ?? 0);
       const boxes = Math.ceil((data.items || []).reduce((sum: number, item: { quantity: number; product?: { qtyPerBox?: number } }) => {
         const qtyPerBox = item.product?.qtyPerBox || 1;
         return sum + item.quantity / qtyPerBox;
@@ -93,6 +93,7 @@ export default function AdminOrderDetailPage() {
     setItems([...items, {
       id: "",
       productId: null,
+      catalogProductId: null,
       name: newItemName,
       quantity: parseInt(newItemQty) || 1,
       unitPrice: parseFloat(newItemPrice) || 0,
@@ -161,7 +162,7 @@ export default function AdminOrderDetailPage() {
       status: order.status,
       customerEmail: order.user.email,
       customerCompanyName: order.user.companyName,
-      shipmentName: order.shipment.name,
+      shipmentName: order.shipment?.name || "Direct Order",
       items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
@@ -204,7 +205,7 @@ export default function AdminOrderDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
-          <p className="text-white/50 text-sm mt-1">{order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email} - {order.shipment.name}</p>
+          <p className="text-white/50 text-sm mt-1">{order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email} - {order.shipment?.name || "Direct Order"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button

@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { UserOrderDetail, DoaClaimDetail } from "@/app/lib/types";
 import { useAuth } from "@/app/lib/auth-context";
 import { generateInvoice } from "@/app/lib/generate-invoice";
+import SquareCardForm from "@/app/components/SquareCardForm";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -45,6 +46,7 @@ export default function OrderDetailPage() {
   const [verifying, setVerifying] = useState(false);
   const verifiedRef = useRef(false);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [showCardForm, setShowCardForm] = useState(false);
 
   const [doaClaim, setDoaClaim] = useState<DoaClaimDetail | null>(null);
   const [showDoaForm, setShowDoaForm] = useState(false);
@@ -96,21 +98,8 @@ export default function OrderDetailPage() {
     setPaymentLoading(false);
   };
 
-  const handleCardPayment = async () => {
-    setPaymentLoading(true);
-    const res = await fetch(`/api/orders/${params.id}/payment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "CARD" }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-        return;
-      }
-    }
-    setPaymentLoading(false);
+  const handleCardPayment = () => {
+    setShowCardForm(true);
   };
 
   const handleFinancePayment = async () => {
@@ -175,7 +164,7 @@ export default function OrderDetailPage() {
       status: order.status,
       customerEmail: user?.email || "",
       customerCompanyName: user?.companyName,
-      shipmentName: order.shipment.name,
+      shipmentName: order.shipment?.name || "Direct Order",
       items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
@@ -270,7 +259,7 @@ export default function OrderDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-8 text-white/40">Order not found</div>;
 
-  const canSelectPayment = order.status === "ACCEPTED" && !order.paymentMethod;
+  const canSelectPayment = order.status === "ACCEPTED" && !order.paymentMethod && !showCardForm;
   const showBankInfo = order.status === "ACCEPTED" && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
   const showCardPending = order.status === "ACCEPTED" && order.paymentMethod === "CARD";
   const showFinancePending = order.status === "ACCEPTED" && order.paymentMethod === "FINANCE";
@@ -286,7 +275,7 @@ export default function OrderDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
-          <p className="text-white/50 text-sm mt-1">{order.shipment.name}</p>
+          <p className="text-white/50 text-sm mt-1">{order.shipment?.name || "Direct Order"}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -483,6 +472,18 @@ export default function OrderDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {showCardForm && order.status === "ACCEPTED" && !order.paymentMethod && (
+        <SquareCardForm
+          orderId={order.id}
+          total={formatPrice(order.totals.total)}
+          onSuccess={() => {
+            setShowCardForm(false);
+            fetchOrder();
+          }}
+          onCancel={() => setShowCardForm(false)}
+        />
       )}
 
       {showBankInfo && (

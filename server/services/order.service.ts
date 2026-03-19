@@ -6,10 +6,12 @@ import { User, UserRole } from "../entities/User";
 import { log } from "../logger";
 import { MoreThan } from "typeorm";
 import { Shipment } from "../entities/Shipment";
-import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges } from "./email.service";
+import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated } from "./email.service";
 import { generateInvoiceBuffer } from "./invoice.service";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
 import { refundCredit } from "./credit.service";
+import { CatalogProduct } from "../entities/CatalogProduct";
+import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 
 const SHIPPING_COST = 25;
 const VAT_RATE = 0.2;
@@ -88,6 +90,40 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
   return orderRepo.save(order);
 }
 
+export async function createCatalogOrder(userId: string, items: { catalogProductId: string; quantity: number }[]) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const catalogRepo = db.getRepository(CatalogProduct);
+
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  for (const item of items) {
+    const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
+    if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
+    if (!product.active) throw new Error(`Product is inactive: ${product.name}`);
+    orderItems.push({
+      catalogProductId: product.id,
+      name: product.name,
+      quantity: item.quantity,
+      unitPrice: Number(product.price),
+    });
+  }
+
+  const order = orderRepo.create({
+    userId,
+    shipmentId: null,
+    status: OrderStatus.DRAFT,
+    items: orderItems.map((item) => ({
+      productId: null,
+      catalogProductId: item.catalogProductId,
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    })),
+  });
+
+  return orderRepo.save(order);
+}
+
 export async function updateOrderItems(orderId: string, items: { productId?: string | null; name: string; quantity: number; unitPrice: number }[]) {
   const db = await getDb();
   const itemRepo = db.getRepository(OrderItem);
@@ -122,7 +158,7 @@ export async function submitOrder(orderId: string) {
   const adminEmails = adminUsers.map((u) => u.email);
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
 
-  sendOrderNotification(adminEmails, order.user.email, order.shipment.name, formatPrice(totals.total))
+  sendOrderNotification(adminEmails, order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total))
     .catch((e) => log.error("Failed to send order notification", e));
 
   return order;
@@ -172,10 +208,20 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
 
   if (status === OrderStatus.ACCEPTED && prevStatus !== OrderStatus.ACCEPTED) {
     await deductStock(order.items);
+    for (const item of order.items) {
+      if (item.catalogProductId) {
+        await deductCatalogStock(item.catalogProductId, item.quantity);
+      }
+    }
   }
 
   if (prevStatus === OrderStatus.ACCEPTED && status === OrderStatus.REJECTED) {
     await restoreStock(order.items);
+    for (const item of order.items) {
+      if (item.catalogProductId) {
+        await restoreCatalogStock(item.catalogProductId, item.quantity);
+      }
+    }
     if (Number(order.creditApplied) > 0) {
       await refundCredit(orderId, order.userId);
     }
@@ -191,7 +237,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         status: "ACCEPTED",
         customerEmail: order.user.email,
         customerCompanyName: order.user.companyName,
-        shipmentName: order.shipment.name,
+        shipmentName: order.shipment?.name || "Catalog Order",
         items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
         subtotal: totals.subtotal,
         vat: totals.vat,
@@ -204,10 +250,10 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         paymentReference: order.paymentReference,
       };
       generateInvoiceBuffer(invoiceData)
-        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment.name, formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
+        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
         .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
-      sendOrderStatusUpdate(order.user.email, order.shipment.name, status, formatPrice(totals.total))
+      sendOrderStatusUpdate(order.user.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total))
         .catch((e) => log.error("Failed to send status update email", e));
     }
   }
@@ -254,6 +300,11 @@ export async function updateAcceptedOrderItems(
   }
 
   await restoreStock(oldItems);
+  for (const item of oldItems) {
+    if (item.catalogProductId) {
+      await restoreCatalogStock(item.catalogProductId, item.quantity);
+    }
+  }
 
   await itemRepo.delete({ orderId });
   const savedItems = await itemRepo.save(
@@ -275,12 +326,17 @@ export async function updateAcceptedOrderItems(
   }
 
   await deductStock(savedItems);
+  for (const item of savedItems) {
+    if (item.catalogProductId) {
+      await deductCatalogStock(item.catalogProductId, item.quantity);
+    }
+  }
 
   if (changes.length > 0) {
     const updated = await getOrderById(orderId);
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-      sendOrderChanges(updated.user.email, updated.shipment.name, changes, formatPrice(totals.total))
+      sendOrderChanges(updated.user.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total))
         .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
@@ -348,4 +404,74 @@ export async function getAvailableStock(productId: string): Promise<number | nul
   const db = await getDb();
   const product = await db.getRepository(Product).findOneBy({ id: productId });
   return product?.availableQty ?? null;
+}
+
+export async function createAdminOrder(
+  adminUserId: string,
+  targetUserId: string,
+  items: { catalogProductId: string; quantity: number }[],
+  notes?: string
+) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const itemRepo = db.getRepository(OrderItem);
+  const catalogRepo = db.getRepository(CatalogProduct);
+
+  // Look up each catalog product
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  for (const item of items) {
+    const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
+    if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
+    if (!product.active) throw new Error(`Product is inactive: ${product.name}`);
+    orderItems.push({
+      catalogProductId: product.id,
+      name: product.name,
+      quantity: item.quantity,
+      unitPrice: Number(product.price),
+    });
+  }
+
+  // Create order with no shipment
+  const order = orderRepo.create({
+    userId: targetUserId,
+    shipmentId: null,
+    status: OrderStatus.ACCEPTED,
+    notes: notes || null,
+  });
+  const savedOrder = await orderRepo.save(order);
+
+  // Create order items
+  const savedItems = await itemRepo.save(
+    orderItems.map((item) =>
+      itemRepo.create({
+        orderId: savedOrder.id,
+        productId: null,
+        catalogProductId: item.catalogProductId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })
+    )
+  );
+
+  // Deduct catalog stock for EXACT mode items
+  for (const item of savedItems) {
+    if (item.catalogProductId) {
+      await deductCatalogStock(item.catalogProductId, item.quantity);
+    }
+  }
+
+  // Send email to customer
+  const fullOrder = await getOrderById(savedOrder.id);
+  if (fullOrder) {
+    const totals = calculateOrderTotals(fullOrder.items, false, null, 0);
+    sendAdminOrderCreated(
+      fullOrder.user.email,
+      fullOrder.id.slice(0, 8).toUpperCase(),
+      formatPrice(totals.total),
+      fullOrder.id
+    ).catch((e) => log.error("Failed to send admin order created email", e));
+  }
+
+  return fullOrder;
 }

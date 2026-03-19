@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Order } from "./Order";
 import { Product } from "./Product";
+import { CatalogProduct } from "./CatalogProduct";
 
 @Entity("order_items")
 export class OrderItem extends BaseEntity {
@@ -37,6 +38,13 @@ export class OrderItem extends BaseEntity {
 
   @Column({ type: "varchar", nullable: true })
   substituteName: string | null;
+
+  @Column({ type: "uuid", nullable: true })
+  catalogProductId: string | null;
+
+  @ManyToOne(() => CatalogProduct, { nullable: true })
+  @JoinColumn({ name: "catalogProductId" })
+  catalogProduct: Relation<CatalogProduct> | null;
 }
 
-export type OrderItemType = Omit<OrderItem, "order" | "product" | "substituteProduct">;
+export type OrderItemType = Omit<OrderItem, "order" | "product" | "substituteProduct" | "catalogProduct">;

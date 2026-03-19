@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMagicToken, createSession } from "@/server/services/auth.service";
+import { getDb } from "@/server/db/data-source";
+import { User } from "@/server/entities/User";
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -11,6 +13,10 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.redirect(new URL("/login?error=invalid_token", request.url));
   }
+
+  // Update last login timestamp
+  const db = await getDb();
+  await db.getRepository(User).update(user.id, { lastLogin: new Date() });
 
   const jwt = await createSession(user);
 

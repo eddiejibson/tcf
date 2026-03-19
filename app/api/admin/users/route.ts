@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       companyName: u.companyName || null,
       orderCount: u.orders?.length || 0,
       creditBalance: Number(u.creditBalance) || 0,
+      lastLogin: u.lastLogin,
       createdAt: u.createdAt,
     })),
     total,

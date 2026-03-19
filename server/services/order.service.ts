@@ -9,7 +9,7 @@ import { Shipment } from "../entities/Shipment";
 import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated, sendOrderPaidNotification } from "./email.service";
 import { generateInvoiceBuffer } from "./invoice.service";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
-import { refundCredit } from "./credit.service";
+import { applyCredit, refundCredit } from "./credit.service";
 import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 
@@ -211,6 +211,28 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
     for (const item of order.items) {
       if (item.catalogProductId) {
         await deductCatalogStock(item.catalogProductId, item.quantity);
+      }
+    }
+
+    // Auto-apply credit if user opted in at submission
+    if (order.useCredit && !Number(order.creditApplied)) {
+      const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0);
+      const grandTotal = totals.total;
+      if (grandTotal > 0) {
+        const result = await applyCredit(orderId, order.userId, grandTotal);
+        if (result.creditApplied > 0) {
+          // Re-fetch to get updated creditApplied for invoice
+          const refreshed = await getOrderById(orderId);
+          if (refreshed) Object.assign(order, refreshed);
+
+          // If credit covers the full amount, auto-mark as paid
+          const newTotals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+          if (newTotals.total <= 0) {
+            await markOrderPaid(orderId, "CREDIT");
+            const paidOrder = await getOrderById(orderId);
+            if (paidOrder) Object.assign(order, paidOrder);
+          }
+        }
       }
     }
   }

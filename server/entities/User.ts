@@ -24,6 +24,9 @@ export class User extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   creditBalance: number;
 
+  @Column({ type: "timestamp", nullable: true })
+  lastLogin: Date | null;
+
   @OneToMany(() => Order, (order) => order.user)
   orders: Relation<Order[]>;
 

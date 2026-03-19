@@ -62,6 +62,7 @@ export type UserListItem = Pick<SerializedUser, "id" | "email" | "role" | "creat
   companyName: string | null;
   orderCount: number;
   creditBalance: number;
+  lastLogin: string | null;
 };
 
 export type AdminShipmentListItem = Pick<SerializedShipment, "id" | "name" | "status" | "deadline" | "shipmentDate" | "freightCost" | "margin" | "createdAt"> & {

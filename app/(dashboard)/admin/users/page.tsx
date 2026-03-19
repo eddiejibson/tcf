@@ -277,6 +277,7 @@ export default function AdminUsersPage() {
             <div className="w-24 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
             <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
             <div className="w-28 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p></div>
+            <div className="w-32"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
             <div className="w-32"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
             <div className="w-24"></div>
           </div>
@@ -341,6 +342,7 @@ export default function AdminUsersPage() {
                   </button>
                 )}
               </div>
+              <div className="w-32"><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Never"}</p></div>
               <div className="w-32"><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
               <div className="w-24 text-right">
                 <button onClick={() => handleDelete(u.id)} className="text-red-400/60 hover:text-red-400 text-xs font-medium transition-colors">Delete</button>

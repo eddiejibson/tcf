@@ -254,9 +254,16 @@ export default function CatalogPage() {
                           </svg>
                         </div>
                       )}
-                      <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-medium ${p.type === "COLONY" ? "bg-purple-500/80 text-white" : "bg-cyan-500/80 text-white"}`}>
-                        {p.type}
-                      </span>
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        {p.wysiwyg && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/80 text-white">
+                            WYSIWYG
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.type === "COLONY" ? "bg-purple-500/80 text-white" : "bg-cyan-500/80 text-white"}`}>
+                          {p.type}
+                        </span>
+                      </div>
                       {inCart && (
                         <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-[#0984E3] text-white text-[10px] font-medium">
                           x{inCart.quantity}

@@ -6,7 +6,7 @@ import { User, UserRole } from "../entities/User";
 import { log } from "../logger";
 import { MoreThan } from "typeorm";
 import { Shipment } from "../entities/Shipment";
-import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated } from "./email.service";
+import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated, sendOrderPaidNotification } from "./email.service";
 import { generateInvoiceBuffer } from "./invoice.service";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
 import { refundCredit } from "./credit.service";
@@ -389,7 +389,25 @@ export async function markOrderPaid(orderId: string, reference?: string) {
   if (reference) existing.paymentReference = reference;
   await orderRepo.save(existing);
 
-  return getOrderById(orderId);
+  const order = await getOrderById(orderId);
+  if (order) {
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
+    const adminEmails = adminUsers.map((u) => u.email);
+    try {
+      await sendOrderPaidNotification(
+        adminEmails,
+        order.user.email,
+        order.id.slice(0, 8).toUpperCase(),
+        formatPrice(totals.total),
+        order.paymentMethod || "Unknown",
+      );
+    } catch (e) {
+      log.error("Failed to send order paid notification", e);
+    }
+  }
+
+  return order;
 }
 
 export async function getAllOrders() {

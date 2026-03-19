@@ -155,6 +155,33 @@ export async function sendOrderChanges(
   });
 }
 
+export async function sendOrderPaidNotification(
+  adminEmails: string[],
+  userEmail: string,
+  orderRef: string,
+  orderTotal: string,
+  paymentMethod: string,
+) {
+  const transporter = createTransporter();
+  const methodLabel = paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : paymentMethod === "CARD" ? "Card Payment" : paymentMethod;
+  await transporter.sendMail({
+    from: from(),
+    to: adminEmails,
+    subject: `Order Paid - #${orderRef} - ${userEmail}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">Order Paid</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Customer: <strong style="color: #0984E3;">${userEmail}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Total: <strong style="color: #27ae60;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px;">Method: <strong style="color: #ffffff;">${methodLabel}</strong></p>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to the admin panel to view this order.</p>
+      </div>
+    `,
+    text: `Order #${orderRef} has been paid by ${userEmail}. Total: ${orderTotal}. Method: ${methodLabel}.`,
+  });
+}
+
 export async function sendAdminOrderCreated(
   userEmail: string,
   orderRef: string,

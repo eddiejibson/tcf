@@ -76,29 +76,76 @@ async function handleRefund(refund: Record<string, unknown>) {
 }
 
 export async function POST(request: NextRequest) {
+  const R = "/api/webhooks/square";
   const body = await request.text();
   const signature = request.headers.get("x-square-hmacsha256-signature") || "";
-  const url = `${process.env.MAGIC_LINK_BASE_URL}/api/webhooks/square`;
+  const hasSignatureKey = !!process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  const notificationUrl = process.env.SQUARE_WEBHOOK_URL
+    || `${process.env.MAGIC_LINK_BASE_URL}/api/webhooks/square`;
+  const requestUrl = request.url.replace(/\?.*$/, "");
 
-  if (process.env.SQUARE_WEBHOOK_SIGNATURE_KEY && !verifySignature(body, signature, url)) {
-    log.warn("Square webhook signature verification failed", { route: "/api/webhooks/square" });
-    return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+  log.info("Square webhook: incoming request", { route: R, meta: {
+    hasSignature: !!signature,
+    hasSignatureKey,
+    notificationUrl,
+    requestUrl,
+    bodyLength: body.length,
+    urlsMatch: notificationUrl === requestUrl,
+  } });
+
+  if (!hasSignatureKey) {
+    log.warn("Square webhook: SQUARE_WEBHOOK_SIGNATURE_KEY not set, skipping signature verification", { route: R });
+  } else if (!signature) {
+    log.warn("Square webhook: no x-square-hmacsha256-signature header present, rejecting", { route: R });
+    return NextResponse.json({ error: "Missing signature" }, { status: 403 });
+  } else if (!verifySignature(body, signature, notificationUrl)) {
+    // Retry with the incoming request URL in case the configured base URL doesn't match
+    if (verifySignature(body, signature, requestUrl)) {
+      log.warn("Square webhook: signature failed with configured URL but matched request URL — update SQUARE_WEBHOOK_URL or MAGIC_LINK_BASE_URL", { route: R, meta: {
+        configuredUrl: notificationUrl,
+        requestUrl,
+      } });
+    } else {
+      log.error("Square webhook: signature verification failed", new Error("Invalid HMAC signature"), { route: R, meta: {
+        reason: "HMAC mismatch on both configured and request URLs",
+        configuredUrl: notificationUrl,
+        requestUrl,
+        signatureReceived: signature.slice(0, 10) + "...",
+        bodyPreview: body.slice(0, 200),
+      } });
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    }
+  } else {
+    log.info("Square webhook: signature verified OK", { route: R });
   }
 
   let event: Record<string, unknown>;
   try {
     event = JSON.parse(body);
   } catch {
+    log.warn("Square webhook: invalid JSON body", { route: R, meta: { bodyPreview: body.slice(0, 200) } });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const eventType = event.type as string | undefined;
+  log.info("Square webhook: processing event", { route: R, meta: { eventType, eventId: event.event_id as string | undefined } });
 
   const data = (event.data as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
 
   try {
-    switch (event.type) {
+    switch (eventType) {
       case "payment.updated": {
         const payment = data?.payment as Record<string, unknown> | undefined;
-        if (!payment) break;
+        if (!payment) {
+          log.warn("Square webhook: payment.updated event has no payment data", { route: R, meta: { dataKeys: data ? Object.keys(data) : [] } });
+          break;
+        }
+
+        log.info("Square webhook: payment status", { route: R, meta: {
+          paymentId: payment.id,
+          status: payment.status,
+          referenceId: payment.reference_id,
+        } });
 
         if (payment.status === "COMPLETED") {
           await handlePaymentCompleted(payment);
@@ -116,10 +163,11 @@ export async function POST(request: NextRequest) {
       }
 
       default:
+        log.info("Square webhook: unhandled event type, ignoring", { route: R, meta: { eventType } });
         break;
     }
   } catch (e) {
-    log.error("Square webhook processing failed", e, { route: "/api/webhooks/square", meta: { type: event.type } });
+    log.error("Square webhook processing failed", e, { route: R, meta: { eventType } });
   }
 
   return OK;

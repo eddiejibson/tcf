@@ -461,16 +461,41 @@ export async function createAdminOrder(
     }
   }
 
-  // Send email to customer
+  // Send email to customer with invoice PDF (awaited so serverless doesn't kill the connection)
   const fullOrder = await getOrderById(savedOrder.id);
   if (fullOrder) {
     const totals = calculateOrderTotals(fullOrder.items, false, null, 0);
-    sendAdminOrderCreated(
-      fullOrder.user.email,
-      fullOrder.id.slice(0, 8).toUpperCase(),
-      formatPrice(totals.total),
-      fullOrder.id
-    ).catch((e) => log.error("Failed to send admin order created email", e));
+    const orderRef = fullOrder.id.slice(0, 8).toUpperCase();
+    const invoiceData: InvoiceData = {
+      orderRef,
+      date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+      status: "ACCEPTED",
+      customerEmail: fullOrder.user.email,
+      customerCompanyName: fullOrder.user.companyName,
+      shipmentName: "Direct Order",
+      items: fullOrder.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      subtotal: totals.subtotal,
+      vat: totals.vat,
+      shipping: totals.shipping,
+      freight: totals.freight,
+      credit: totals.credit,
+      total: totals.total,
+      includeShipping: false,
+      paymentMethod: null,
+      paymentReference: null,
+    };
+    try {
+      const pdfBuffer = await generateInvoiceBuffer(invoiceData);
+      await sendAdminOrderCreated(
+        fullOrder.user.email,
+        orderRef,
+        formatPrice(totals.total),
+        fullOrder.id,
+        pdfBuffer
+      );
+    } catch (e) {
+      log.error("Failed to send admin order created email", e);
+    }
   }
 
   return fullOrder;

@@ -159,7 +159,8 @@ export async function sendAdminOrderCreated(
   userEmail: string,
   orderRef: string,
   orderTotal: string,
-  orderId: string
+  orderId: string,
+  invoicePdf: Buffer
 ) {
   const transporter = createTransporter();
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
@@ -175,11 +176,18 @@ export async function sendAdminOrderCreated(
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">An order has been created for you by The Coral Farm.</p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
-        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Please log in to view the order and complete payment.</p>
-        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order &amp; Pay</a>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in to complete payment.</p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Log In &amp; Pay</a>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
       </div>
     `,
-    text: `An order has been created for you by The Coral Farm. Order #${orderRef}, Total: ${orderTotal}. View and pay: ${viewUrl}`,
+    text: `An order has been created for you by The Coral Farm. Order #${orderRef}, Total: ${orderTotal}. Your invoice is attached. Log in and pay: ${viewUrl}`,
+    attachments: [
+      {
+        filename: `TCF-Invoice-${orderRef}.pdf`,
+        content: invoicePdf,
+        contentType: "application/pdf",
+      },
+    ],
   });
 }

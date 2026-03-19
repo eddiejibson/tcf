@@ -535,7 +535,7 @@ export default function AdminShipmentDetailPage() {
   if (!shipment) return <div className="p-4 md:p-8 text-white/40">Shipment not found</div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl">
+    <div className="p-4 md:p-8">
       {/* Back button */}
       <button onClick={() => router.push("/admin/shipments")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>

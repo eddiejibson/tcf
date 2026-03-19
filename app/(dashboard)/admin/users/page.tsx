@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl">
+    <div className="p-4 md:p-8">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Users</h1>
@@ -272,18 +272,18 @@ export default function AdminUsersPage() {
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
           <div className="overflow-x-auto">
-          <div className="min-w-[640px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
-            <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">User</p></div>
-            <div className="w-24 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
-            <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
-            <div className="w-28 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p></div>
-            <div className="w-32"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
-            <div className="w-32"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
-            <div className="w-24"></div>
+          <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">User</p></div>
+            <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
+            <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
+            <div className="text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p></div>
+            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
+            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
+            <div className="w-14"></div>
           </div>
           {users.map((u) => (
-            <div key={u.id} className="min-w-[640px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-              <div className="flex-1">
+            <div key={u.id} className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+              <div className="min-w-0">
                 {editCompanyUserId === u.id ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -300,14 +300,14 @@ export default function AdminUsersPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 group/name">
-                    <div>
-                      <p className="text-white/90 text-sm font-medium">{u.companyName || u.email}</p>
-                      {u.companyName && <p className="text-white/40 text-xs">{u.email}</p>}
+                    <div className="min-w-0">
+                      <p className="text-white/90 text-sm font-medium truncate">{u.companyName || u.email}</p>
+                      {u.companyName && <p className="text-white/40 text-xs truncate">{u.email}</p>}
                     </div>
                     {u.role !== "ADMIN" && (
                       <button
                         onClick={() => { setEditCompanyUserId(u.id); setEditCompanyName(u.companyName || ""); }}
-                        className="opacity-0 group-hover/name:opacity-100 text-white/30 hover:text-white/60 transition-all"
+                        className="opacity-0 group-hover/name:opacity-100 text-white/30 hover:text-white/60 transition-all shrink-0"
                         title="Edit company name"
                       >
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -316,10 +316,10 @@ export default function AdminUsersPage() {
                   </div>
                 )}
               </div>
-              <div className="w-24 text-center">
+              <div className="text-center">
                 <button
                   onClick={() => handleRoleToggle(u.id, u.role)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                     u.role === "ADMIN"
                       ? "bg-[#0984E3]/20 text-[#0984E3]"
                       : "bg-white/10 text-white/60"
@@ -328,8 +328,8 @@ export default function AdminUsersPage() {
                   {u.role}
                 </button>
               </div>
-              <div className="w-20 text-center"><p className="text-white/60 text-sm">{u.orderCount}</p></div>
-              <div className="w-28 flex items-center justify-end gap-2">
+              <div className="text-center"><p className="text-white/60 text-sm">{u.orderCount}</p></div>
+              <div className="flex items-center justify-end gap-2">
                 <span className={`text-sm font-medium tabular-nums ${u.creditBalance > 0 ? "text-emerald-400" : "text-white/40"}`}>
                   {formatPrice(u.creditBalance)}
                 </span>
@@ -342,9 +342,9 @@ export default function AdminUsersPage() {
                   </button>
                 )}
               </div>
-              <div className="w-32"><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
-              <div className="w-32"><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
-              <div className="w-24 text-right">
+              <div><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
+              <div><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
+              <div className="w-14 text-right">
                 <button onClick={() => handleDelete(u.id)} className="text-red-400/60 hover:text-red-400 text-xs font-medium transition-colors">Delete</button>
               </div>
             </div>

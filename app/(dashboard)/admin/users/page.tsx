@@ -31,17 +31,24 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0);
   const LIMIT = 25;
 
+  const [fetchError, setFetchError] = useState(false);
+
   const fetchUsers = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    params.set("page", String(page));
-    params.set("limit", String(LIMIT));
-    const res = await fetch(`/api/admin/users?${params}`);
-    if (res.ok) {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      params.set("page", String(page));
+      params.set("limit", String(LIMIT));
+      const res = await fetch(`/api/admin/users?${params}`);
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setUsers(data.users);
       setTotal(data.total);
       setTotalPages(data.totalPages);
+    } catch {
+      setFetchError(true);
     }
     setLoading(false);
   }, [search, page]);
@@ -268,6 +275,13 @@ export default function AdminUsersPage() {
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : fetchError ? (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+          <p className="text-white/50 mb-4">Failed to load users</p>
+          <button onClick={() => fetchUsers()} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+            Retry
+          </button>
         </div>
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">

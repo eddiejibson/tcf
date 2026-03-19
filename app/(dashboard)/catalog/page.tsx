@@ -61,26 +61,40 @@ export default function CatalogPage() {
   const [showTerms, setShowTerms] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchCategories = useCallback(async () => {
-    const res = await fetch("/api/categories");
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/categories");
+      if (!res.ok) throw new Error();
       const cats = await res.json();
       setCategories(cats);
       if (cats.length > 0) setActiveParentId(cats[0].id);
+    } catch {
+      setError(true);
     }
   }, []);
+
+  const retryLoad = () => {
+    setError(false);
+    setLoading(true);
+    fetchCategories().then(() => setLoading(false));
+  };
 
   useEffect(() => {
     fetchCategories().then(() => setLoading(false));
   }, [fetchCategories]);
 
   const fetchProducts = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (!search && activeChildId) params.set("categoryId", activeChildId);
-    if (search) params.set("q", search);
-    const res = await fetch(`/api/search/products?${params}`);
-    if (res.ok) setProducts(await res.json());
+    try {
+      const params = new URLSearchParams();
+      if (!search && activeChildId) params.set("categoryId", activeChildId);
+      if (search) params.set("q", search);
+      const res = await fetch(`/api/search/products?${params}`);
+      if (res.ok) setProducts(await res.json());
+    } catch {
+      // Product fetch failure is non-fatal — categories still shown
+    }
   }, [activeChildId, search]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
@@ -159,6 +173,17 @@ export default function CatalogPage() {
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
+
+  if (error) return (
+    <div className="p-4 md:p-8">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <p className="text-white/50 mb-4">Failed to load catalog</p>
+        <button onClick={retryLoad} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+          Retry
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-8">

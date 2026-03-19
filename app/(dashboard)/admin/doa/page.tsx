@@ -12,6 +12,7 @@ const statusColors: Record<string, string> = {
 export default function AdminDoaPage() {
   const [groups, setGroups] = useState<DoaShipmentGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
   const [expandedClaims, setExpandedClaims] = useState<Set<string>>(new Set());
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -20,8 +21,15 @@ export default function AdminDoaPage() {
   const [reportPanelShipment, setReportPanelShipment] = useState<string | null>(null);
 
   const fetchGroups = useCallback(async () => {
-    const res = await fetch("/api/admin/doa");
-    if (res.ok) setGroups(await res.json());
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch("/api/admin/doa");
+      if (!res.ok) throw new Error();
+      setGroups(await res.json());
+    } catch {
+      setError(true);
+    }
     setLoading(false);
   }, []);
 
@@ -89,6 +97,20 @@ export default function AdminDoaPage() {
     return (
       <div className="flex justify-center py-20">
         <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 md:p-8">
+        <h1 className="text-2xl font-bold text-white mb-8">DOA Claims</h1>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+          <p className="text-white/50 mb-4">Failed to load DOA claims</p>
+          <button onClick={fetchGroups} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

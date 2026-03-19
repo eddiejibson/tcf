@@ -7,13 +7,22 @@ import type { ShipmentListItem } from "@/app/lib/types";
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<ShipmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchShipments = () => {
+    setLoading(true);
+    setError(false);
     fetch("/api/shipments")
-      .then((res) => res.ok ? res.json() : [])
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
       .then(setShipments)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchShipments(); }, []);
 
   const daysUntil = (date: string) => {
     const d = Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -30,6 +39,13 @@ export default function ShipmentsPage() {
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+          <p className="text-white/50 mb-4">Failed to load shipments</p>
+          <button onClick={fetchShipments} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+            Retry
+          </button>
         </div>
       ) : (
         <div className="grid gap-4">

@@ -424,48 +424,57 @@ export default function OrderDetailPage() {
       )}
 
       {canSelectPayment && (
-        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
-          <h3 className="text-white font-semibold text-lg mb-2">Payment</h3>
-          <p className="text-white/50 text-sm mb-6">Choose how you would like to pay for this order</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="mt-6">
+          <h3 className="text-white font-semibold text-lg mb-1">Payment</h3>
+          <p className="text-white/50 text-sm mb-5">Choose how you would like to pay for this order</p>
+          <div className="space-y-3">
             <button
               onClick={handleBankTransfer}
               disabled={paymentLoading}
-              className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left group"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left flex items-center gap-5"
             >
-              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 7.5h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
                 </svg>
               </div>
-              <p className="text-white font-semibold mb-1">Bank Transfer</p>
-              <p className="text-white/40 text-xs">Pay via direct bank transfer</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm">Bank Transfer</p>
+                <p className="text-white/40 text-xs mt-0.5">Pay via direct bank transfer</p>
+              </div>
+              <svg className="w-5 h-5 text-white/20 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
             <button
               onClick={handleCardPayment}
               disabled={paymentLoading}
-              className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left group"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left flex items-center gap-5"
             >
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
                 </svg>
               </div>
-              <p className="text-white font-semibold mb-1">Card Payment</p>
-              <p className="text-white/40 text-xs">Pay securely with your card</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm">Card Payment</p>
+                <p className="text-white/40 text-xs mt-0.5">Pay securely with your card</p>
+              </div>
+              <svg className="w-5 h-5 text-white/20 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
             <button
               onClick={handleFinancePayment}
               disabled={paymentLoading}
-              className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left group"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left flex items-center gap-5"
             >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-white font-semibold mb-1">Finance</p>
-              <p className="text-white/40 text-xs">Pay later with iwocaPay</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm">Finance</p>
+                <p className="text-white/40 text-xs mt-0.5">Spread the cost with iwocaPay — flexible instalments, no personal credit impact</p>
+              </div>
+              <svg className="w-5 h-5 text-white/20 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
           {paymentLoading && (

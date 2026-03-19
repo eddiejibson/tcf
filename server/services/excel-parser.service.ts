@@ -123,11 +123,47 @@ function parsePrice(value: unknown): number | null {
 
 function parseQty(value: unknown): number | null {
   if (typeof value === "number") return value >= 0 ? Math.round(value) : null;
-  if (typeof value === "string") {
-    const num = parseInt(value.replace(/[^\d]/g, ""));
-    return !isNaN(num) && num >= 0 ? num : null;
+  if (typeof value !== "string") return null;
+
+  const s = value.trim();
+  if (!s) return null;
+
+  // Skip non-numeric specials
+  if (/^(net|n\/a|tba|tbc|na|-+)$/i.test(s)) return null;
+
+  // K-notation range: "2.5k - 3k"
+  const kRange = s.match(/^([\d.]+)\s*k\s*[-–—]\s*([\d.]+)\s*k$/i);
+  if (kRange) {
+    const low = parseFloat(kRange[1]) * 1000;
+    const high = parseFloat(kRange[2]) * 1000;
+    if (!isNaN(low) && !isNaN(high) && low >= 0 && high >= 0) return Math.round((low + high) / 2);
   }
-  return null;
+
+  // Single k-notation: "3K", "2.5k"
+  const kSingle = s.match(/^([\d.]+)\s*k$/i);
+  if (kSingle) {
+    const n = parseFloat(kSingle[1]) * 1000;
+    return !isNaN(n) && n >= 0 ? Math.round(n) : null;
+  }
+
+  // Numeric range: "20 - 30", "20-30", "80 – 100"
+  const range = s.match(/^([\d.]+)\s*[-–—]\s*([\d.]+)$/);
+  if (range) {
+    const low = parseFloat(range[1]);
+    const high = parseFloat(range[2]);
+    if (!isNaN(low) && !isNaN(high) && low >= 0 && high >= 0) return Math.round((low + high) / 2);
+  }
+
+  // Plus notation: "30+", "50+"
+  const plus = s.match(/^([\d.]+)\s*\+$/);
+  if (plus) {
+    const n = parseFloat(plus[1]);
+    return !isNaN(n) && n >= 0 ? Math.round(n) : null;
+  }
+
+  // Plain number
+  const n = parseInt(s.replace(/[^\d]/g, ""));
+  return !isNaN(n) && n >= 0 ? n : null;
 }
 
 function parseSize(value: unknown): string | null {
@@ -432,6 +468,26 @@ export function parseExcelBuffer(buffer: Buffer, filename?: string, columnOverri
 
   const headerRowIndex = findHeaderRow(data);
   const headers = (data[headerRowIndex] || []).map((h) => String(h || ""));
+
+  // Merge multi-row headers: if the row above has values in columns where the
+  // header row is empty or very short (e.g. "(PCS)"), merge them in.
+  // Only merge values that match known column patterns to avoid section titles.
+  const allColumnPatterns = [...NAME_PATTERNS, ...PRICE_PATTERNS, ...SIZE_PATTERNS, ...QTY_PER_BOX_PATTERNS, ...STOCK_PATTERNS, ...DATE_PATTERNS, ...FREIGHT_PATTERNS];
+  if (headerRowIndex > 0) {
+    const aboveRow = data[headerRowIndex - 1];
+    if (aboveRow) {
+      for (let i = 0; i < Math.max(headers.length, aboveRow.length); i++) {
+        const above = String(aboveRow[i] || "").trim();
+        if (!above) continue;
+        const current = (headers[i] || "").trim();
+        if ((!current || current.length <= 6) && allColumnPatterns.some((p) => p.test(above))) {
+          const merged = current ? `${above} ${current}` : above;
+          if (i < headers.length) headers[i] = merged;
+          else headers.push(merged);
+        }
+      }
+    }
+  }
 
   if (!meta.name) meta.name = detectShipmentName(data, headerRowIndex, filename);
   if (!meta.name) {

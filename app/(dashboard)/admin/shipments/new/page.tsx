@@ -29,11 +29,45 @@ function clientParsePrice(value: unknown): number | null {
 
 function clientParseQty(value: unknown): number | null {
   if (typeof value === "number") return value >= 0 ? Math.round(value) : null;
-  if (typeof value === "string") {
-    const n = parseInt(value.replace(/[^\d]/g, ""));
-    return !isNaN(n) && n >= 0 ? n : null;
+  if (typeof value !== "string") return null;
+
+  const s = value.trim();
+  if (!s) return null;
+  if (/^(net|n\/a|tba|tbc|na|-+)$/i.test(s)) return null;
+
+  // K-notation range: "2.5k - 3k"
+  const kRange = s.match(/^([\d.]+)\s*k\s*[-–—]\s*([\d.]+)\s*k$/i);
+  if (kRange) {
+    const low = parseFloat(kRange[1]) * 1000;
+    const high = parseFloat(kRange[2]) * 1000;
+    if (!isNaN(low) && !isNaN(high) && low >= 0 && high >= 0) return Math.round((low + high) / 2);
   }
-  return null;
+
+  // Single k-notation: "3K", "2.5k"
+  const kSingle = s.match(/^([\d.]+)\s*k$/i);
+  if (kSingle) {
+    const n = parseFloat(kSingle[1]) * 1000;
+    return !isNaN(n) && n >= 0 ? Math.round(n) : null;
+  }
+
+  // Numeric range: "20 - 30", "20-30" → average
+  const range = s.match(/^([\d.]+)\s*[-–—]\s*([\d.]+)$/);
+  if (range) {
+    const low = parseFloat(range[1]);
+    const high = parseFloat(range[2]);
+    if (!isNaN(low) && !isNaN(high) && low >= 0 && high >= 0) return Math.round((low + high) / 2);
+  }
+
+  // Plus notation: "30+", "50+"
+  const plus = s.match(/^([\d.]+)\s*\+$/);
+  if (plus) {
+    const n = parseFloat(plus[1]);
+    return !isNaN(n) && n >= 0 ? Math.round(n) : null;
+  }
+
+  // Plain number
+  const n = parseInt(s.replace(/[^\d]/g, ""));
+  return !isNaN(n) && n >= 0 ? n : null;
 }
 
 function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: ColumnMapping): ParsedProduct[] {
@@ -76,20 +110,20 @@ function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: Column
 
 interface ItemRowProps {
   item: ItemWithId;
-  index: number;
   hasSize: boolean;
   hasStock: boolean;
-  onUpdate: (index: number, field: keyof ParsedProduct, value: string) => void;
-  onRemove: (index: number) => void;
+  onUpdate: (id: number, field: keyof ParsedProduct, value: string) => void;
+  onRemove: (id: number) => void;
 }
 
-const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate, onRemove }: ItemRowProps) {
+const ItemRow = memo(function ItemRow({ item, hasSize, hasStock, onUpdate, onRemove }: ItemRowProps) {
+  const id = item._id;
   return (
-    <div className={`min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 ${item.availableQty !== null && item.availableQty !== undefined && item.availableQty <= 0 ? "opacity-40" : ""}`}>
+    <div className={`min-w-[500px] px-4 md:px-6 h-[49px] flex items-center gap-4 border-b border-white/5 ${item.availableQty !== null && item.availableQty !== undefined && item.availableQty <= 0 ? "opacity-40" : ""}`}>
       <div className="flex-1">
         <input
           value={item.name}
-          onChange={(e) => onUpdate(index, "name", e.target.value)}
+          onChange={(e) => onUpdate(id, "name", e.target.value)}
           className={`w-full px-3 py-1.5 bg-white/5 border rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!item.name ? "border-red-500/50" : "border-white/10"}`}
         />
       </div>
@@ -98,7 +132,7 @@ const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate
           type="number"
           step="0.01"
           value={item.price ?? ""}
-          onChange={(e) => onUpdate(index, "price", e.target.value)}
+          onChange={(e) => onUpdate(id, "price", e.target.value)}
           className={`w-full px-3 py-1.5 bg-white/5 border rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${item.price === null ? "border-red-500/50" : "border-white/10"}`}
         />
       </div>
@@ -106,7 +140,7 @@ const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate
         <div className="w-20">
           <input
             value={item.size ?? ""}
-            onChange={(e) => onUpdate(index, "size", e.target.value)}
+            onChange={(e) => onUpdate(id, "size", e.target.value)}
             className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
           />
         </div>
@@ -115,7 +149,7 @@ const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate
         <input
           type="number"
           value={item.qtyPerBox ?? ""}
-          onChange={(e) => onUpdate(index, "qtyPerBox", e.target.value)}
+          onChange={(e) => onUpdate(id, "qtyPerBox", e.target.value)}
           className={`w-full px-3 py-1.5 bg-white/5 border rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${item.qtyPerBox === null ? "border-amber-500/50" : "border-white/10"}`}
         />
       </div>
@@ -124,17 +158,67 @@ const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate
           <input
             type="number"
             value={item.availableQty ?? ""}
-            onChange={(e) => onUpdate(index, "availableQty", e.target.value)}
+            onChange={(e) => onUpdate(id, "availableQty", e.target.value)}
             className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
           />
         </div>
       )}
       <div className="w-16 text-right">
-        <button onClick={() => onRemove(index)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+        <button onClick={() => onRemove(id)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
       </div>
     </div>
   );
 });
+
+const ROW_H = 49;
+const OVERSCAN = 5;
+const LIST_H = 500;
+
+function VirtualItemList({ items, hasSize, hasStock, onUpdate, onRemove, isPending, scrollRef }: {
+  items: ItemWithId[];
+  hasSize: boolean;
+  hasStock: boolean;
+  onUpdate: (id: number, field: keyof ParsedProduct, value: string) => void;
+  onRemove: (id: number) => void;
+  isPending: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const totalHeight = items.length * ROW_H;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+  const endIdx = Math.min(items.length, startIdx + Math.ceil(LIST_H / ROW_H) + OVERSCAN * 2);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  return (
+    <div
+      ref={scrollRef}
+      className={`transition-opacity ${isPending ? "opacity-40" : ""}`}
+      style={{ maxHeight: LIST_H, overflowY: "auto" }}
+      onScroll={handleScroll}
+    >
+      <div style={{ height: totalHeight, position: "relative" }}>
+        {items.slice(startIdx, endIdx).map((item, i) => (
+          <div
+            key={item._id}
+            style={{ position: "absolute", top: (startIdx + i) * ROW_H, left: 0, right: 0 }}
+          >
+            <ItemRow
+              item={item}
+              hasSize={hasSize}
+              hasStock={hasStock}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function NewShipmentPage() {
   const router = useRouter();
@@ -151,24 +235,26 @@ export default function NewShipmentPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [margin, setMargin] = useState("");
   const [isPending, startTransition] = useTransition();
-  const basePricesRef = useRef<(number | null)[]>([]);
+  const basePricesRef = useRef<Map<number, number | null>>(new Map());
   const rawRowsRef = useRef<unknown[][]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const assignIds = (items: ParsedProduct[]): ItemWithId[] =>
     items.map((item) => ({ ...item, _id: nextItemId++ }));
 
   const applyMarginAndSet = useCallback((newItems: ParsedProduct[], currentMargin: string) => {
-    basePricesRef.current = newItems.map((i) => i.price);
+    const itemsWithIds = assignIds(newItems);
+    const baseMap = new Map<number, number | null>();
+    itemsWithIds.forEach((item) => baseMap.set(item._id, item.price));
+    basePricesRef.current = baseMap;
     const m = parseFloat(currentMargin);
     if (m > 0) {
-      const adjusted = newItems.map((item, idx) => {
-        const base = basePricesRef.current[idx];
-        if (base === null) return item;
-        return { ...item, price: Math.round(base * (1 + m / 100) * 100) / 100 };
-      });
-      setItems(assignIds(adjusted));
+      setItems(itemsWithIds.map((item) => {
+        if (item.price === null) return item;
+        return { ...item, price: Math.round(item.price * (1 + m / 100) * 100) / 100 };
+      }));
     } else {
-      setItems(assignIds(newItems));
+      setItems(itemsWithIds);
     }
   }, []);
 
@@ -210,18 +296,17 @@ export default function NewShipmentPage() {
     setMargin(value);
     const m = parseFloat(value);
     if (isNaN(m) || m === 0) {
-      // Reset to base prices
       setItems((prev) =>
-        prev.map((item, idx) => {
-          const base = basePricesRef.current[idx];
+        prev.map((item) => {
+          const base = basePricesRef.current.get(item._id);
           if (base === null || base === undefined) return item;
           return { ...item, price: base };
         })
       );
     } else {
       setItems((prev) =>
-        prev.map((item, idx) => {
-          const base = basePricesRef.current[idx];
+        prev.map((item) => {
+          const base = basePricesRef.current.get(item._id);
           if (base === null || base === undefined) return item;
           return { ...item, price: Math.round(base * (1 + m / 100) * 100) / 100 };
         })
@@ -229,31 +314,34 @@ export default function NewShipmentPage() {
     }
   }, []);
 
-  const updateItem = useCallback((index: number, field: keyof ParsedProduct, value: string) => {
-    setItems((prev) => {
-      const updated = [...prev];
+  const updateItem = useCallback((id: number, field: keyof ParsedProduct, value: string) => {
+    setItems((prev) => prev.map((item) => {
+      if (item._id !== id) return item;
       if (field === "price") {
         const p = parseFloat(value) || null;
-        updated[index] = { ...updated[index], price: p };
-        // Update base price too so margin calculations stay correct
-        basePricesRef.current[index] = p;
+        basePricesRef.current.set(id, p);
+        return { ...item, price: p };
       }
-      else if (field === "qtyPerBox") updated[index] = { ...updated[index], qtyPerBox: parseInt(value) || null };
-      else if (field === "availableQty") updated[index] = { ...updated[index], availableQty: value === "" ? null : parseInt(value) };
-      else if (field === "size") updated[index] = { ...updated[index], size: value || null };
-      else if (field === "name") updated[index] = { ...updated[index], name: value };
-      return updated;
-    });
+      if (field === "qtyPerBox") return { ...item, qtyPerBox: parseInt(value) || null };
+      if (field === "availableQty") return { ...item, availableQty: value === "" ? null : parseInt(value) };
+      if (field === "size") return { ...item, size: value || null };
+      if (field === "name") return { ...item, name: value };
+      return item;
+    }));
   }, []);
 
-  const removeItem = useCallback((index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-    basePricesRef.current = basePricesRef.current.filter((_, i) => i !== index);
+  const removeItem = useCallback((id: number) => {
+    setItems((prev) => prev.filter((item) => item._id !== id));
+    basePricesRef.current.delete(id);
   }, []);
 
   const addItem = useCallback(() => {
-    setItems((prev) => [...prev, { name: "", price: null, size: null, qtyPerBox: 1, availableQty: null, warnings: [], _id: nextItemId++ }]);
-    basePricesRef.current.push(null);
+    const id = nextItemId++;
+    setItems((prev) => [{ name: "", price: null, size: null, qtyPerBox: 1, availableQty: null, warnings: [], _id: id }, ...prev]);
+    basePricesRef.current.set(id, null);
+    requestAnimationFrame(() => {
+      scrollContainerRef.current?.scrollTo({ top: 0 });
+    });
   }, []);
 
   const handleCreate = async () => {
@@ -441,24 +529,20 @@ export default function NewShipmentPage() {
               <div className="w-16"></div>
             </div>
 
-            <div className={`max-h-[500px] overflow-auto transition-opacity ${isPending ? "opacity-40" : ""}`}>
-              {items.map((item, index) => (
-                <ItemRow
-                  key={item._id}
-                  item={item}
-                  index={index}
-                  hasSize={hasSize}
-                  hasStock={hasStock}
-                  onUpdate={updateItem}
-                  onRemove={removeItem}
-                />
-              ))}
-            </div>
+            <VirtualItemList
+              items={items}
+              hasSize={hasSize}
+              hasStock={hasStock}
+              onUpdate={updateItem}
+              onRemove={removeItem}
+              isPending={isPending}
+              scrollRef={scrollContainerRef}
+            />
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <button onClick={() => { setParsed(null); setItems([]); setMargin(""); basePricesRef.current = []; rawRowsRef.current = []; }} className="text-white/50 hover:text-white text-sm font-medium transition-colors">
+          <div className="hidden md:flex items-center justify-between">
+            <button onClick={() => { setParsed(null); setItems([]); setMargin(""); basePricesRef.current = new Map(); rawRowsRef.current = []; }} className="text-white/50 hover:text-white text-sm font-medium transition-colors">
               Start Over
             </button>
             <button
@@ -469,6 +553,21 @@ export default function NewShipmentPage() {
               {creating ? "Creating..." : `Create Shipment (${validCount} products)`}
             </button>
           </div>
+
+          {/* Sticky bottom bar on mobile */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#111318]/90 backdrop-blur-xl border-t border-white/10 px-4 py-3 flex items-center gap-3">
+            <button onClick={() => { setParsed(null); setItems([]); setMargin(""); basePricesRef.current = new Map(); rawRowsRef.current = []; }} className="px-4 py-3 text-white/50 hover:text-white text-sm font-medium transition-colors">
+              Reset
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={creating || !name || !deadline || !shipmentDate || validCount === 0}
+              className="flex-1 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all text-sm"
+            >
+              {creating ? "Creating..." : `Create Shipment (${validCount} products)`}
+            </button>
+          </div>
+          <div className="md:hidden h-20" />
         </div>
       )}
     </div>

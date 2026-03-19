@@ -29,7 +29,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:block h-screen sticky top-0">
         <Sidebar />
       </div>
 

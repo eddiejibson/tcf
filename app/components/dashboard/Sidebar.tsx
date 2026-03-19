@@ -28,7 +28,7 @@ export default function Sidebar() {
   const links = isAdmin ? adminLinks : userLinks;
 
   return (
-    <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col h-screen sticky top-0">
+    <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col h-full">
       <div className="p-6">
         <Link href="/" className="flex items-center gap-3 group">
           <Image src="/images/logo.png" alt="The Coral Farm" width={32} height={48} className="transition-transform duration-300 group-hover:scale-105" />

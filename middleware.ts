@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/api/auth",
   "/api/booking",
   "/api/price-lists",
+  "/api/webhooks",
 ];
 
 function isPublicPath(pathname: string): boolean {

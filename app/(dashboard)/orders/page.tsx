@@ -36,7 +36,7 @@ export default function OrdersPage() {
   }, []);
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">My Orders</h1>
         <p className="text-white/50 text-sm mt-1">View your order history</p>

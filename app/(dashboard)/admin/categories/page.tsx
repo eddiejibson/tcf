@@ -81,7 +81,7 @@ export default function CategoriesPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Categories</h1>
         <p className="text-white/50 text-sm mt-1">Manage product categories</p>

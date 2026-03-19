@@ -233,9 +233,8 @@ export default function EditCatalogProductPage() {
                 }}
                 className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white"
               >
-                <option value="LOW">Low</option>
-                <option value="AVERAGE">Average</option>
-                <option value="HIGH">High</option>
+                <option value="LOW">Limited</option>
+                <option value="AVERAGE">Available</option>
                 <option value="OUT_OF_STOCK">Out of Stock</option>
               </select>
               {stockLevel === "OUT_OF_STOCK" && (

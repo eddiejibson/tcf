@@ -27,13 +27,22 @@ function formatPrice(n: number) {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<UserOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchOrders = () => {
+    setLoading(true);
+    setError(false);
     fetch("/api/orders")
-      .then((res) => res.ok ? res.json() : [])
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
       .then(setOrders)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchOrders(); }, []);
 
   return (
     <div className="p-4 md:p-8">

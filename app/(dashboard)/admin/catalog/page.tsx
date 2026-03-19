@@ -7,17 +7,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 const stockLevelColors: Record<string, string> = {
-  LOW: "bg-red-500/20 text-red-400",
-  AVERAGE: "bg-amber-500/20 text-amber-400",
+  LOW: "bg-amber-500/20 text-amber-400",
+  AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
 };
 
 const stockLevelLabels: Record<string, string> = {
-  LOW: "LOW",
-  AVERAGE: "AVERAGE",
-  HIGH: "HIGH",
-  OUT_OF_STOCK: "OUT OF STOCK",
+  LOW: "Limited",
+  AVERAGE: "Available",
+  HIGH: "Available",
+  OUT_OF_STOCK: "Out of Stock",
 };
 
 function formatPrice(n: number) {

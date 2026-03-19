@@ -28,9 +28,17 @@ interface OrderLineItem {
 }
 
 const stockLevelColors: Record<string, string> = {
-  LOW: "bg-red-500/20 text-red-400",
-  AVERAGE: "bg-amber-500/20 text-amber-400",
+  LOW: "bg-amber-500/20 text-amber-400",
+  AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
+  OUT_OF_STOCK: "bg-red-500/30 text-red-300",
+};
+
+const stockLevelLabels: Record<string, string> = {
+  LOW: "Limited",
+  AVERAGE: "Available",
+  HIGH: "Available",
+  OUT_OF_STOCK: "Out of Stock",
 };
 
 function formatPrice(n: number) {
@@ -138,7 +146,9 @@ export default function AdminNewOrderPage() {
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
 
-  const isOutOfStock = (p: SearchProduct) => p.stockMode === "EXACT" && (p.stockQty === 0 || p.stockQty === null);
+  const isOutOfStock = (p: SearchProduct) =>
+    (p.stockMode === "EXACT" && (p.stockQty === 0 || p.stockQty === null)) ||
+    (p.stockMode === "ROUGH" && p.stockLevel === "OUT_OF_STOCK");
 
   return (
     <div className="p-4 md:p-8">
@@ -252,12 +262,13 @@ export default function AdminNewOrderPage() {
                       <p className="text-white/90 text-sm font-medium truncate">{p.name}</p>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-[#0984E3] text-sm font-semibold">{formatPrice(p.price)}</span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-white/30 text-[8px] uppercase tracking-wider font-medium">Availability</span>
                           {p.stockMode === "EXACT" ? (
                             <span className="text-white/40 text-xs">{p.stockQty ?? 0} left</span>
                           ) : (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${stockLevelColors[p.stockLevel || ""] || "bg-white/10 text-white/40"}`}>
-                              {p.stockLevel}
+                              {stockLevelLabels[p.stockLevel || ""] || p.stockLevel}
                             </span>
                           )}
                         </div>

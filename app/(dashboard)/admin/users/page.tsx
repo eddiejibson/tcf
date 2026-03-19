@@ -342,7 +342,7 @@ export default function AdminUsersPage() {
                   </button>
                 )}
               </div>
-              <div className="w-32"><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Never"}</p></div>
+              <div className="w-32"><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
               <div className="w-32"><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
               <div className="w-24 text-right">
                 <button onClick={() => handleDelete(u.id)} className="text-red-400/60 hover:text-red-400 text-xs font-medium transition-colors">Delete</button>

@@ -2,6 +2,7 @@
 
 import CategoryPicker from "@/app/components/CategoryPicker";
 import type { CatalogProductListItem, CategoryNode } from "@/app/lib/types";
+import { generatePriceList, type PriceListProduct } from "@/app/lib/generate-price-list";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -9,6 +10,14 @@ const stockLevelColors: Record<string, string> = {
   LOW: "bg-red-500/20 text-red-400",
   AVERAGE: "bg-amber-500/20 text-amber-400",
   HIGH: "bg-green-500/20 text-green-400",
+  OUT_OF_STOCK: "bg-red-500/30 text-red-300",
+};
+
+const stockLevelLabels: Record<string, string> = {
+  LOW: "LOW",
+  AVERAGE: "AVERAGE",
+  HIGH: "HIGH",
+  OUT_OF_STOCK: "OUT OF STOCK",
 };
 
 function formatPrice(n: number) {
@@ -22,6 +31,7 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     const res = await fetch("/api/admin/categories");
@@ -54,12 +64,45 @@ export default function CatalogPage() {
             Manage the standalone coral/fish/invert catalog
           </p>
         </div>
-        <Link
-          href="/admin/catalog/new"
-          className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl text-sm transition-all"
-        >
-          Add Product
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await fetch("/api/admin/catalog");
+                if (res.ok) {
+                  const allActive: CatalogProductListItem[] = await res.json();
+                  const priceListProducts: PriceListProduct[] = allActive.map((p) => ({
+                    name: p.name,
+                    price: Number(p.price),
+                    type: p.type,
+                    categoryName: p.categoryName,
+                  }));
+                  await generatePriceList(priceListProducts);
+                }
+              } finally {
+                setExporting(false);
+              }
+            }}
+            disabled={exporting}
+            className="px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-medium rounded-xl text-sm transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {exporting ? (
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+            Export Price List
+          </button>
+          <Link
+            href="/admin/catalog/new"
+            className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl text-sm transition-all"
+          >
+            Add Product
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -189,7 +232,7 @@ export default function CatalogPage() {
                     <span
                       className={`px-2 py-1 rounded-lg text-xs font-medium ${stockLevelColors[p.stockLevel || ""] || "bg-white/10 text-white/40"}`}
                     >
-                      {p.stockLevel || "—"}
+                      {stockLevelLabels[p.stockLevel || ""] || p.stockLevel || "—"}
                     </span>
                   )}
                 </div>

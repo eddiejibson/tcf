@@ -16,6 +16,7 @@ export enum StockLevel {
   LOW = "LOW",
   AVERAGE = "AVERAGE",
   HIGH = "HIGH",
+  OUT_OF_STOCK = "OUT_OF_STOCK",
 }
 
 @Entity("catalog_products")

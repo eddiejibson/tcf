@@ -19,6 +19,7 @@ export default function NewCatalogProductPage() {
   const [stockMode, setStockMode] = useState("EXACT");
   const [stockQty, setStockQty] = useState("");
   const [stockLevel, setStockLevel] = useState("AVERAGE");
+  const [active, setActive] = useState(true);
   const [wysiwyg, setWysiwyg] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -72,6 +73,7 @@ export default function NewCatalogProductPage() {
         stockMode,
         stockQty: stockMode === "EXACT" ? parseInt(stockQty) || 0 : null,
         stockLevel: stockMode === "ROUGH" ? stockLevel : null,
+        active,
         wysiwyg,
       }),
     });
@@ -176,11 +178,28 @@ export default function NewCatalogProductPage() {
           ) : (
             <div>
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Stock Level</label>
-              <select value={stockLevel} onChange={(e) => setStockLevel(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white">
+              <select
+                value={stockLevel}
+                onChange={(e) => {
+                  const newLevel = e.target.value;
+                  const wasOutOfStock = stockLevel === "OUT_OF_STOCK";
+                  setStockLevel(newLevel);
+                  if (newLevel === "OUT_OF_STOCK") {
+                    setActive(false);
+                  } else if (wasOutOfStock) {
+                    setActive(true);
+                  }
+                }}
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white"
+              >
                 <option value="LOW">Low</option>
                 <option value="AVERAGE">Average</option>
                 <option value="HIGH">High</option>
+                <option value="OUT_OF_STOCK">Out of Stock</option>
               </select>
+              {stockLevel === "OUT_OF_STOCK" && (
+                <p className="text-red-400/70 text-xs mt-2">Product will be automatically set to inactive while out of stock</p>
+              )}
             </div>
           )}
         </div>

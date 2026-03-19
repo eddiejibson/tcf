@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, price, type, categoryId, imageKey, stockMode, stockQty, stockLevel } = body;
+  const { name, price, type, categoryId, imageKey, stockMode, stockQty, stockLevel, wysiwyg } = body;
 
   if (!name || price == null || !type || !categoryId || !stockMode) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       stockMode,
       stockQty: stockQty != null ? parseInt(stockQty) : null,
       stockLevel: stockLevel || null,
+      wysiwyg: wysiwyg ?? false,
     });
     return NextResponse.json(product, { status: 201 });
   } catch (e) {

@@ -22,6 +22,7 @@ export default function EditCatalogProductPage() {
   const [stockQty, setStockQty] = useState("");
   const [stockLevel, setStockLevel] = useState("AVERAGE");
   const [active, setActive] = useState(true);
+  const [wysiwyg, setWysiwyg] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
@@ -43,6 +44,7 @@ export default function EditCatalogProductPage() {
       setStockQty(p.stockQty != null ? String(p.stockQty) : "");
       setStockLevel(p.stockLevel || "AVERAGE");
       setActive(p.active);
+      setWysiwyg(p.wysiwyg ?? false);
     }
     setLoading(false);
   }, [params.id]);
@@ -94,6 +96,7 @@ export default function EditCatalogProductPage() {
         stockQty: stockMode === "EXACT" ? parseInt(stockQty) || 0 : null,
         stockLevel: stockMode === "ROUGH" ? stockLevel : null,
         active,
+        wysiwyg,
       }),
     });
     setSaving(false);
@@ -176,6 +179,20 @@ export default function EditCatalogProductPage() {
               <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
               <span className="text-white/80 text-sm">Active</span>
             </label>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-sm font-medium">WYSIWYG</p>
+              <p className="text-white/30 text-xs mt-0.5">What you see is what you get — exact item shown is what customer receives</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWysiwyg(!wysiwyg)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${wysiwyg ? "bg-[#0984E3]" : "bg-white/10"}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${wysiwyg ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
           </div>
         </div>
 

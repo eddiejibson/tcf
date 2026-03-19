@@ -61,9 +61,9 @@ export default function OrdersPage() {
                     <span className="text-white/40 text-sm">{new Date(o.createdAt).toLocaleDateString("en-GB")}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[#0984E3] font-semibold tabular-nums">{formatPrice(o.total)}</span>
-                  <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[#0984E3] font-semibold tabular-nums whitespace-nowrap">{formatPrice(o.total)}</span>
+                  <span className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
                 </div>
               </div>
             </Link>

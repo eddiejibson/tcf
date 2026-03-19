@@ -41,6 +41,7 @@ export async function createCatalogProduct(data: {
   stockQty?: number | null;
   stockLevel?: CatalogProduct["stockLevel"] | null;
   active?: boolean;
+  wysiwyg?: boolean;
 }) {
   const db = await getDb();
   const catRepo = db.getRepository(Category);
@@ -58,6 +59,7 @@ export async function createCatalogProduct(data: {
     stockQty: data.stockQty ?? null,
     stockLevel: data.stockLevel ?? null,
     active: data.active ?? true,
+    wysiwyg: data.wysiwyg ?? false,
   });
 
   return repo.save(product);
@@ -75,6 +77,7 @@ export async function updateCatalogProduct(
     stockQty: number | null;
     stockLevel: CatalogProduct["stockLevel"] | null;
     active: boolean;
+    wysiwyg: boolean;
   }>
 ) {
   const db = await getDb();

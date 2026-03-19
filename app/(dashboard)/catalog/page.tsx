@@ -16,6 +16,7 @@ interface SearchProduct {
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;
+  wysiwyg: boolean;
 }
 
 interface CartItem {
@@ -45,6 +46,7 @@ export default function CatalogPage() {
   const [activeParentId, setActiveParentId] = useState("");
   const [activeChildId, setActiveChildId] = useState("");
   const [search, setSearch] = useState("");
+  const [wysiwygOnly, setWysiwygOnly] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [useCredit, setUseCredit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -158,14 +160,26 @@ export default function CatalogPage() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Product browser */}
         <div className="flex-1">
-          {/* Search */}
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search all products..."
-            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 mb-4"
-          />
+          {/* Search + WYSIWYG filter */}
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search all products..."
+              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50"
+            />
+            <button
+              onClick={() => setWysiwygOnly(!wysiwygOnly)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap border ${
+                wysiwygOnly
+                  ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
+                  : "bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10"
+              }`}
+            >
+              WYSIWYG
+            </button>
+          </div>
 
           {/* Category tabs - hidden when searching */}
           {!search && (
@@ -217,6 +231,7 @@ export default function CatalogPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {products
               .filter((p) => {
+                if (wysiwygOnly && !p.wysiwyg) return false;
                 if (search) return true;
                 if (!activeChildId && activeParentId) {
                   const childIds = activeParent?.children.map((c) => c.id) || [];

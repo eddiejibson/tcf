@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       stockMode: p.stockMode,
       stockQty: p.stockQty,
       stockLevel: p.stockLevel,
+      wysiwyg: p.wysiwyg,
     }))
   );
 

@@ -19,6 +19,7 @@ export default function NewCatalogProductPage() {
   const [stockMode, setStockMode] = useState("EXACT");
   const [stockQty, setStockQty] = useState("");
   const [stockLevel, setStockLevel] = useState("AVERAGE");
+  const [wysiwyg, setWysiwyg] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
@@ -71,6 +72,7 @@ export default function NewCatalogProductPage() {
         stockMode,
         stockQty: stockMode === "EXACT" ? parseInt(stockQty) || 0 : null,
         stockLevel: stockMode === "ROUGH" ? stockLevel : null,
+        wysiwyg,
       }),
     });
     if (res.ok) {
@@ -134,6 +136,20 @@ export default function NewCatalogProductPage() {
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
               </label>
             )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-sm font-medium">WYSIWYG</p>
+              <p className="text-white/30 text-xs mt-0.5">What you see is what you get — exact item shown is what customer receives</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWysiwyg(!wysiwyg)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${wysiwyg ? "bg-[#0984E3]" : "bg-white/10"}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${wysiwyg ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
           </div>
         </div>
 

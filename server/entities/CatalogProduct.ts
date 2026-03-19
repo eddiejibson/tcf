@@ -50,6 +50,9 @@ export class CatalogProduct extends BaseEntityWithUpdate {
 
   @Column({ type: "boolean", default: true })
   active: boolean;
+
+  @Column({ type: "boolean", default: false })
+  wysiwyg: boolean;
 }
 
 export type CatalogProductRecord = Omit<CatalogProduct, "category">;

@@ -64,7 +64,7 @@ export default function AdminOrdersPage() {
             <div className="w-40"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Shipment</p></div>
             <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Items</p></div>
             <div className="w-24 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
-            <div className="w-28 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
+            <div className="w-36 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
             <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
           </div>
           {orders.map((o) => (
@@ -77,8 +77,8 @@ export default function AdminOrdersPage() {
               <div className="w-40"><p className="text-white/60 text-sm truncate">{o.shipmentName || "Direct Order"}</p></div>
               <div className="w-20 text-center"><p className="text-white/60 text-sm">{o.itemCount}</p></div>
               <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(o.total)}</p></div>
-              <div className="w-28 text-center">
-                <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
+              <div className="w-36 text-center">
+                <span className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
               </div>
               <div className="w-24"><p className="text-white/40 text-xs">{new Date(o.createdAt).toLocaleDateString("en-GB")}</p></div>
             </Link>

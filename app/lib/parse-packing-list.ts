@@ -35,6 +35,17 @@ const NAME_PATTERNS = [
   /item[\s_-]*name/i, /product[\s_-]*name/i, /species[\s_-]*name/i,
   /scientific[\s_-]*name/i, /scientific/i, /^desc/i, /^latin/i,
   /coral[\s_-]*name/i, /fish[\s_-]*name/i, /livestock/i,
+  // Abbreviations & alternatives
+  /^descr(?:iption)?$/i, /^prod(?:uct)?[\s_-]*(?:name)?$/i,
+  /item[\s_-]*desc/i, /product[\s_-]*desc/i, /line[\s_-]*item/i,
+  /^goods$/i, /^material$/i, /^article$/i, /^details?$/i,
+  /^variety$/i, /^variant$/i,
+  // Marine/aquarium industry
+  /^invert(?:ebrate)?$/i, /plant[\s_-]*name/i, /animal[\s_-]*name/i,
+  /specimen[\s_-]*name/i, /live[\s_-]*stock/i,
+  // Common typos
+  /^desc?iption$/i, /^discription$/i, /^decription$/i, /^desciption$/i,
+  /^prodcut$/i, /^prdouct$/i, /^itme$/i,
 ];
 
 const SIZE_PATTERNS = [
@@ -43,6 +54,15 @@ const SIZE_PATTERNS = [
   /^cm$/i, /^inches?$/i, /^mm$/i,
   /size[\s_-]*\(?cm\)?/i, /frag[\s_-]*size/i, /colony[\s_-]*size/i,
   /approx[\s_-]*size/i, /avg[\s_-]*size/i, /coral[\s_-]*size/i,
+  // Abbreviations & alternatives
+  /^sz$/i, /^siz$/i, /^dims?$/i,
+  /^length$/i, /^width$/i, /^height$/i, /^diameter$/i, /^dia$/i,
+  /^range$/i, /size[\s_-]*range/i, /size[\s_-]*grade/i,
+  // Measurement units spelled out
+  /^centimetres?$/i, /^centimeters?$/i, /^millimetres?$/i, /^millimeters?$/i,
+  // Marine/aquarium industry
+  /polyp[\s_-]*size/i, /head[\s_-]*size/i, /min[\s_-]*size/i, /max[\s_-]*size/i,
+  /growth[\s_-]*form/i, /morph/i,
 ];
 
 const QTY_PATTERNS = [
@@ -51,6 +71,16 @@ const QTY_PATTERNS = [
   /^units$/i, /^amount$/i, /^total$/i,
   /^count$/i, /^no\.?$/i, /^nos$/i,
   /order[\s_-]*qty/i, /qty[\s_-]*ordered/i,
+  // Abbreviations & alternatives
+  /^quan(?:t(?:ity)?)?$/i, /^qnty$/i, /^qtty$/i, /^qy$/i,
+  /^num(?:ber)?$/i, /^ea(?:ch)?$/i, /^lot$/i, /^lots$/i,
+  /^req(?:uired|uested)?$/i, /^needed$/i, /^demand$/i,
+  /^avail(?:able)?$/i, /^on[\s_-]*hand$/i, /^in[\s_-]*stock$/i,
+  /pack[\s_-]*qty/i, /order[\s_-]*quantity/i, /quantity[\s_-]*ordered/i,
+  /qty[\s_-]*req/i, /qty[\s_-]*needed/i, /qty[\s_-]*available/i,
+  /total[\s_-]*qty/i, /total[\s_-]*quantity/i, /total[\s_-]*pcs/i,
+  // Common typos
+  /^quantiy$/i, /^quanity$/i, /^quntity$/i, /^qauntity$/i, /^quanttiy$/i,
 ];
 
 // Things that are DEFINITELY NOT a name or qty
@@ -61,11 +91,32 @@ const CODE_PATTERNS = [
   /^no\.?$/i, /^number$/i, /^#$/i,
   /box[\s_-]*\(?no/i, /box[\s_-]*number/i, /box[\s_-]*#/i,
   /carton[\s_-]*no/i, /bag[\s_-]*no/i,
+  // Additional code/reference patterns
+  /stock[\s_-]*code/i, /sku[\s_-]*code/i,
+  /^reference$/i, /reference[\s_-]*no/i, /ref[\s_-]*no/i, /ref[\s_-]*#/i,
+  /^lot[\s_-]*no/i, /lot[\s_-]*number/i, /^batch$/i, /batch[\s_-]*no/i,
+  /^serial/i, /serial[\s_-]*no/i, /^sn$/i,
+  /^part[\s_-]*no/i, /part[\s_-]*number/i, /^pn$/i,
+  /^model$/i, /model[\s_-]*no/i,
+  /^index$/i, /^idx$/i, /^row$/i, /^line$/i, /^seq$/i,
+  /^s[\s_-]*no\.?$/i, /^sr[\s_-]*no\.?$/i, /^sl[\s_-]*no\.?$/i,
+  // Marine industry
+  /^cites$/i, /cites[\s_-]*no/i, /permit[\s_-]*no/i,
 ];
 
 const PRICE_PATTERNS = [
   /price/i, /^cost$/i, /per[\s_-]*unit/i,
   /^[£$€]$/i, /^gbp$/i, /^amount$/i, /wholesale/i,
+  // Specific price columns
+  /unit[\s_-]*price/i, /each[\s_-]*price/i, /sell[\s_-]*price/i,
+  /^sell$/i, /^retail$/i, /^rrp$/i, /^msrp$/i,
+  /^value$/i, /total[\s_-]*value/i, /line[\s_-]*total/i,
+  /^sub[\s_-]*total$/i, /^subtotal$/i,
+  // Currency codes
+  /^usd$/i, /^eur$/i, /^jpy$/i, /^aud$/i, /^cad$/i, /^nzd$/i,
+  /^rate$/i, /^tariff$/i, /^markup$/i, /^margin$/i,
+  /^p\/u$/i, /^ea[\s_-]*price/i,
+  /^invoice$/i, /^charge$/i,
 ];
 
 const IGNORE_COLUMN_PATTERNS = [
@@ -74,6 +125,24 @@ const IGNORE_COLUMN_PATTERNS = [
   /^box$/i, /^boxes$/i, /^bag$/i, /^bags$/i,
   /^notes?$/i, /^remark/i, /^comment/i,
   /^image/i, /^photo/i, /^pic/i,
+  // Order/customer grouping columns (not data)
+  /^order[\s_-]*(?:ref|no|number|id|#)/i, /^customer$/i, /^client$/i, /^buyer$/i, /^account$/i,
+  /^supplier$/i, /^vendor$/i, /^company$/i,
+  // Date columns
+  /^date$/i, /delivery[\s_-]*date/i, /ship[\s_-]*date/i, /order[\s_-]*date/i,
+  /^eta$/i, /^etd$/i,
+  // Status/meta columns
+  /^status$/i, /^availability$/i, /^avail$/i,
+  /^colou?r$/i, /^weight$/i, /^wt$/i, /^kg$/i, /^lbs?$/i, /^grams?$/i,
+  // Origin/location
+  /^origin$/i, /^country$/i, /^source$/i, /^location$/i, /^region$/i,
+  // Media
+  /^thumbnail$/i, /^img$/i, /^picture$/i, /^url$/i, /^link$/i,
+  // Classification
+  /^categor/i, /^group$/i, /^family$/i, /^genus$/i, /^type$/i, /^class$/i,
+  // Marine/logistics
+  /^certificate/i, /^permit$/i, /^cites$/i,
+  /^packaging$/i, /^packing$/i, /^handling$/i, /^care$/i,
 ].flat();
 
 // --- Helpers ---
@@ -149,6 +218,13 @@ function findHeaderRow(data: unknown[][]): number {
     /name/i, /price/i, /item/i, /product/i, /description/i,
     /qty/i, /quantity/i, /size/i, /species/i, /stock/i,
     /order/i, /common/i, /scientific/i, /units/i, /grade/i,
+    // Additional header-detection triggers
+    /sku/i, /code/i, /ref/i, /pieces?/i, /pcs/i,
+    /customer/i, /client/i, /count/i, /total/i,
+    /variety/i, /variant/i, /dimension/i, /measurement/i,
+    /desc/i, /specimen/i, /livestock/i, /coral/i, /fish/i,
+    // Common typos that still indicate a header row
+    /quantiy/i, /quanity/i, /descr/i, /prodcut/i,
   ];
 
   let bestRow = 0;
@@ -319,7 +395,7 @@ function detectColumnsSmart(data: unknown[][], headerRowIndex: number): PackingC
 
 // --- Subtotal/total row blocklist ---
 
-const SUBTOTAL_PATTERN = /^(sub[\s-]?total|total|grand[\s-]?total|sum|shipping|freight|discount|vat|tax|delivery|postage|carriage|handling|p&p|p\+p)$/i;
+const SUBTOTAL_PATTERN = /^(sub[\s-]?total|total|grand[\s-]?total|sum|shipping|freight|discount|vat|tax|delivery|postage|carriage|handling|p&p|p\+p|net[\s-]?total|order[\s-]?total|line[\s-]?total|amount[\s-]?due|balance[\s-]?due|amount|surcharge|insurance|customs|duty|import[\s-]?duty|packing|packaging|admin[\s-]?fee|service[\s-]?charge|credit|adjustment|refund|deposit)$/i;
 
 // --- Order column detection ---
 

@@ -113,6 +113,23 @@ export default function OrderDetailPage() {
     setPaymentLoading(false);
   };
 
+  const handleFinancePayment = async () => {
+    setPaymentLoading(true);
+    const res = await fetch(`/api/orders/${params.id}/payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method: "FINANCE" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.paymentUrl) {
+        window.open(data.paymentUrl, "_blank");
+        await fetchOrder();
+      }
+    }
+    setPaymentLoading(false);
+  };
+
   const handleChangeMethod = async () => {
     setPaymentLoading(true);
     const res = await fetch(`/api/orders/${params.id}/payment`, {
@@ -256,21 +273,22 @@ export default function OrderDetailPage() {
   const canSelectPayment = order.status === "ACCEPTED" && !order.paymentMethod;
   const showBankInfo = order.status === "ACCEPTED" && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
   const showCardPending = order.status === "ACCEPTED" && order.paymentMethod === "CARD";
+  const showFinancePending = order.status === "ACCEPTED" && order.paymentMethod === "FINANCE";
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
 
   return (
-    <div className="p-8 max-w-4xl">
-      <button onClick={() => router.push("/orders")} className="text-white/50 hover:text-white text-sm mb-6 flex items-center gap-1 transition-colors">
+    <div className="p-4 md:p-8 max-w-4xl">
+      <button onClick={() => router.push("/orders")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Back to Orders
       </button>
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
           <p className="text-white/50 text-sm mt-1">{order.shipment.name}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleDownloadInvoice}
             className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-sm font-medium transition-all flex items-center gap-2"
@@ -280,7 +298,7 @@ export default function OrderDetailPage() {
             </svg>
             Invoice
           </button>
-          <span className={`px-4 py-1.5 rounded-lg text-sm font-medium ${statusColors[order.status] || "bg-white/10 text-white/60"}`}>{statusLabels[order.status] || order.status}</span>
+          <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${statusColors[order.status] || "bg-white/10 text-white/60"}`}>{statusLabels[order.status] || order.status}</span>
         </div>
       </div>
 
@@ -298,14 +316,15 @@ export default function OrderDetailPage() {
       )}
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-        <div className="px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="overflow-x-auto">
+        <div className="min-w-[400px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
           <div className="w-24 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
           <div className="w-16 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
           <div className="w-24 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
         </div>
         {order.items.map((item) => (
-          <div key={item.id} className="px-6 py-3 border-b border-white/5">
+          <div key={item.id} className="min-w-[400px] px-4 md:px-6 py-3 border-b border-white/5">
             <div className="flex items-center gap-4">
               <div className="flex-1"><p className="text-white/90 text-sm font-medium">{item.name}</p></div>
               <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p></div>
@@ -317,7 +336,8 @@ export default function OrderDetailPage() {
             )}
           </div>
         ))}
-        <div className="p-6 space-y-2">
+        </div>
+        <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
             <span className="tabular-nums">{formatPrice(order.totals.subtotal)}</span>
@@ -407,7 +427,7 @@ export default function OrderDetailPage() {
         <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
           <h3 className="text-white font-semibold text-lg mb-2">Payment</h3>
           <p className="text-white/50 text-sm mb-6">Choose how you would like to pay for this order</p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
               onClick={handleBankTransfer}
               disabled={paymentLoading}
@@ -433,6 +453,19 @@ export default function OrderDetailPage() {
               </div>
               <p className="text-white font-semibold mb-1">Card Payment</p>
               <p className="text-white/40 text-xs">Pay securely with your card</p>
+            </button>
+            <button
+              onClick={handleFinancePayment}
+              disabled={paymentLoading}
+              className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-white font-semibold mb-1">Finance</p>
+              <p className="text-white/40 text-xs">Pay later with iwocaPay</p>
             </button>
           </div>
           {paymentLoading && (
@@ -485,11 +518,47 @@ export default function OrderDetailPage() {
         </div>
       )}
 
+      {showFinancePending && (
+        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-semibold text-lg">Finance via iwocaPay</h3>
+            <button onClick={handleChangeMethod} disabled={paymentLoading} className="text-white/40 hover:text-white text-xs font-medium transition-colors">
+              Change method
+            </button>
+          </div>
+          <p className="text-white/50 text-sm mb-4">
+            Spread the cost of your order with iwocaPay. Pay in flexible instalments with no impact on your personal credit score.
+          </p>
+          {order.paymentReference && (
+            <a
+              href={order.paymentReference}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 font-medium rounded-xl text-sm transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              Complete Finance Application
+            </a>
+          )}
+          <button
+            onClick={handleConfirmBankSent}
+            disabled={paymentLoading}
+            className="mt-4 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all"
+          >
+            {paymentLoading ? "Confirming..." : "I've Completed the Finance Application"}
+          </button>
+        </div>
+      )}
+
       {isAwaitingPayment && (
         <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[16px] p-4">
           <p className="text-yellow-400 text-sm font-medium">
             {order.paymentMethod === "BANK_TRANSFER"
               ? "Bank transfer marked as sent. Awaiting confirmation from The Coral Farm."
+              : order.paymentMethod === "FINANCE"
+              ? "Finance application submitted. Awaiting confirmation from The Coral Farm."
               : "Payment awaiting confirmation."}
           </p>
         </div>

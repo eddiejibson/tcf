@@ -32,8 +32,8 @@ export default function AdminShipmentsPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 max-w-5xl">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Shipments</h1>
           <p className="text-white/50 text-sm mt-1">Manage incoming shipments and products</p>
@@ -63,7 +63,7 @@ export default function AdminShipmentsPage() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold">{s.name}</h3>
-                    <div className="flex items-center gap-4 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
                       <span className="text-amber-400 text-sm">Deadline: {new Date(s.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                       <span className="text-white/40 text-sm">{s.productCount} products</span>
                       <span className="text-white/40 text-sm">{s.orderCount} orders</span>

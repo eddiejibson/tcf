@@ -85,7 +85,7 @@ interface ItemRowProps {
 
 const ItemRow = memo(function ItemRow({ item, index, hasSize, hasStock, onUpdate, onRemove }: ItemRowProps) {
   return (
-    <div className={`px-6 py-3 flex items-center gap-4 border-b border-white/5 ${item.availableQty !== null && item.availableQty !== undefined && item.availableQty <= 0 ? "opacity-40" : ""}`}>
+    <div className={`min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 ${item.availableQty !== null && item.availableQty !== undefined && item.availableQty <= 0 ? "opacity-40" : ""}`}>
       <div className="flex-1">
         <input
           value={item.name}
@@ -299,8 +299,8 @@ export default function NewShipmentPage() {
   const validCount = useMemo(() => items.filter((i) => i.name && i.price).length, [items]);
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="mb-8">
+    <div className="p-4 md:p-8 max-w-5xl">
+      <div className="mb-6 md:mb-8">
         <h1 className="text-2xl font-bold text-white">Create Shipment</h1>
         <p className="text-white/50 text-sm mt-1">Upload an Excel file or create manually</p>
       </div>
@@ -343,9 +343,9 @@ export default function NewShipmentPage() {
             </div>
           )}
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
             <h3 className="text-white font-semibold mb-4">Shipment Details</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Name</label>
                 <input value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!name ? "border-red-500/50" : "border-white/10"}`} />
@@ -386,7 +386,7 @@ export default function NewShipmentPage() {
           </div>
 
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-            <div className="p-6 flex items-center justify-between border-b border-white/10">
+            <div className="p-4 md:p-6 flex items-center justify-between border-b border-white/10">
               <h3 className="text-white font-semibold">Products ({items.length})</h3>
               <div className="flex items-center gap-3">
                 {headers.length > 0 && (
@@ -410,7 +410,7 @@ export default function NewShipmentPage() {
             {mappingsOpen && headers.length > 0 && (
               <div className="px-6 py-4 border-b border-white/10 bg-white/[0.03]">
                 <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Column Mappings</p>
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   {MAPPING_FIELDS.map(({ key, label }) => (
                     <div key={key}>
                       <label className="text-white/40 text-[10px] uppercase tracking-wider font-medium block mb-1.5">{label}</label>
@@ -431,7 +431,8 @@ export default function NewShipmentPage() {
               </div>
             )}
 
-            <div className="px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+            <div className="overflow-x-auto">
+            <div className="min-w-[500px] px-4 md:px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Name</p></div>
               <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
               {hasSize && <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Size</p></div>}
@@ -452,6 +453,7 @@ export default function NewShipmentPage() {
                   onRemove={removeItem}
                 />
               ))}
+            </div>
             </div>
           </div>
 

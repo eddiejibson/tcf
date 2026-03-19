@@ -19,6 +19,7 @@ export enum OrderStatus {
 export enum PaymentMethod {
   BANK_TRANSFER = "BANK_TRANSFER",
   CARD = "CARD",
+  FINANCE = "FINANCE",
 }
 
 @Entity("orders")

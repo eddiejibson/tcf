@@ -100,8 +100,8 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 max-w-5xl">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Users</h1>
           <p className="text-white/50 text-sm mt-1">Manage trade portal accounts</p>
@@ -116,8 +116,8 @@ export default function AdminUsersPage() {
 
       {showCreate && (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
-          <form onSubmit={handleCreate} className="flex items-end gap-4">
-            <div className="flex-1">
+          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 md:gap-4">
+            <div className="flex-1 sm:col-span-2 md:col-span-1">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Email</label>
               <input
                 type="email"
@@ -129,7 +129,7 @@ export default function AdminUsersPage() {
                 autoFocus
               />
             </div>
-            <div className="w-48">
+            <div className="md:w-48">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Company Name</label>
               <input
                 type="text"
@@ -139,7 +139,7 @@ export default function AdminUsersPage() {
                 placeholder="Optional"
               />
             </div>
-            <div className="w-40">
+            <div className="md:w-40">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Role</label>
               <div className="relative">
                 <select
@@ -170,7 +170,7 @@ export default function AdminUsersPage() {
       {creditUserId && (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Adjust Credit for {users.find((u) => u.id === creditUserId)?.email}</p>
-          <form onSubmit={handleCreditAdjust} className="flex items-end gap-4">
+          <form onSubmit={handleCreditAdjust} className="flex flex-wrap items-end gap-3 md:gap-4">
             <div className="w-36">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Amount</label>
               <input
@@ -218,7 +218,8 @@ export default function AdminUsersPage() {
         </div>
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-          <div className="px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="overflow-x-auto">
+          <div className="min-w-[640px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
             <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">User</p></div>
             <div className="w-24 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
             <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
@@ -227,7 +228,7 @@ export default function AdminUsersPage() {
             <div className="w-24"></div>
           </div>
           {users.map((u) => (
-            <div key={u.id} className="px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+            <div key={u.id} className="min-w-[640px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
               <div className="flex-1">
                 {editCompanyUserId === u.id ? (
                   <div className="flex items-center gap-2">
@@ -294,6 +295,7 @@ export default function AdminUsersPage() {
           {users.length === 0 && (
             <div className="py-12 text-center text-white/40">No users found</div>
           )}
+          </div>
         </div>
       )}
     </div>

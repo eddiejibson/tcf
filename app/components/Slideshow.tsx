@@ -49,7 +49,7 @@ export default function Slideshow() {
         </div>
       ))}
       {/* Gradient overlay for better text contrast if needed */}
-      <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#2B343E]/30" />
+      <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#151b23]/30" />
     </div>
   );
 }

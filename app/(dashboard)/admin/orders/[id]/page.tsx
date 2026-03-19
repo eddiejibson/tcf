@@ -176,7 +176,7 @@ export default function AdminOrderDetailPage() {
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
-  if (!order) return <div className="p-8 text-white/40">Order not found</div>;
+  if (!order) return <div className="p-4 md:p-8 text-white/40">Order not found</div>;
 
   const subtotal = items.reduce((sum, i) => sum + i.quantity * Number(i.unitPrice), 0);
   const shipping = includeShipping ? 25 : 0;
@@ -195,18 +195,18 @@ export default function AdminOrderDetailPage() {
   const hasChanges = savedSnapshot !== "" && currentSnapshot !== savedSnapshot;
 
   return (
-    <div className="p-8 max-w-4xl">
-      <button onClick={() => router.push("/admin/orders")} className="text-white/50 hover:text-white text-sm mb-6 flex items-center gap-1 transition-colors">
+    <div className="p-4 md:p-8 max-w-4xl">
+      <button onClick={() => router.push("/admin/orders")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Back to Orders
       </button>
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
           <p className="text-white/50 text-sm mt-1">{order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email} - {order.shipment.name}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleDownloadInvoice}
             className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap"
@@ -246,14 +246,18 @@ export default function AdminOrderDetailPage() {
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6">
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2">Payment</p>
           <p className="text-white text-sm">
-            {order.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : "Card Payment"}
-            {order.paymentReference && <span className="text-white/40 ml-2">Ref: {order.paymentReference}</span>}
+            {order.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : order.paymentMethod === "FINANCE" ? "Finance (iwocaPay)" : "Card Payment"}
+            {order.paymentReference && order.paymentMethod !== "FINANCE" && <span className="text-white/40 ml-2">Ref: {order.paymentReference}</span>}
+            {order.paymentMethod === "FINANCE" && order.paymentReference && (
+              <a href={order.paymentReference} target="_blank" rel="noopener noreferrer" className="text-[#0984E3] ml-2 hover:underline">View iwocaPay link</a>
+            )}
           </p>
         </div>
       )}
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
-        <div className="px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="overflow-x-auto">
+        <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
           <div className="w-28"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
           <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
@@ -262,7 +266,7 @@ export default function AdminOrderDetailPage() {
         </div>
 
         {items.map((item, index) => (
-          <div key={index} className="px-6 py-3 border-b border-white/5">
+          <div key={index} className="min-w-[500px] px-4 md:px-6 py-3 border-b border-white/5">
             <div className="flex items-center gap-4">
             <div className="flex-1">
               {isEditable ? (
@@ -299,7 +303,7 @@ export default function AdminOrderDetailPage() {
         ))}
 
         {isEditable && (
-          <div className="px-6 py-3 flex items-end gap-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-end gap-4 border-b border-white/10 bg-white/[0.02]">
             <div className="flex-1">
               <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
             </div>
@@ -315,8 +319,9 @@ export default function AdminOrderDetailPage() {
             </div>
           </div>
         )}
+        </div>
 
-        <div className="p-6 space-y-2">
+        <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
             <span className="tabular-nums">{formatPrice(subtotal)}</span>
@@ -365,7 +370,7 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
         <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Invoice Note</p>
         {isEditable ? (
           <textarea

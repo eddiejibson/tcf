@@ -5,6 +5,16 @@ import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { createPaymentLink, isPaymentLinkPaid, BANK_DETAILS } from "@/server/services/payment.service";
 import { log } from "@/server/logger";
 
+function generateIwocaPayUrl(orderId: string, total: number, companyName?: string | null, email?: string) {
+  const slug = (companyName || email?.split("@")[0] || "customer")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const ref = `${slug}-order-${orderId.slice(0, 8)}`;
+  const amount = total.toFixed(2);
+  return `https://iwocapay.me/the-coral-farm-ltd?amount=${amount}&reference=${encodeURIComponent(ref)}`;
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,8 +40,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (action === "confirm_bank_sent") {
-    if (order.status !== OrderStatus.ACCEPTED || order.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
-      return NextResponse.json({ error: "Invalid state for bank transfer confirmation" }, { status: 400 });
+    if (order.status !== OrderStatus.ACCEPTED || (order.paymentMethod !== PaymentMethod.BANK_TRANSFER && order.paymentMethod !== PaymentMethod.FINANCE)) {
+      return NextResponse.json({ error: "Invalid state for payment confirmation" }, { status: 400 });
     }
     await confirmBankTransferSent(id);
     return NextResponse.json({ status: "AWAITING_PAYMENT" });
@@ -65,6 +75,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       log.error("Square payment link creation failed", e, { route: "/api/orders/[id]/payment", method: "POST", meta: { orderId: id } });
       return NextResponse.json({ error: "Failed to create payment link" }, { status: 500 });
     }
+  }
+
+  if (method === "FINANCE") {
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const paymentUrl = generateIwocaPayUrl(id, totals.total, order.user?.companyName, order.user?.email);
+    await setPaymentMethod(id, PaymentMethod.FINANCE, paymentUrl);
+    return NextResponse.json({ method: "FINANCE", paymentUrl });
   }
 
   return NextResponse.json({ error: "Invalid payment method" }, { status: 400 });

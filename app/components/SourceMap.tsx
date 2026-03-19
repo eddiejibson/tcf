@@ -128,7 +128,7 @@ export default function SourceMap() {
 
         {/* UK origin marker */}
         <div
-          className="absolute w-2 h-2 -translate-x-1/2 -translate-y-1/2 z-10"
+          className="absolute w-2.5 h-2.5 md:w-2 md:h-2 -translate-x-1/2 -translate-y-1/2 z-10"
           style={{ left: `${UK.x}%`, top: `${UK.y}%` }}
         >
           <div className="w-full h-full rounded-full bg-[#0984E3]" />
@@ -137,6 +137,9 @@ export default function SourceMap() {
         {/* Location markers */}
         {LOCATIONS.map((loc, i) => {
           const isActive = active === i;
+          // Position label to the left when dot is near right edge
+          const labelLeft = loc.x > 75;
+
           return (
             <div
               key={loc.name}
@@ -146,9 +149,11 @@ export default function SourceMap() {
               onMouseLeave={handleLeave}
               onClick={() => handleClick(i)}
             >
+              {/* Larger invisible tap target for mobile */}
+              <div className="absolute -inset-3 md:-inset-2" />
               {/* Ping animation */}
               <div
-                className="absolute inset-0 -m-1.5 rounded-full border border-[#0984E3]"
+                className="absolute inset-0 -m-2 md:-m-1.5 rounded-full border border-[#0984E3]"
                 style={{
                   animation: "source-ping 2.5s ease-out infinite",
                   animationDelay: `${i * 0.4}s`,
@@ -160,15 +165,15 @@ export default function SourceMap() {
               )}
               {/* Dot */}
               <div
-                className={`relative rounded-full bg-[#0984E3] border-2 border-[#1a1f26] transition-all duration-200 ${
-                  isActive ? "w-3 h-3 -m-0.5" : "w-2 h-2"
+                className={`relative rounded-full bg-[#0984E3] border-2 border-[#151b23] transition-all duration-200 ${
+                  isActive ? "w-3.5 h-3.5 md:w-3 md:h-3 -m-0.5" : "w-2.5 h-2.5 md:w-2 md:h-2"
                 }`}
               />
-              {/* Label */}
+              {/* Label - hidden on mobile, positioned left/right based on edge proximity */}
               <span
-                className={`absolute left-full ml-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] md:text-xs font-medium transition-all duration-200 select-none ${
-                  isActive ? "text-white" : "text-white/30"
-                }`}
+                className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-xs font-medium transition-all duration-200 select-none hidden md:block ${
+                  labelLeft ? "right-full mr-2" : "left-full ml-2"
+                } ${isActive ? "text-white" : "text-white/30"}`}
               >
                 {loc.name}
               </span>
@@ -178,30 +183,40 @@ export default function SourceMap() {
 
         {/* Tooltip */}
         <AnimatePresence>
-          {active !== null && (
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
-              transition={{ duration: 0.15 }}
-              className="absolute z-50 pointer-events-none"
-              style={{
-                left: `${LOCATIONS[active].x}%`,
-                top: `${LOCATIONS[active].y}%`,
-                transform: "translate(-50%, calc(-100% - 16px))",
-              }}
-            >
-              <div className="bg-[#1a1f26]/95 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-3 shadow-xl min-w-[180px] max-w-[220px]">
-                <p className="text-white font-semibold text-xs mb-1">
-                  {LOCATIONS[active].name}
-                </p>
-                <p className="text-white/50 text-[10px] leading-relaxed">
-                  {LOCATIONS[active].description}
-                </p>
-              </div>
-            </motion.div>
-          )}
+          {active !== null && (() => {
+            const loc = LOCATIONS[active];
+            // Flip tooltip below if near top edge
+            const flipBelow = loc.y < 25;
+            // Shift tooltip left if near right edge, right if near left edge
+            const translateX = loc.x > 80 ? "-85%" : loc.x < 20 ? "-15%" : "-50%";
+
+            return (
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, y: flipBelow ? -6 : 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: flipBelow ? -6 : 6 }}
+                transition={{ duration: 0.15 }}
+                className="absolute z-50 pointer-events-none"
+                style={{
+                  left: `${loc.x}%`,
+                  top: `${loc.y}%`,
+                  transform: flipBelow
+                    ? `translate(${translateX}, calc(100% + 12px))`
+                    : `translate(${translateX}, calc(-100% - 12px))`,
+                }}
+              >
+                <div className="bg-[#1a1f26]/95 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2.5 md:px-4 md:py-3 shadow-xl min-w-[160px] max-w-[200px] md:min-w-[180px] md:max-w-[220px]">
+                  <p className="text-white font-semibold text-[11px] md:text-xs mb-1">
+                    {loc.name}
+                  </p>
+                  <p className="text-white/50 text-[10px] leading-relaxed">
+                    {loc.description}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </div>
     </div>

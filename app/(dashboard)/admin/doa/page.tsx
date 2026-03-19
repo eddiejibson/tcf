@@ -94,7 +94,7 @@ export default function AdminDoaPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 md:p-8 max-w-6xl">
       <h1 className="text-2xl font-bold text-white mb-8">DOA Claims</h1>
 
       {groups.length === 0 ? (

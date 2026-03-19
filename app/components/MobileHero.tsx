@@ -223,7 +223,7 @@ export default function MobileHero() {
           viewBox="0 0 1440 80"
           preserveAspectRatio="none"
         >
-          <path d="M0,80 Q360,0 720,40 T1440,20 L1440,80 Z" fill="#2B343E" />
+          <path d="M0,80 Q360,0 720,40 T1440,20 L1440,80 Z" fill="#151b23" />
         </svg>
       </div>
     </div>

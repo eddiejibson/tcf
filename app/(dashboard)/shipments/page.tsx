@@ -21,7 +21,7 @@ export default function ShipmentsPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Available Shipments</h1>
         <p className="text-white/50 text-sm mt-1">Browse upcoming shipments and place your order</p>
@@ -46,7 +46,7 @@ export default function ShipmentsPage() {
                     </div>
                     <div>
                       <h3 className="text-white font-semibold">{s.name}</h3>
-                      <div className="flex items-center gap-4 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
                         <span className={`text-sm font-medium ${days <= 3 ? "text-red-400" : days <= 7 ? "text-amber-400" : "text-green-400"}`}>
                           {days} day{days !== 1 ? "s" : ""} left
                         </span>

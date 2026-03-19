@@ -164,7 +164,7 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
 
   // Payment info row
   if (data.paymentMethod) {
-    const payLabel = data.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : "Card Payment";
+    const payLabel = data.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : data.paymentMethod === "FINANCE" ? "Finance (iwocaPay)" : "Card Payment";
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.text(`Payment: ${payLabel}`, m, y + 12);

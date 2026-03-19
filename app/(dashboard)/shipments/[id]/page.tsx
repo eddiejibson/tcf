@@ -198,8 +198,8 @@ export default function ShipmentDetailPage() {
   if (!shipment) return <div className="p-8 text-white/40">Shipment not found</div>;
 
   return (
-    <div className="p-8 max-w-4xl">
-      <button onClick={() => router.push("/shipments")} className="text-white/50 hover:text-white text-sm mb-6 flex items-center gap-1 transition-colors">
+    <div className="p-4 md:p-8 max-w-4xl">
+      <button onClick={() => router.push("/shipments")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Back to Shipments
       </button>
@@ -213,31 +213,31 @@ export default function ShipmentDetailPage() {
       </div>
 
       {cart.size > 0 && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 mb-6">
-          <div className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-6 min-w-0">
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Subtotal</p>
-                <p className="text-white text-sm font-semibold tabular-nums">{formatPrice(subtotal)}</p>
-              </div>
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">VAT (20%)</p>
-                <p className="text-white/60 text-sm tabular-nums">{formatPrice(vat)}</p>
-              </div>
-              {estimatedFreight > 0 && (
-                <div>
-                  <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Est. Freight</p>
-                  <p className="text-white/40 text-sm tabular-nums">~{formatPrice(estimatedFreight)}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Total</p>
-                <p className="text-[#0984E3] text-lg font-bold tabular-nums">{formatPrice(total)}</p>
-              </div>
-              <p className="text-white/30 text-xs">{cart.size} items{totalBoxes > 0 ? ` / ${totalBoxes} boxes` : ""}</p>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6">
+          <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-3 md:mb-0">
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Subtotal</p>
+              <p className="text-white text-sm font-semibold tabular-nums">{formatPrice(subtotal)}</p>
             </div>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">VAT (20%)</p>
+              <p className="text-white/60 text-sm tabular-nums">{formatPrice(vat)}</p>
+            </div>
+            {estimatedFreight > 0 && (
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Est. Freight</p>
+                <p className="text-white/40 text-sm tabular-nums">~{formatPrice(estimatedFreight)}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Total</p>
+              <p className="text-[#0984E3] text-lg font-bold tabular-nums">{formatPrice(total)}</p>
+            </div>
+            <p className="text-white/30 text-xs">{cart.size} items{totalBoxes > 0 ? ` / ${totalBoxes} boxes` : ""}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             {user && user.creditBalance > 0 && (
-              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={useCredit}
@@ -250,7 +250,7 @@ export default function ShipmentDetailPage() {
             <button
               onClick={handleSubmitClick}
               disabled={submitting}
-              className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shrink-0"
+              className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 ml-auto"
             >
               {submitting ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -263,7 +263,8 @@ export default function ShipmentDetailPage() {
       )}
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-        <div className="px-5 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="overflow-x-auto">
+        <div className="min-w-[420px] px-4 md:px-5 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="min-w-0 flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
           <div className="text-right shrink-0 w-16"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
           <div className="shrink-0 w-[86px] text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
@@ -278,7 +279,7 @@ export default function ShipmentDetailPage() {
             const max = getMaxQty(product);
             const sub = substitutes.get(product.id);
             return (
-              <div key={product.id} className={`px-5 py-3 transition-colors ${unavail ? "opacity-30" : qty > 0 ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}>
+              <div key={product.id} className={`min-w-[420px] px-4 md:px-5 py-3 transition-colors ${unavail ? "opacity-30" : qty > 0 ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}>
                 <div className="flex items-center gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -343,6 +344,7 @@ export default function ShipmentDetailPage() {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 

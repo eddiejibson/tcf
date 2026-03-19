@@ -37,7 +37,7 @@ export default function AdminOrdersPage() {
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 md:p-8 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Orders</h1>
         <p className="text-white/50 text-sm mt-1">Review and manage customer orders</p>
@@ -49,7 +49,8 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-          <div className="px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="overflow-x-auto">
+          <div className="min-w-[700px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
             <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Order #</p></div>
             <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Customer</p></div>
             <div className="w-40"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Shipment</p></div>
@@ -59,7 +60,7 @@ export default function AdminOrdersPage() {
             <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
           </div>
           {orders.map((o) => (
-            <Link key={o.id} href={`/admin/orders/${o.id}`} className="px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block">
+            <Link key={o.id} href={`/admin/orders/${o.id}`} className="min-w-[700px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block">
               <div className="w-24"><p className="text-white/60 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</p></div>
               <div className="flex-1">
                 <p className="text-white/90 text-sm font-medium">{o.userCompanyName || o.userEmail}</p>
@@ -77,6 +78,7 @@ export default function AdminOrdersPage() {
           {orders.length === 0 && (
             <div className="py-12 text-center text-white/40">No orders yet</div>
           )}
+          </div>
         </div>
       )}
     </div>

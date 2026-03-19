@@ -483,20 +483,20 @@ export default function AdminShipmentDetailPage() {
   const totalParsedItems = useMemo(() => packingOrders.reduce((sum, o) => sum + o.items.length, 0), [packingOrders]);
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
-  if (!shipment) return <div className="p-8 text-white/40">Shipment not found</div>;
+  if (!shipment) return <div className="p-4 md:p-8 text-white/40">Shipment not found</div>;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-8 max-w-5xl">
       {/* Back button */}
-      <button onClick={() => router.push("/admin/shipments")} className="text-white/50 hover:text-white text-sm mb-6 flex items-center gap-1 transition-colors">
+      <button onClick={() => router.push("/admin/shipments")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Back to Shipments
       </button>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">{shipment.name}</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">{shipment.name}</h1>
           <div className="flex items-center gap-4 mt-1">
             <span className="text-amber-400 text-sm">Deadline: {new Date(shipment.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
             <span className="text-white/40 text-sm">Ship: {new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
@@ -508,8 +508,8 @@ export default function AdminShipmentDetailPage() {
       </div>
 
       {/* Shipment details */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
-        <div className="grid grid-cols-3 gap-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
           <div>
             <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-1">Freight Cost</p>
             <p className="text-white font-semibold">{formatPrice(Number(shipment.freightCost))}</p>
@@ -530,9 +530,9 @@ export default function AdminShipmentDetailPage() {
         <>
           {/* Orders list */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
-            <div className="p-6 flex items-center justify-between border-b border-white/10">
+            <div className="p-4 md:p-6 flex items-center justify-between border-b border-white/10">
               <h3 className="text-white font-semibold">Orders ({shipment.orders.length})</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {exportableOrders.length > 0 && (
                   <button
                     onClick={handleExportPackingList}
@@ -558,7 +558,7 @@ export default function AdminShipmentDetailPage() {
             ) : (
               <div>
                 {shipment.orders.map((o) => (
-                  <Link key={o.id} href={`/admin/orders/${o.id}`} className="px-6 py-4 border-b border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors">
+                  <Link key={o.id} href={`/admin/orders/${o.id}`} className="px-4 md:px-6 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-white/5 transition-colors">
                     <div className="flex items-center gap-4">
                       <div>
                         <div className="flex items-center gap-2">
@@ -612,8 +612,8 @@ export default function AdminShipmentDetailPage() {
       {/* Column mapping step */}
       {flowStep === "column_mapping" && (
         <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">Review Column Mappings</h3>
                 <p className="text-white/50 text-sm mt-1">Verify which columns contain the product name, size, and quantity</p>
@@ -630,7 +630,7 @@ export default function AdminShipmentDetailPage() {
             )}
 
             {/* Column mapping dropdowns */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               {PACKING_MAPPING_FIELDS.map(({ key, label }) => (
                 <div key={key}>
                   <label className="text-white/40 text-[10px] uppercase tracking-wider font-medium block mb-1.5">{label}</label>
@@ -723,8 +723,8 @@ export default function AdminShipmentDetailPage() {
       {/* Order mapping step */}
       {flowStep === "mapping" && (
         <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">Map Packing List Orders</h3>
                 <p className="text-white/50 text-sm mt-1">Match each packing list order to a system order</p>
@@ -737,13 +737,13 @@ export default function AdminShipmentDetailPage() {
 
             <div className="space-y-4">
               {packingOrders.map((po, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-xl">
-                  <div className="flex-1">
+                <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 bg-white/[0.03] rounded-xl">
+                  <div className="sm:flex-1">
                     <p className="text-white text-sm font-medium">Packing List: {po.label}</p>
                     <p className="text-white/40 text-xs mt-0.5">{po.items.length} items</p>
                   </div>
-                  <svg className="w-5 h-5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                  <div className="flex-1">
+                  <svg className="w-5 h-5 text-white/20 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  <div className="sm:flex-1">
                     <select
                       value={orderMappings.find((m) => m.packingOrderIndex === i)?.systemOrderId || ""}
                       onChange={(e) => updateMapping(i, e.target.value)}
@@ -795,13 +795,14 @@ export default function AdminShipmentDetailPage() {
 
           {/* Review items table */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
-            <div className="p-6 border-b border-white/10">
+            <div className="p-4 md:p-6 border-b border-white/10">
               <h3 className="text-white font-semibold">Review Items — Packing List &quot;{currentPackingOrder.label}&quot;</h3>
               <p className="text-white/50 text-sm mt-1">Review and edit the adjusted items before accepting</p>
             </div>
 
+            <div className="overflow-x-auto">
             {/* Column headers */}
-            <div className="px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+            <div className="min-w-[600px] px-4 md:px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="w-8"></div>
               <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
               <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
@@ -830,7 +831,7 @@ export default function AdminShipmentDetailPage() {
                 );
 
                 return (
-                  <div key={index} className={`px-6 py-3 flex items-center gap-4 border-b border-white/5 ${rowBg} ${item.status === "removed" ? "opacity-50" : ""}`}>
+                  <div key={index} className={`min-w-[600px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 ${rowBg} ${item.status === "removed" ? "opacity-50" : ""}`}>
                     <div className="w-8">{statusIcon}</div>
                     <div className="flex-1">
                       {item.status === "removed" ? (
@@ -891,8 +892,10 @@ export default function AdminShipmentDetailPage() {
               })}
             </div>
 
+            </div>
+
             {/* Add item */}
-            <div className="px-6 py-3 border-t border-white/10">
+            <div className="px-4 md:px-6 py-3 border-t border-white/10">
               <button
                 onClick={addReviewItem}
                 className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all"
@@ -902,7 +905,7 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             {/* Totals */}
-            <div className="p-6 border-t border-white/10">
+            <div className="p-4 md:p-6 border-t border-white/10">
               {(() => {
                 const activeItems = reviewItems.filter((i) => i.status !== "removed" && i.quantity > 0);
                 const subtotal = activeItems.reduce((sum, i) => sum + i.quantity * Number(i.unitPrice), 0);

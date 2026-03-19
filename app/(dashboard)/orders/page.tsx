@@ -36,7 +36,7 @@ export default function OrdersPage() {
   }, []);
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">My Orders</h1>
         <p className="text-white/50 text-sm mt-1">View your order history</p>
@@ -49,19 +49,19 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {orders.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-all block">
-              <div className="flex items-center justify-between">
+            <Link key={o.id} href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-white/50 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</span>
                     <h3 className="text-white font-semibold">{o.shipmentName}</h3>
                   </div>
-                  <div className="flex items-center gap-4 mt-1">
+                  <div className="flex items-center gap-3 mt-1">
                     <span className="text-white/40 text-sm">{o.itemCount} items</span>
                     <span className="text-white/40 text-sm">{new Date(o.createdAt).toLocaleDateString("en-GB")}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <span className="text-[#0984E3] font-semibold tabular-nums">{formatPrice(o.total)}</span>
                   <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
                 </div>

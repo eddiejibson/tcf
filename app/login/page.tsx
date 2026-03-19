@@ -2,9 +2,42 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Component, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+
+class LoginErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#1a1f26]">
+          <header className="px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <Image src="/images/logo.png" alt="The Coral Farm" width={40} height={60} />
+              <span className="text-white font-extrabold tracking-wider hidden sm:block">THE CORAL FARM</span>
+            </Link>
+          </header>
+          <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
+            <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12 text-center">
+              <p className="text-white/60 mb-4">Something went wrong loading this page.</p>
+              <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl transition-all">
+                Reload Page
+              </button>
+            </div>
+          </main>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -116,8 +149,31 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#1a1f26] flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-      <LoginContent />
-    </Suspense>
+    <LoginErrorBoundary>
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#1a1f26]">
+          <header className="px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Image src="/images/logo.png" alt="The Coral Farm" width={40} height={60} />
+              <span className="text-white font-extrabold tracking-wider hidden sm:block">THE CORAL FARM</span>
+            </div>
+            <Link href="/" className="text-white/60 hover:text-white transition-colors duration-200 text-sm font-medium">Back to Home</Link>
+          </header>
+          <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
+            <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[#0984E3]/10 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Trade Portal</h1>
+                <p className="text-white/50">Loading...</p>
+              </div>
+            </div>
+          </main>
+        </div>
+      }>
+        <LoginContent />
+      </Suspense>
+    </LoginErrorBoundary>
   );
 }

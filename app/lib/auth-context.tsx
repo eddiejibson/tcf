@@ -33,16 +33,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
-      if (res.ok) setUser(await res.json());
-      else setUser(null);
+      if (res.ok) {
+        setUser(await res.json());
+        return true;
+      }
+      setUser(null);
+      return false;
     } catch {
       setUser(null);
+      return false;
     }
   }, []);
 
   useEffect(() => {
     fetchUser().finally(() => setLoading(false));
   }, [fetchUser]);
+
+  // Re-validate session when tab becomes visible again (Safari freezes background tabs)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchUser().then((ok) => {
+          if (!ok) router.push("/login");
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [fetchUser, router]);
 
   const refreshUser = useCallback(async () => {
     await fetchUser();
@@ -53,6 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     router.push("/login");
   }, [router]);
+
+  // If auth check is done and there's no user, redirect to login
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [loading, user, router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>

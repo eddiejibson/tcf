@@ -21,12 +21,32 @@ function isPublicPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublicPath(pathname)) return NextResponse.next();
   if (pathname.startsWith("/_next") || pathname.startsWith("/images") || pathname.includes(".")) {
     return NextResponse.next();
   }
 
   const token = request.cookies.get("tcf_session")?.value;
+
+  // If user is on /login or /verify and already has a valid session, redirect to dashboard
+  if (pathname === "/login" || pathname === "/verify") {
+    if (token) {
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+        const { payload } = await jwtVerify(token, secret);
+        const dest = payload.role === "ADMIN" ? "/admin/shipments" : "/shipments";
+        return NextResponse.redirect(new URL(dest, request.url));
+      } catch {
+        // Token is invalid/expired — clear it and show login page
+        const response = NextResponse.next();
+        response.cookies.delete("tcf_session");
+        return response;
+      }
+    }
+    return NextResponse.next();
+  }
+
+  if (isPublicPath(pathname)) return NextResponse.next();
+
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("to", pathname);

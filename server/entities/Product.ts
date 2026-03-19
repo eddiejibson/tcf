@@ -1,15 +1,15 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import type { Shipment } from "./Shipment";
+import { Shipment } from "./Shipment";
 
 @Entity("products")
 export class Product extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("shipments", (shipment: Shipment) => shipment.products)
+  @ManyToOne(() => Shipment, (shipment) => shipment.products)
   @JoinColumn({ name: "shipmentId" })
-  shipment: Shipment;
+  shipment: Relation<Shipment>;
 
   @Column({ type: "varchar" })
   name: string;

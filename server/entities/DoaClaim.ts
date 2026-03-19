@@ -1,7 +1,7 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import type { Order } from "./Order";
-import type { DoaItem } from "./DoaItem";
+import { Order } from "./Order";
+import { DoaItem } from "./DoaItem";
 
 export enum DoaClaimStatus {
   PENDING = "PENDING",
@@ -14,15 +14,15 @@ export class DoaClaim extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne("orders", (order: Order) => order.doaClaims)
+  @ManyToOne(() => Order, (order) => order.doaClaims)
   @JoinColumn({ name: "orderId" })
-  order: Order;
+  order: Relation<Order>;
 
   @Column({ type: "enum", enum: DoaClaimStatus, default: DoaClaimStatus.PENDING })
   status: DoaClaimStatus;
 
-  @OneToMany("doa_items", (item: DoaItem) => item.claim, { cascade: true })
-  items: DoaItem[];
+  @OneToMany(() => DoaItem, (item) => item.claim, { cascade: true })
+  items: Relation<DoaItem[]>;
 }
 
 export type DoaClaimType = Omit<DoaClaim, "order" | "items">;

@@ -1,9 +1,9 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import type { User } from "./User";
-import type { Shipment } from "./Shipment";
-import type { OrderItem } from "./OrderItem";
-import type { DoaClaim } from "./DoaClaim";
+import { User } from "./User";
+import { Shipment } from "./Shipment";
+import { OrderItem } from "./OrderItem";
+import { DoaClaim } from "./DoaClaim";
 
 export enum OrderStatus {
   DRAFT = "DRAFT",
@@ -27,16 +27,16 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("users", (user: User) => user.orders)
+  @ManyToOne(() => User, (user) => user.orders)
   @JoinColumn({ name: "userId" })
-  user: User;
+  user: Relation<User>;
 
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("shipments", (shipment: Shipment) => shipment.orders)
+  @ManyToOne(() => Shipment, (shipment) => shipment.orders)
   @JoinColumn({ name: "shipmentId" })
-  shipment: Shipment;
+  shipment: Relation<Shipment>;
 
   @Column({ type: "enum", enum: OrderStatus, default: OrderStatus.DRAFT })
   status: OrderStatus;
@@ -65,11 +65,11 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "boolean", default: false })
   useCredit: boolean;
 
-  @OneToMany("order_items", (item: OrderItem) => item.order, { cascade: true })
-  items: OrderItem[];
+  @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
+  items: Relation<OrderItem[]>;
 
-  @OneToMany("doa_claims", (claim: DoaClaim) => claim.order)
-  doaClaims: DoaClaim[];
+  @OneToMany(() => DoaClaim, (claim) => claim.order)
+  doaClaims: Relation<DoaClaim[]>;
 }
 
 export type OrderType = Omit<Order, "user" | "shipment" | "items" | "doaClaims">;

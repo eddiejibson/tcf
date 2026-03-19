@@ -1,8 +1,8 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import type { User } from "./User";
-import type { Product } from "./Product";
-import type { Order } from "./Order";
+import { User } from "./User";
+import { Product } from "./Product";
+import { Order } from "./Order";
 
 export enum ShipmentStatus {
   DRAFT = "DRAFT",
@@ -36,15 +36,15 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "uuid" })
   createdById: string;
 
-  @ManyToOne("users", (user: User) => user.createdShipments)
+  @ManyToOne(() => User, (user) => user.createdShipments)
   @JoinColumn({ name: "createdById" })
-  createdBy: User;
+  createdBy: Relation<User>;
 
-  @OneToMany("products", (product: Product) => product.shipment, { cascade: true })
-  products: Product[];
+  @OneToMany(() => Product, (product) => product.shipment, { cascade: true })
+  products: Relation<Product[]>;
 
-  @OneToMany("orders", (order: Order) => order.shipment)
-  orders: Order[];
+  @OneToMany(() => Order, (order) => order.shipment)
+  orders: Relation<Order[]>;
 }
 
 export type ShipmentType = Omit<Shipment, "createdBy" | "products" | "orders">;

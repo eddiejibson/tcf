@@ -1,9 +1,9 @@
-import { Entity, Column, OneToMany } from "typeorm";
+import { Entity, Column, OneToMany, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import type { Order } from "./Order";
-import type { Shipment } from "./Shipment";
-import type { MagicLink } from "./MagicLink";
-import type { CreditTransaction } from "./CreditTransaction";
+import { Order } from "./Order";
+import { Shipment } from "./Shipment";
+import { MagicLink } from "./MagicLink";
+import { CreditTransaction } from "./CreditTransaction";
 
 export enum UserRole {
   ADMIN = "ADMIN",
@@ -24,17 +24,17 @@ export class User extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   creditBalance: number;
 
-  @OneToMany("orders", (order: Order) => order.user)
-  orders: Order[];
+  @OneToMany(() => Order, (order) => order.user)
+  orders: Relation<Order[]>;
 
-  @OneToMany("credit_transactions", (ct: CreditTransaction) => ct.user)
-  creditTransactions: CreditTransaction[];
+  @OneToMany(() => CreditTransaction, (ct) => ct.user)
+  creditTransactions: Relation<CreditTransaction[]>;
 
-  @OneToMany("shipments", (s: Shipment) => s.createdBy)
-  createdShipments: Shipment[];
+  @OneToMany(() => Shipment, (s) => s.createdBy)
+  createdShipments: Relation<Shipment[]>;
 
-  @OneToMany("magic_links", (ml: MagicLink) => ml.user)
-  magicLinks: MagicLink[];
+  @OneToMany(() => MagicLink, (ml) => ml.user)
+  magicLinks: Relation<MagicLink[]>;
 }
 
 export type UserType = Omit<User, "orders" | "createdShipments" | "magicLinks" | "creditTransactions">;

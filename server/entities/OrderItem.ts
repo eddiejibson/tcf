@@ -1,23 +1,23 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import type { Order } from "./Order";
-import type { Product } from "./Product";
+import { Order } from "./Order";
+import { Product } from "./Product";
 
 @Entity("order_items")
 export class OrderItem extends BaseEntity {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne("orders", (order: Order) => order.items)
+  @ManyToOne(() => Order, (order) => order.items)
   @JoinColumn({ name: "orderId" })
-  order: Order;
+  order: Relation<Order>;
 
   @Column({ type: "uuid", nullable: true })
   productId: string | null;
 
-  @ManyToOne("products", { nullable: true })
+  @ManyToOne(() => Product, { nullable: true })
   @JoinColumn({ name: "productId" })
-  product: Product | null;
+  product: Relation<Product> | null;
 
   @Column({ type: "varchar" })
   name: string;
@@ -31,9 +31,9 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "uuid", nullable: true })
   substituteProductId: string | null;
 
-  @ManyToOne("products", { nullable: true })
+  @ManyToOne(() => Product, { nullable: true })
   @JoinColumn({ name: "substituteProductId" })
-  substituteProduct: Product | null;
+  substituteProduct: Relation<Product> | null;
 
   @Column({ type: "varchar", nullable: true })
   substituteName: string | null;

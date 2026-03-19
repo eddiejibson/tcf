@@ -1,15 +1,15 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import type { Shipment } from "./Shipment";
+import { Shipment } from "./Shipment";
 
 @Entity("doa_reports")
 export class DoaReport extends BaseEntity {
   @Column({ type: "uuid" })
   shipmentId: string;
 
-  @ManyToOne("shipments")
+  @ManyToOne(() => Shipment)
   @JoinColumn({ name: "shipmentId" })
-  shipment: Shipment;
+  shipment: Relation<Shipment>;
 
   @Column({ type: "text" })
   reportText: string;

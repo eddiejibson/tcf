@@ -8,7 +8,7 @@
     "strictPropertyInitialization": false,
     "noEmit": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "emitDecoratorMetadata": false,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

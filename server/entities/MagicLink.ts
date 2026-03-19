@@ -1,6 +1,6 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import type { User } from "./User";
+import { User } from "./User";
 
 @Entity("magic_links")
 export class MagicLink extends BaseEntity {
@@ -10,9 +10,9 @@ export class MagicLink extends BaseEntity {
   @Column({ type: "uuid" })
   userId: string;
 
-  @ManyToOne("users", (user: User) => user.magicLinks)
+  @ManyToOne(() => User, (user) => user.magicLinks)
   @JoinColumn({ name: "userId" })
-  user: User;
+  user: Relation<User>;
 
   @Column({ type: "timestamp" })
   expiresAt: Date;

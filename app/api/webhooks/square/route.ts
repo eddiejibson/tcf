@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getDb } from "@/server/db/data-source";
 import { Order, OrderStatus, PaymentMethod } from "@/server/entities/Order";
+import { User, UserRole } from "@/server/entities/User";
 import { log } from "@/server/logger";
+import { sendOrderPaidNotification } from "@/server/services/email.service";
+import { calculateOrderTotals, formatPrice, getOrderById } from "@/server/services/order.service";
 
 const OK = NextResponse.json({ ok: true });
 
@@ -46,6 +49,25 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
   await db.getRepository(Order).save(order);
 
   log.info("Square webhook: order marked as paid", { route: "/api/webhooks/square", meta: { orderId: order.id, paymentId } });
+
+  // Notify admins
+  try {
+    const fullOrder = await getOrderById(order.id);
+    if (fullOrder) {
+      const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, fullOrder.freightCharge, fullOrder.creditApplied);
+      const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
+      const adminEmails = adminUsers.map((u) => u.email);
+      await sendOrderPaidNotification(
+        adminEmails,
+        fullOrder.user.email,
+        fullOrder.id.slice(0, 8).toUpperCase(),
+        formatPrice(totals.total),
+        "CARD",
+      );
+    }
+  } catch (e) {
+    log.error("Square webhook: failed to send paid notification", e, { route: "/api/webhooks/square", meta: { orderId: order.id } });
+  }
 }
 
 async function handlePaymentFailed(payment: Record<string, unknown>) {

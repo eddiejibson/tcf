@@ -351,8 +351,8 @@ export default function CatalogPage() {
         </div>
 
         {/* Cart sidebar */}
-        <div className="lg:w-80 flex-shrink-0">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 lg:sticky lg:top-8">
+        <div className="lg:w-80 flex-shrink-0 self-start lg:sticky lg:top-4">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <h3 className="text-white font-semibold mb-4">Draft Invoice</h3>
 
             {cart.length === 0 ? (

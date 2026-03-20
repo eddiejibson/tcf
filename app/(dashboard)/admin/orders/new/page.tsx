@@ -32,6 +32,7 @@ const stockLevelColors: Record<string, string> = {
   AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
+  PRE_ORDER: "bg-blue-500/20 text-blue-400",
 };
 
 const stockLevelLabels: Record<string, string> = {
@@ -39,6 +40,7 @@ const stockLevelLabels: Record<string, string> = {
   AVERAGE: "Available",
   HIGH: "Available",
   OUT_OF_STOCK: "Out of Stock",
+  PRE_ORDER: "Pre-Order",
 };
 
 function formatPrice(n: number) {

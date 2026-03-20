@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     products.map(async (p) => ({
       id: p.id,
       name: p.name,
+      latinName: p.latinName,
       price: p.price,
       type: p.type,
       categoryId: p.categoryId,
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, price, type, categoryId, imageKey, stockMode, stockQty, stockLevel, wysiwyg } = body;
+  const { name, latinName, price, type, categoryId, imageKey, stockMode, stockQty, stockLevel, wysiwyg } = body;
 
   if (!name || price == null || !type || !categoryId || !stockMode) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
   try {
     const product = await createCatalogProduct({
       name,
+      latinName: latinName || null,
       price: parseFloat(price),
       type,
       categoryId,

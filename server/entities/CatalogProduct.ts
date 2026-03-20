@@ -17,12 +17,16 @@ export enum StockLevel {
   AVERAGE = "AVERAGE",
   HIGH = "HIGH",
   OUT_OF_STOCK = "OUT_OF_STOCK",
+  PRE_ORDER = "PRE_ORDER",
 }
 
 @Entity("catalog_products")
 export class CatalogProduct extends BaseEntityWithUpdate {
   @Column({ type: "varchar" })
   name: string;
+
+  @Column({ type: "varchar", nullable: true })
+  latinName: string | null;
 
   @Column({ type: "decimal", precision: 10, scale: 2 })
   price: number;

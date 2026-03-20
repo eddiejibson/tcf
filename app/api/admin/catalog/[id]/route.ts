@@ -30,6 +30,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = body.name;
+  if (body.latinName !== undefined) data.latinName = body.latinName || null;
   if (body.price !== undefined) data.price = parseFloat(body.price);
   if (body.type !== undefined) data.type = body.type;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId;

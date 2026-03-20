@@ -8,6 +8,7 @@ import type { CategoryNode } from "@/app/lib/types";
 interface SearchProduct {
   id: string;
   name: string;
+  latinName: string | null;
   price: number;
   type: string;
   categoryId: string;
@@ -33,6 +34,7 @@ const stockLevelColors: Record<string, string> = {
   AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
+  PRE_ORDER: "bg-blue-500/20 text-blue-400",
 };
 
 const stockLevelLabels: Record<string, string> = {
@@ -40,6 +42,7 @@ const stockLevelLabels: Record<string, string> = {
   AVERAGE: "Available",
   HIGH: "Available",
   OUT_OF_STOCK: "Out of Stock",
+  PRE_ORDER: "Pre-Order",
 };
 
 function formatPrice(n: number) {
@@ -307,8 +310,13 @@ export default function CatalogPage() {
                     </div>
                     <div className="p-3">
                       <p className="text-white/90 text-sm font-medium truncate">{p.name}</p>
+                      {p.latinName && <p className="text-white/30 text-xs italic truncate">{p.latinName}</p>}
                       <div className="flex items-center justify-between mt-1">
-                        <span className="text-[#0984E3] text-sm font-semibold">{formatPrice(p.price)}</span>
+                        {Number(p.price) === 0 ? (
+                          <span className="px-2 py-0.5 rounded bg-white/10 text-white/50 text-xs font-medium">POA</span>
+                        ) : (
+                          <span className="text-[#0984E3] text-sm font-semibold">{formatPrice(p.price)}</span>
+                        )}
                         <div className="flex flex-col items-end gap-0.5">
                           <span className="text-white/30 text-[8px] uppercase tracking-wider font-medium">Availability</span>
                           {p.stockMode === "EXACT" ? (

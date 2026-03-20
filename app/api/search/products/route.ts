@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     products.map(async (p) => ({
       id: p.id,
       name: p.name,
+      latinName: p.latinName,
       price: p.price,
       type: p.type,
       categoryId: p.categoryId,

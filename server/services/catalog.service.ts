@@ -14,7 +14,15 @@ export async function getAllCatalogProducts(filters?: {
   const where: Record<string, unknown> = {};
   if (filters?.categoryId) where.categoryId = filters.categoryId;
   if (filters?.activeOnly !== false) where.active = true;
-  if (filters?.search) where.name = ILike(`%${filters.search}%`);
+  if (filters?.search) {
+    const searchWhere = { ...where, name: ILike(`%${filters.search}%`) };
+    const latinWhere = { ...where, latinName: ILike(`%${filters.search}%`) };
+    return repo.find({
+      where: [searchWhere, latinWhere],
+      relations: ["category"],
+      order: { name: "ASC" },
+    });
+  }
 
   return repo.find({
     where,
@@ -33,6 +41,7 @@ export async function getCatalogProductById(id: string) {
 
 export async function createCatalogProduct(data: {
   name: string;
+  latinName?: string | null;
   price: number;
   type: CatalogProduct["type"];
   categoryId: string;
@@ -51,6 +60,7 @@ export async function createCatalogProduct(data: {
   const repo = db.getRepository(CatalogProduct);
   const product = repo.create({
     name: data.name,
+    latinName: data.latinName || null,
     price: data.price,
     type: data.type,
     categoryId: data.categoryId,
@@ -69,6 +79,7 @@ export async function updateCatalogProduct(
   id: string,
   data: Partial<{
     name: string;
+    latinName: string | null;
     price: number;
     type: CatalogProduct["type"];
     categoryId: string;

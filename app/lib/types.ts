@@ -35,6 +35,7 @@ export interface CategoryNode {
 export interface CatalogProductListItem {
   id: string;
   name: string;
+  latinName: string | null;
   price: number;
   type: string;
   categoryId: string;

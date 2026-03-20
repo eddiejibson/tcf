@@ -13,6 +13,7 @@ export default function EditCatalogProductPage() {
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState("");
+  const [latinName, setLatinName] = useState("");
   const [price, setPrice] = useState("");
   const [type, setType] = useState("COLONY");
   const [categoryId, setCategoryId] = useState("");
@@ -35,6 +36,7 @@ export default function EditCatalogProductPage() {
     if (res.ok) {
       const p = await res.json();
       setName(p.name);
+      setLatinName(p.latinName || "");
       setPrice(String(p.price));
       setType(p.type);
       setCategoryId(p.categoryId);
@@ -88,6 +90,7 @@ export default function EditCatalogProductPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
+        latinName: latinName || null,
         price: parseFloat(price),
         type,
         categoryId,
@@ -131,6 +134,11 @@ export default function EditCatalogProductPage() {
           <div>
             <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+          </div>
+
+          <div>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Latin Name <span className="text-white/20">(optional)</span></label>
+            <input value={latinName} onChange={(e) => setLatinName(e.target.value)} placeholder="e.g. Acropora millepora" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/20 italic focus:outline-none focus:border-[#0984E3]/50" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -236,6 +244,7 @@ export default function EditCatalogProductPage() {
                 <option value="LOW">Limited</option>
                 <option value="AVERAGE">Available</option>
                 <option value="OUT_OF_STOCK">Out of Stock</option>
+                <option value="PRE_ORDER">Pre-Order</option>
               </select>
               {stockLevel === "OUT_OF_STOCK" && (
                 <p className="text-red-400/70 text-xs mt-2">Product will be automatically set to inactive while out of stock</p>

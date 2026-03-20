@@ -14,21 +14,18 @@ export async function getAllCatalogProducts(filters?: {
   const where: Record<string, unknown> = {};
   if (filters?.categoryId) where.categoryId = filters.categoryId;
   if (filters?.activeOnly !== false) where.active = true;
+  const qb = repo.createQueryBuilder("p")
+    .leftJoinAndSelect("p.category", "category")
+    .orderBy("category.name", "ASC")
+    .addOrderBy("p.name", "ASC");
+
+  if (filters?.categoryId) qb.andWhere("p.categoryId = :categoryId", { categoryId: filters.categoryId });
+  if (filters?.activeOnly !== false) qb.andWhere("p.active = true");
   if (filters?.search) {
-    const searchWhere = { ...where, name: ILike(`%${filters.search}%`) };
-    const latinWhere = { ...where, latinName: ILike(`%${filters.search}%`) };
-    return repo.find({
-      where: [searchWhere, latinWhere],
-      relations: ["category"],
-      order: { name: "ASC" },
-    });
+    qb.andWhere("(LOWER(p.name) LIKE LOWER(:search) OR LOWER(p.latinName) LIKE LOWER(:search))", { search: `%${filters.search}%` });
   }
 
-  return repo.find({
-    where,
-    relations: ["category"],
-    order: { name: "ASC" },
-  });
+  return qb.getMany();
 }
 
 export async function getCatalogProductById(id: string) {

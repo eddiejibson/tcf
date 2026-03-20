@@ -5,6 +5,7 @@ import { Category } from "./Category";
 export enum CatalogProductType {
   COLONY = "COLONY",
   FRAG = "FRAG",
+  PER_HEAD = "PER_HEAD",
 }
 
 export enum StockMode {

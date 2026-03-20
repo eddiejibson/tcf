@@ -281,8 +281,8 @@ export default function CatalogPage() {
                 const oos = isOutOfStock(p);
                 const inCart = cart.find((i) => i.catalogProductId === p.id);
                 return (
-                  <div key={p.id} className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all ${oos ? "opacity-40" : "hover:border-white/20"}`}>
-                    <div className="aspect-square bg-white/5 relative">
+                  <div key={p.id} className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col ${oos ? "opacity-40" : "hover:border-white/20 hover:bg-white/[0.07]"}`}>
+                    <div className="aspect-[4/3] bg-white/5 relative">
                       {p.imageUrl ? (
                         <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
@@ -298,8 +298,8 @@ export default function CatalogPage() {
                             WYSIWYG
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.type === "COLONY" ? "bg-purple-500/80 text-white" : "bg-cyan-500/80 text-white"}`}>
-                          {p.type}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.type === "COLONY" ? "bg-purple-500/80 text-white" : p.type === "PER_HEAD" ? "bg-emerald-500/80 text-white" : "bg-cyan-500/80 text-white"}`}>
+                          {p.type === "PER_HEAD" ? "PER HEAD" : p.type}
                         </span>
                       </div>
                       {inCart && (
@@ -308,33 +308,38 @@ export default function CatalogPage() {
                         </span>
                       )}
                     </div>
-                    <div className="p-3">
-                      <p className="text-white/90 text-sm font-medium truncate">{p.name}</p>
-                      {p.latinName && <p className="text-white/30 text-xs italic truncate">{p.latinName}</p>}
-                      <div className="flex items-center justify-between mt-1">
-                        {Number(p.price) === 0 ? (
-                          <span className="px-2 py-0.5 rounded bg-white/10 text-white/50 text-xs font-medium">POA</span>
-                        ) : (
-                          <span className="text-[#0984E3] text-sm font-semibold">{formatPrice(p.price)}</span>
-                        )}
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-white/30 text-[8px] uppercase tracking-wider font-medium">Availability</span>
+                    <div className="p-4 flex flex-col flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">{p.categoryName}</p>
+                          <p className="text-white text-sm font-semibold mt-0.5 truncate">{p.name}</p>
+                          {p.latinName && <p className="text-white/30 text-xs italic truncate mt-0.5">{p.latinName}</p>}
+                        </div>
+                        <div className="shrink-0 flex flex-col items-end pt-0.5">
                           {p.stockMode === "EXACT" ? (
-                            <span className="text-white/40 text-xs">{p.stockQty ?? 0} left</span>
+                            <span className="text-white/40 text-[10px] whitespace-nowrap">{p.stockQty ?? 0} left</span>
                           ) : (
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${stockLevelColors[p.stockLevel || ""] || "bg-white/10 text-white/40"}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium whitespace-nowrap ${stockLevelColors[p.stockLevel || ""] || "bg-white/10 text-white/40"}`}>
                               {stockLevelLabels[p.stockLevel || ""] || p.stockLevel}
                             </span>
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => addItem(p)}
-                        disabled={oos}
-                        className="w-full mt-2 px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                      >
-                        {oos ? "Out of Stock" : "Add"}
-                      </button>
+
+                      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 mt-auto pt-2.5">
+                        {Number(p.price) === 0 ? (
+                          <span className="px-2.5 py-1 rounded-lg bg-white/10 text-white/50 text-xs font-medium">POA</span>
+                        ) : (
+                          <span className="text-[#0984E3] text-base font-bold">{formatPrice(p.price)}</span>
+                        )}
+                        <button
+                          onClick={() => addItem(p)}
+                          disabled={oos}
+                          className="w-full sm:w-auto px-4 py-2.5 sm:py-1.5 bg-[#0984E3]/15 text-[#0984E3] text-xs font-semibold rounded-xl hover:bg-[#0984E3]/25 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          {oos ? "Out of Stock" : "Add"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

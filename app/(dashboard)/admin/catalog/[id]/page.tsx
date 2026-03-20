@@ -151,6 +151,7 @@ export default function EditCatalogProductPage() {
               <select value={type} onChange={(e) => setType(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [&>option]:bg-[#1a1f2e] [&>option]:text-white">
                 <option value="COLONY">Colony</option>
                 <option value="FRAG">Frag</option>
+                <option value="PER_HEAD">Per Head</option>
               </select>
             </div>
           </div>

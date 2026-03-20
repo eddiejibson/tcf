@@ -226,9 +226,9 @@ export default function CatalogPage() {
                 </div>
                 <div className="w-20 text-center">
                   <span
-                    className={`px-2 py-1 rounded-lg text-xs font-medium ${p.type === "COLONY" ? "bg-purple-500/20 text-purple-400" : "bg-cyan-500/20 text-cyan-400"}`}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium ${p.type === "COLONY" ? "bg-purple-500/20 text-purple-400" : p.type === "PER_HEAD" ? "bg-emerald-500/20 text-emerald-400" : "bg-cyan-500/20 text-cyan-400"}`}
                   >
-                    {p.type}
+                    {p.type === "PER_HEAD" ? "PER HEAD" : p.type}
                   </span>
                 </div>
                 <div className="w-28">

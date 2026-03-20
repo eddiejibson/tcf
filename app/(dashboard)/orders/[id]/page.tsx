@@ -278,15 +278,17 @@ export default function OrderDetailPage() {
           <p className="text-white/50 text-sm mt-1">{order.shipment?.name || "Direct Order"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDownloadInvoice}
-            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Invoice
-          </button>
+          {["ACCEPTED", "AWAITING_FULFILLMENT", "AWAITING_PAYMENT", "PAID"].includes(order.status) && (
+            <button
+              onClick={handleDownloadInvoice}
+              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-sm font-medium transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Invoice
+            </button>
+          )}
           <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${statusColors[order.status] || "bg-white/10 text-white/60"}`}>{statusLabels[order.status] || order.status}</span>
         </div>
       </div>

@@ -442,8 +442,8 @@ function isCategoryRow(row: unknown[], nameCol: number, priceCol: number): boole
   return filled <= 2;
 }
 
-export function parseExcelBuffer(buffer: Buffer, filename?: string, columnOverrides?: Partial<ColumnMapping>): ParsedShipment {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string, columnOverrides?: Partial<ColumnMapping>): ParsedShipment {
+  const workbook = XLSX.read(buffer, { type: buffer instanceof ArrayBuffer ? "array" : "buffer" });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];

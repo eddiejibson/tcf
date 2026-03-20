@@ -262,12 +262,10 @@ export default function NewShipmentPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/admin/shipments/upload", { method: "POST", body: formData });
-    if (res.ok) {
-      const data: ParsedShipment = await res.json();
+    try {
+      const { parseExcelBuffer } = await import("@/server/services/excel-parser.service");
+      const arrayBuffer = await file.arrayBuffer();
+      const data: ParsedShipment = parseExcelBuffer(arrayBuffer, file.name);
       setParsed(data);
       setName(data.name || "");
       setDeadline(data.deadline || "");
@@ -277,6 +275,8 @@ export default function NewShipmentPage() {
       setColumnMappings(data.columnMappings || { name: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
       rawRowsRef.current = data.rawRows || [];
       applyMarginAndSet(data.items, margin);
+    } catch (err) {
+      console.error("Failed to parse spreadsheet:", err);
     }
     setUploading(false);
   };

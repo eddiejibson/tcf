@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["typeorm", "pg", "reflect-metadata", "xlsx", "@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "jszip", "jspdf"],
-  serverBodySizeLimit: "50mb",
   experimental: {
+    serverBodySizeLimit: "50mb",
     middlewareClientMaxBodySize: "50mb",
     serverMinification: false,
   },

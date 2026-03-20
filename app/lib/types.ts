@@ -32,6 +32,14 @@ export interface CategoryNode {
   children: CategoryNode[];
 }
 
+export interface CatalogProductImageItem {
+  id: string;
+  imageKey?: string;
+  imageUrl: string;
+  label: string | null;
+  sortOrder: number;
+}
+
 export interface CatalogProductListItem {
   id: string;
   name: string;
@@ -40,8 +48,7 @@ export interface CatalogProductListItem {
   type: string;
   categoryId: string;
   categoryName: string;
-  imageKey: string | null;
-  imageUrl: string | null;
+  images: CatalogProductImageItem[];
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;

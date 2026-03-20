@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import type { CategoryNode } from "@/app/lib/types";
+import ProductImageCarousel from "@/app/components/ProductImageCarousel";
+
+interface SearchProductImage {
+  id: string;
+  imageUrl: string;
+  label: string | null;
+  sortOrder: number;
+}
 
 interface SearchProduct {
   id: string;
@@ -13,7 +21,7 @@ interface SearchProduct {
   type: string;
   categoryId: string;
   categoryName: string;
-  imageUrl: string | null;
+  images: SearchProductImage[];
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;
@@ -25,7 +33,6 @@ interface CartItem {
   name: string;
   price: number;
   type: string;
-  imageUrl: string | null;
   quantity: number;
 }
 
@@ -120,7 +127,6 @@ export default function CatalogPage() {
         name: product.name,
         price: Number(product.price),
         type: product.type,
-        imageUrl: product.imageUrl,
         quantity: 1,
       }]);
     }
@@ -283,16 +289,8 @@ export default function CatalogPage() {
                 return (
                   <div key={p.id} className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col ${oos ? "opacity-40" : "hover:border-white/20 hover:bg-white/[0.07]"}`}>
                     <div className="aspect-[4/3] bg-white/5 relative">
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white/10">
-                          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                      <ProductImageCarousel images={p.images} alt={p.name} />
+                      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
                         {p.wysiwyg && (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/80 text-white">
                             WYSIWYG
@@ -303,7 +301,7 @@ export default function CatalogPage() {
                         </span>
                       </div>
                       {inCart && (
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-[#0984E3] text-white text-[10px] font-medium">
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-[#0984E3] text-white text-[10px] font-medium z-10">
                           x{inCart.quantity}
                         </span>
                       )}

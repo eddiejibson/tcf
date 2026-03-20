@@ -1,5 +1,6 @@
 import { getDb } from "../db/data-source";
 import { CatalogProduct } from "../entities/CatalogProduct";
+import { CatalogProductImage } from "../entities/CatalogProductImage";
 import { Category } from "../entities/Category";
 import { ILike } from "typeorm";
 
@@ -11,13 +12,12 @@ export async function getAllCatalogProducts(filters?: {
   const db = await getDb();
   const repo = db.getRepository(CatalogProduct);
 
-  const where: Record<string, unknown> = {};
-  if (filters?.categoryId) where.categoryId = filters.categoryId;
-  if (filters?.activeOnly !== false) where.active = true;
   const qb = repo.createQueryBuilder("p")
     .leftJoinAndSelect("p.category", "category")
+    .leftJoinAndSelect("p.images", "images")
     .orderBy("category.name", "ASC")
-    .addOrderBy("p.name", "ASC");
+    .addOrderBy("p.name", "ASC")
+    .addOrderBy("images.sortOrder", "ASC");
 
   if (filters?.categoryId) qb.andWhere("p.categoryId = :categoryId", { categoryId: filters.categoryId });
   if (filters?.activeOnly !== false) qb.andWhere("p.active = true");
@@ -32,7 +32,8 @@ export async function getCatalogProductById(id: string) {
   const db = await getDb();
   return db.getRepository(CatalogProduct).findOne({
     where: { id },
-    relations: ["category"],
+    relations: ["category", "images"],
+    order: { images: { sortOrder: "ASC" } },
   });
 }
 
@@ -42,7 +43,7 @@ export async function createCatalogProduct(data: {
   price: number;
   type: CatalogProduct["type"];
   categoryId: string;
-  imageKey?: string | null;
+  images?: { imageKey: string; label?: string | null; sortOrder: number }[];
   stockMode: CatalogProduct["stockMode"];
   stockQty?: number | null;
   stockLevel?: CatalogProduct["stockLevel"] | null;
@@ -61,7 +62,13 @@ export async function createCatalogProduct(data: {
     price: data.price,
     type: data.type,
     categoryId: data.categoryId,
-    imageKey: data.imageKey || null,
+    images: (data.images || []).map((img) => {
+      const i = new CatalogProductImage();
+      i.imageKey = img.imageKey;
+      i.label = img.label || null;
+      i.sortOrder = img.sortOrder;
+      return i;
+    }),
     stockMode: data.stockMode,
     stockQty: data.stockQty ?? null,
     stockLevel: data.stockLevel ?? null,
@@ -80,7 +87,7 @@ export async function updateCatalogProduct(
     price: number;
     type: CatalogProduct["type"];
     categoryId: string;
-    imageKey: string | null;
+    images: { imageKey: string; label?: string | null; sortOrder: number }[];
     stockMode: CatalogProduct["stockMode"];
     stockQty: number | null;
     stockLevel: CatalogProduct["stockLevel"] | null;
@@ -99,7 +106,25 @@ export async function updateCatalogProduct(
     if (!category) throw new Error("Category not found");
   }
 
-  Object.assign(existing, data);
+  // Handle images separately — full replace
+  if (data.images !== undefined) {
+    const imgRepo = db.getRepository(CatalogProductImage);
+    await imgRepo.delete({ catalogProductId: id });
+    if (data.images.length > 0) {
+      const newImages = data.images.map((img) => {
+        const i = new CatalogProductImage();
+        i.catalogProductId = id;
+        i.imageKey = img.imageKey;
+        i.label = img.label || null;
+        i.sortOrder = img.sortOrder;
+        return i;
+      });
+      await imgRepo.save(newImages);
+    }
+  }
+
+  const { images: _images, ...rest } = data;
+  Object.assign(existing, rest);
   return repo.save(existing);
 }
 

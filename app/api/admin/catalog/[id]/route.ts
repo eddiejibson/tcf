@@ -16,7 +16,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   return NextResponse.json({
     ...product,
     categoryName: product.category?.name || "",
-    imageUrl: product.imageKey ? await getDownloadUrl(product.imageKey) : null,
+    images: await Promise.all(
+      (product.images || []).map(async (img) => ({
+        id: img.id,
+        imageKey: img.imageKey,
+        imageUrl: await getDownloadUrl(img.imageKey),
+        label: img.label,
+        sortOrder: img.sortOrder,
+      }))
+    ),
   });
 }
 
@@ -34,7 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.price !== undefined) data.price = parseFloat(body.price);
   if (body.type !== undefined) data.type = body.type;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId;
-  if (body.imageKey !== undefined) data.imageKey = body.imageKey;
+  if (body.images !== undefined) data.images = body.images;
   if (body.stockMode !== undefined) data.stockMode = body.stockMode;
   if (body.stockQty !== undefined) data.stockQty = body.stockQty != null ? parseInt(body.stockQty) : null;
   if (body.stockLevel !== undefined) data.stockLevel = body.stockLevel;

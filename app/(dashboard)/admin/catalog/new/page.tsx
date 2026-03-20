@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import type { CategoryNode } from "@/app/lib/types";
 import CategoryPicker from "@/app/components/CategoryPicker";
 
+interface ImageEntry {
+  imageKey: string;
+  imageUrl: string;
+  label: string;
+}
+
 export default function NewCatalogProductPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryNode[]>([]);
@@ -15,8 +21,7 @@ export default function NewCatalogProductPage() {
   const [price, setPrice] = useState("");
   const [type, setType] = useState("COLONY");
   const [categoryId, setCategoryId] = useState("");
-  const [imageKey, setImageKey] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageEntry[]>([]);
   const [stockMode, setStockMode] = useState("EXACT");
   const [stockQty, setStockQty] = useState("");
   const [stockLevel, setStockLevel] = useState("AVERAGE");
@@ -31,32 +36,54 @@ export default function NewCatalogProductPage() {
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
-  const handleImageUpload = async (file: File) => {
+  const handleImageUpload = async (files: FileList) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        let key: string;
 
-      if (isLocalhost) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/upload/signed-url", { method: "POST", body: formData });
-        const data = await res.json();
-        setImageKey(data.key);
-      } else {
-        const res = await fetch("/api/upload/signed-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contentType: file.type || "image/jpeg", filename: `photo.${ext}`, purpose: "catalog" }),
-        });
-        const data = await res.json();
-        setImageKey(data.key);
-        await fetch(data.url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+        if (isLocalhost) {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/upload/signed-url", { method: "POST", body: formData });
+          const data = await res.json();
+          key = data.key;
+        } else {
+          const res = await fetch("/api/upload/signed-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contentType: file.type || "image/jpeg", filename: `photo.${ext}`, purpose: "catalog" }),
+          });
+          const data = await res.json();
+          key = data.key;
+          await fetch(data.url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+        }
+
+        setImages((prev) => [...prev, { imageKey: key, imageUrl: URL.createObjectURL(file), label: "" }]);
       }
-      setImagePreview(URL.createObjectURL(file));
     } finally {
       setUploading(false);
     }
+  };
+
+  const removeImage = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const moveImage = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= images.length) return;
+    setImages((prev) => {
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
+  const updateLabel = (idx: number, label: string) => {
+    setImages((prev) => prev.map((img, i) => i === idx ? { ...img, label } : img));
   };
 
   const handleSubmit = async () => {
@@ -71,7 +98,7 @@ export default function NewCatalogProductPage() {
         price: parseFloat(price),
         type,
         categoryId,
-        imageKey,
+        images: images.map((img, i) => ({ imageKey: img.imageKey, label: img.label || null, sortOrder: i })),
         stockMode,
         stockQty: stockMode === "EXACT" ? parseInt(stockQty) || 0 : null,
         stockLevel: stockMode === "ROUGH" ? stockLevel : null,
@@ -127,25 +154,46 @@ export default function NewCatalogProductPage() {
           </div>
 
           <div>
-            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Image</label>
-            {imagePreview ? (
-              <div className="flex items-center gap-4">
-                <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl" />
-                <button onClick={() => { setImageKey(null); setImagePreview(null); }} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Images</label>
+            {images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <img src={img.imageUrl} alt={`Image ${idx + 1}`} className="w-full aspect-square object-cover" />
+                    <div className="p-2 space-y-1.5">
+                      <input
+                        value={img.label}
+                        onChange={(e) => updateLabel(idx, e.target.value)}
+                        placeholder="Label (optional)"
+                        className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50"
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-1">
+                          <button onClick={() => moveImage(idx, -1)} disabled={idx === 0} className="text-white/30 hover:text-white disabled:opacity-20 text-xs transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                          </button>
+                          <button onClick={() => moveImage(idx, 1)} disabled={idx === images.length - 1} className="text-white/30 hover:text-white disabled:opacity-20 text-xs transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                          </button>
+                        </div>
+                        <button onClick={() => removeImage(idx)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <label className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-white/40 transition-colors">
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                  </svg>
-                )}
-                <span className="text-white/40 text-sm">{uploading ? "Uploading..." : "Upload image"}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
-              </label>
             )}
+            <label className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-dashed border-white/20 rounded-xl cursor-pointer hover:border-white/40 transition-colors">
+              {uploading ? (
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+              )}
+              <span className="text-white/40 text-sm">{uploading ? "Uploading..." : "Upload images"}</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) handleImageUpload(e.target.files); }} />
+            </label>
           </div>
 
           <div className="flex items-center justify-between">

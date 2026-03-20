@@ -26,7 +26,14 @@ export async function GET(request: NextRequest) {
       type: p.type,
       categoryId: p.categoryId,
       categoryName: p.category?.name || "",
-      imageUrl: p.imageKey ? await getDownloadUrl(p.imageKey) : null,
+      images: await Promise.all(
+        (p.images || []).map(async (img) => ({
+          id: img.id,
+          imageUrl: await getDownloadUrl(img.imageKey),
+          label: img.label,
+          sortOrder: img.sortOrder,
+        }))
+      ),
       stockMode: p.stockMode,
       stockQty: p.stockQty,
       stockLevel: p.stockLevel,

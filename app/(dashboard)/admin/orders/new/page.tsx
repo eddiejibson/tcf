@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import type { UserListItem, CategoryNode } from "@/app/lib/types";
 import CustomerPicker from "@/app/components/CustomerPicker";
 
+interface SearchProductImage {
+  id: string;
+  imageUrl: string;
+  label: string | null;
+  sortOrder: number;
+}
+
 interface SearchProduct {
   id: string;
   name: string;
@@ -12,7 +19,7 @@ interface SearchProduct {
   type: string;
   categoryId: string;
   categoryName: string;
-  imageUrl: string | null;
+  images: SearchProductImage[];
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;
@@ -23,7 +30,6 @@ interface OrderLineItem {
   name: string;
   price: number;
   type: string;
-  imageUrl: string | null;
   quantity: number;
 }
 
@@ -62,8 +68,11 @@ export default function AdminNewOrderPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users?role=USER");
-    if (res.ok) setUsers(await res.json());
+    const res = await fetch("/api/admin/users?role=USER&limit=100");
+    if (res.ok) {
+      const data = await res.json();
+      setUsers(data.users);
+    }
   }, []);
 
   const fetchCategories = useCallback(async () => {
@@ -103,7 +112,6 @@ export default function AdminNewOrderPage() {
         name: product.name,
         price: Number(product.price),
         type: product.type,
-        imageUrl: product.imageUrl,
         quantity: 1,
       }]);
     }
@@ -242,8 +250,8 @@ export default function AdminNewOrderPage() {
                 return (
                   <div key={p.id} className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all ${oos ? "opacity-40" : "hover:border-white/20"}`}>
                     <div className="aspect-square bg-white/5 relative">
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                      {p.images?.[0]?.imageUrl ? (
+                        <img src={p.images[0].imageUrl} alt={p.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white/10">
                           <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>

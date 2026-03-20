@@ -193,9 +193,9 @@ export default function CatalogPage() {
                 className={`min-w-[800px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block ${!p.active ? "opacity-50" : ""}`}
               >
                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-                  {p.imageUrl ? (
+                  {p.images?.[0]?.imageUrl ? (
                     <img
-                      src={p.imageUrl}
+                      src={p.images[0].imageUrl}
                       alt={p.name}
                       className="w-full h-full object-cover"
                     />

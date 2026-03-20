@@ -24,8 +24,15 @@ export async function GET(request: NextRequest) {
       type: p.type,
       categoryId: p.categoryId,
       categoryName: p.category?.name || "",
-      imageKey: p.imageKey,
-      imageUrl: p.imageKey ? await getDownloadUrl(p.imageKey) : null,
+      images: await Promise.all(
+        (p.images || []).map(async (img) => ({
+          id: img.id,
+          imageKey: img.imageKey,
+          imageUrl: await getDownloadUrl(img.imageKey),
+          label: img.label,
+          sortOrder: img.sortOrder,
+        }))
+      ),
       stockMode: p.stockMode,
       stockQty: p.stockQty,
       stockLevel: p.stockLevel,
@@ -43,7 +50,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, latinName, price, type, categoryId, imageKey, stockMode, stockQty, stockLevel, wysiwyg } = body;
+  const { name, latinName, price, type, categoryId, images, stockMode, stockQty, stockLevel, wysiwyg } = body;
 
   if (!name || price == null || !type || !categoryId || !stockMode) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -56,7 +63,7 @@ export async function POST(request: NextRequest) {
       price: parseFloat(price),
       type,
       categoryId,
-      imageKey: imageKey || null,
+      images: Array.isArray(images) ? images : [],
       stockMode,
       stockQty: stockQty != null ? parseInt(stockQty) : null,
       stockLevel: stockLevel || null,

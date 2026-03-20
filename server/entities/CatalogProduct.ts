@@ -1,6 +1,7 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation, OneToMany } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Category } from "./Category";
+import { CatalogProductImage } from "./CatalogProductImage";
 
 export enum CatalogProductType {
   COLONY = "COLONY",
@@ -42,8 +43,8 @@ export class CatalogProduct extends BaseEntityWithUpdate {
   @JoinColumn({ name: "categoryId" })
   category: Relation<Category>;
 
-  @Column({ type: "varchar", nullable: true })
-  imageKey: string | null;
+  @OneToMany(() => CatalogProductImage, (img) => img.catalogProduct, { cascade: true })
+  images: Relation<CatalogProductImage[]>;
 
   @Column({ type: "enum", enum: StockMode })
   stockMode: StockMode;
@@ -61,4 +62,4 @@ export class CatalogProduct extends BaseEntityWithUpdate {
   wysiwyg: boolean;
 }
 
-export type CatalogProductRecord = Omit<CatalogProduct, "category">;
+export type CatalogProductRecord = Omit<CatalogProduct, "category" | "images">;

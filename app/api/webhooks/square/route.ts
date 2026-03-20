@@ -63,6 +63,7 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
         fullOrder.id.slice(0, 8).toUpperCase(),
         formatPrice(totals.total),
         "CARD",
+        fullOrder.id,
       );
     }
   } catch (e) {

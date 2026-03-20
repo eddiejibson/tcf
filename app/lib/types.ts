@@ -81,6 +81,7 @@ export type AdminShipmentListItem = Pick<SerializedShipment, "id" | "name" | "st
 export interface AdminShipmentDetailProduct {
   id: string;
   name: string;
+  latinName: string | null;
   price: number;
   size: string | null;
   qtyPerBox: number;
@@ -186,6 +187,7 @@ export type DoaReportDetail = SerializedDoaReport & {
 
 export interface ParsedProduct {
   name: string;
+  latinName?: string | null;
   price: number | null;
   size: string | null;
   qtyPerBox: number | null;
@@ -196,6 +198,7 @@ export interface ParsedProduct {
 
 export interface ColumnMapping {
   name: number;
+  latinName: number;
   price: number;
   size: number;
   qtyPerBox: number;

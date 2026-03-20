@@ -61,8 +61,12 @@ export async function sendOrderNotification(
   adminEmails: string[],
   userEmail: string,
   shipmentName: string,
-  orderTotal: string
+  orderTotal: string,
+  orderId: string,
 ) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/admin/orders/${orderId}`;
+
   await sendWithRetry({
     from: from(),
     to: adminEmails,
@@ -72,11 +76,12 @@ export async function sendOrderNotification(
         <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">New Order Submitted</h1>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Customer: <strong style="color: #0984E3;">${userEmail}</strong></p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Shipment: <strong style="color: #ffffff;">${shipmentName}</strong></p>
-        <p style="color: #ffffffcc; font-size: 16px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order</a>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to the admin panel to review this order.</p>
       </div>
     `,
-    text: `New order submitted by ${userEmail} for shipment "${shipmentName}". Total: ${orderTotal}`,
+    text: `New order submitted by ${userEmail} for shipment "${shipmentName}". Total: ${orderTotal}. View order: ${viewUrl}`,
   });
 }
 
@@ -84,8 +89,11 @@ export async function sendOrderStatusUpdate(
   userEmail: string,
   shipmentName: string,
   status: string,
-  orderTotal: string
+  orderTotal: string,
+  orderId: string,
 ) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
   const isAccepted = status === "ACCEPTED";
   const isFulfillment = status === "AWAITING_FULFILLMENT";
   const statusColor = isAccepted ? "#27ae60" : isFulfillment ? "#f39c12" : "#e74c3c";
@@ -104,12 +112,13 @@ export async function sendOrderStatusUpdate(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
         <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your order for <strong style="color: #ffffff;">${shipmentName}</strong> has been <strong style="color: ${statusColor};">${statusText}</strong>.</p>
-        <p style="color: #ffffffcc; font-size: 16px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
         ${footerText}
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; margin-top: 16px;">View Order</a>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to view your order details.</p>
       </div>
     `,
-    text: `Your order for "${shipmentName}" has been ${statusText}. Total: ${orderTotal}`,
+    text: `Your order for "${shipmentName}" has been ${statusText}. Total: ${orderTotal}. View order: ${viewUrl}`,
   });
 }
 
@@ -153,8 +162,11 @@ export async function sendOrderChanges(
   userEmail: string,
   shipmentName: string,
   changes: string[],
-  newTotal: string
+  newTotal: string,
+  orderId: string,
 ) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
   const changeList = changes.map((c) => `<li style="color: #ffffffcc; font-size: 14px; margin-bottom: 4px;">${c}</li>`).join("");
   await sendWithRetry({
     from: from(),
@@ -165,11 +177,12 @@ export async function sendOrderChanges(
         <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 16px;">Your accepted order for <strong style="color: #ffffff;">${shipmentName}</strong> has been updated:</p>
         <ul style="list-style: none; padding: 0; margin: 0 0 16px 0;">${changeList}</ul>
-        <p style="color: #ffffffcc; font-size: 16px;">New Total: <strong style="color: #0984E3;">${newTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">New Total: <strong style="color: #0984E3;">${newTotal}</strong></p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order</a>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to view the updated order.</p>
       </div>
     `,
-    text: `Your accepted order for "${shipmentName}" has been updated:\n${changes.join("\n")}\nNew Total: ${newTotal}`,
+    text: `Your accepted order for "${shipmentName}" has been updated:\n${changes.join("\n")}\nNew Total: ${newTotal}. View order: ${viewUrl}`,
   });
 }
 
@@ -179,7 +192,10 @@ export async function sendOrderPaidNotification(
   orderRef: string,
   orderTotal: string,
   paymentMethod: string,
+  orderId: string,
 ) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/admin/orders/${orderId}`;
   const methodLabel = paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : paymentMethod === "CARD" ? "Card Payment" : paymentMethod;
   await sendWithRetry({
     from: from(),
@@ -191,11 +207,12 @@ export async function sendOrderPaidNotification(
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Customer: <strong style="color: #0984E3;">${userEmail}</strong></p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Total: <strong style="color: #27ae60;">${orderTotal}</strong></p>
-        <p style="color: #ffffffcc; font-size: 16px;">Method: <strong style="color: #ffffff;">${methodLabel}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Method: <strong style="color: #ffffff;">${methodLabel}</strong></p>
+        <a href="${viewUrl}" style="display: inline-block; background: #27ae60; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order</a>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to the admin panel to view this order.</p>
       </div>
     `,
-    text: `Order #${orderRef} has been paid by ${userEmail}. Total: ${orderTotal}. Method: ${methodLabel}.`,
+    text: `Order #${orderRef} has been paid by ${userEmail}. Total: ${orderTotal}. Method: ${methodLabel}. View order: ${viewUrl}`,
   });
 }
 

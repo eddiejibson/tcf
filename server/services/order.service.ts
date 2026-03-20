@@ -158,7 +158,7 @@ export async function submitOrder(orderId: string) {
   const adminEmails = adminUsers.map((u) => u.email);
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
 
-  sendOrderNotification(adminEmails, order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total))
+  sendOrderNotification(adminEmails, order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
     .catch((e) => log.error("Failed to send order notification", e));
 
   return order;
@@ -275,7 +275,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
         .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
-      sendOrderStatusUpdate(order.user.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total))
+      sendOrderStatusUpdate(order.user.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
         .catch((e) => log.error("Failed to send status update email", e));
     }
   }
@@ -358,7 +358,7 @@ export async function updateAcceptedOrderItems(
     const updated = await getOrderById(orderId);
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-      sendOrderChanges(updated.user.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total))
+      sendOrderChanges(updated.user.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
@@ -423,6 +423,7 @@ export async function markOrderPaid(orderId: string, reference?: string) {
         order.id.slice(0, 8).toUpperCase(),
         formatPrice(totals.total),
         order.paymentMethod || "Unknown",
+        order.id,
       );
     } catch (e) {
       log.error("Failed to send order paid notification", e);

@@ -66,8 +66,9 @@ export async function POST(request: NextRequest) {
     status: status || ShipmentStatus.DRAFT,
     sourceFilename,
     createdById: admin.userId,
-    products: products?.map((p: { name: string; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null }) => ({
+    products: products?.map((p: { name: string; latinName?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null }) => ({
       name: p.name,
+      latinName: p.latinName || null,
       price: p.price,
       size: p.size || null,
       qtyPerBox: p.qtyPerBox || 1,

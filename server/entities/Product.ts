@@ -14,6 +14,9 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "varchar" })
   name: string;
 
+  @Column({ type: "varchar", nullable: true })
+  latinName: string | null;
+
   @Column({ type: "decimal", precision: 10, scale: 2 })
   price: number;
 

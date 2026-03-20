@@ -150,6 +150,7 @@ export default function ShipmentDetailPage() {
   const deferredSearch = useDeferredValue(searchQuery);
   const [cartBarVisible, setCartBarVisible] = useState(true);
   const cartBarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchShipment = useCallback(async () => {
     const res = await fetch(`/api/shipments/${params.id}`);
@@ -196,6 +197,7 @@ export default function ShipmentDetailPage() {
     return sortedProducts.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
+        (p.latinName && p.latinName.toLowerCase().includes(q)) ||
         (p.size && p.size.toLowerCase().includes(q)),
     );
   }, [sortedProducts, deferredSearch]);
@@ -426,22 +428,30 @@ export default function ShipmentDetailPage() {
 
       {cart.size > 0 && !cartBarVisible && (
         <div className="sticky top-14 md:top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-2.5 mb-4 bg-[#111518]/95 backdrop-blur-xl border-b border-white/10">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <p className="text-[#0984E3] text-sm font-bold tabular-nums">{formatPrice(total)}</p>
               <p className="text-white/30 text-xs">{cart.size} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}</p>
             </div>
-            <button
-              onClick={handleSubmitClick}
-              disabled={submitting}
-              className="shrink-0 px-4 py-2 bg-[#0984E3] hover:bg-[#0984E3]/90 active:bg-[#0984E3]/80 disabled:bg-white/10 text-white text-xs font-medium rounded-xl transition-all flex items-center gap-2"
-            >
-              {submitting ? (
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                "Send Draft Order"
-              )}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => searchInputRef.current?.focus(), 400); }}
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center text-white/40 hover:text-white/70 transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </button>
+              <button
+                onClick={handleSubmitClick}
+                disabled={submitting}
+                className="px-4 py-2 bg-[#0984E3] hover:bg-[#0984E3]/90 active:bg-[#0984E3]/80 disabled:bg-white/10 text-white text-xs font-medium rounded-xl transition-all flex items-center gap-2"
+              >
+                {submitting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Send Draft Order"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -463,6 +473,7 @@ export default function ShipmentDetailPage() {
               />
             </svg>
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -526,6 +537,9 @@ export default function ShipmentDetailPage() {
                             </span>
                           )}
                         </div>
+                        {product.latinName && (
+                          <p className="text-white/30 text-[11px] italic mt-0.5">{product.latinName}</p>
+                        )}
                         <div className="flex items-center gap-2 mt-0.5">
                           {product.size && (
                             <span className="text-white/30 text-[11px]">
@@ -647,6 +661,9 @@ export default function ShipmentDetailPage() {
                             </span>
                           )}
                         </div>
+                        {product.latinName && (
+                          <p className="text-white/25 text-[11px] italic mt-0.5">{product.latinName}</p>
+                        )}
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-white/50 text-xs tabular-nums font-medium">
                             {formatPrice(Number(product.price))}

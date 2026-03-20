@@ -9,6 +9,7 @@ let nextItemId = 0;
 
 const MAPPING_FIELDS: { key: keyof ColumnMapping; label: string }[] = [
   { key: "name", label: "Name" },
+  { key: "latinName", label: "Latin Name" },
   { key: "price", label: "Price" },
   { key: "size", label: "Size" },
   { key: "qtyPerBox", label: "Qty Per Box" },
@@ -100,10 +101,16 @@ function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: Column
       availableQty = clientParseQty(r[mappings.stock]) ?? 0;
     }
 
+    let latinName: string | null = null;
+    if (mappings.latinName >= 0) {
+      const v = r[mappings.latinName];
+      if (v) { const s = String(v).trim(); if (s) latinName = s; }
+    }
+
     const originalRow: Record<string, unknown> = {};
     hdrs.forEach((h, idx) => { if (h && r[idx] !== undefined) originalRow[h] = r[idx]; });
 
-    items.push({ name: nameVal, price, size, qtyPerBox, availableQty, originalRow, warnings: [] });
+    items.push({ name: nameVal, latinName, price, size, qtyPerBox, availableQty, originalRow, warnings: [] });
   }
   return items;
 }
@@ -231,7 +238,7 @@ export default function NewShipmentPage() {
   const [freightCost, setFreightCost] = useState("");
   const [items, setItems] = useState<ItemWithId[]>([]);
   const [mappingsOpen, setMappingsOpen] = useState(false);
-  const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
   const [headers, setHeaders] = useState<string[]>([]);
   const [margin, setMargin] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -272,7 +279,7 @@ export default function NewShipmentPage() {
       setShipmentDate(data.shipmentDate || "");
       setFreightCost(data.freightCost?.toString() || "");
       setHeaders(data.headers || []);
-      setColumnMappings(data.columnMappings || { name: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
+      setColumnMappings(data.columnMappings || { name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
       rawRowsRef.current = data.rawRows || [];
       applyMarginAndSet(data.items, margin);
     } catch (err) {
@@ -337,7 +344,7 @@ export default function NewShipmentPage() {
 
   const addItem = useCallback(() => {
     const id = nextItemId++;
-    setItems((prev) => [{ name: "", price: null, size: null, qtyPerBox: 1, availableQty: null, warnings: [], _id: id }, ...prev]);
+    setItems((prev) => [{ name: "", latinName: null, price: null, size: null, qtyPerBox: 1, availableQty: null, warnings: [], _id: id }, ...prev]);
     basePricesRef.current.set(id, null);
     requestAnimationFrame(() => {
       scrollContainerRef.current?.scrollTo({ top: 0 });
@@ -362,6 +369,7 @@ export default function NewShipmentPage() {
           margin: parseFloat(margin) || 0,
           products: validItems.map((i) => ({
             name: i.name,
+            latinName: i.latinName || null,
             price: i.price,
             size: i.size,
             qtyPerBox: i.qtyPerBox || 1,
@@ -413,7 +421,7 @@ export default function NewShipmentPage() {
           </label>
           <div className="mt-6">
             <button
-              onClick={() => setParsed({ name: null, shipmentDate: null, deadline: null, freightCost: null, items: [], warnings: [], headers: [], columnMappings: { name: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } })}
+              onClick={() => setParsed({ name: null, shipmentDate: null, deadline: null, freightCost: null, items: [], warnings: [], headers: [], columnMappings: { name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } })}
               className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors"
             >
               Or create manually without a file
@@ -498,7 +506,7 @@ export default function NewShipmentPage() {
             {mappingsOpen && headers.length > 0 && (
               <div className="px-6 py-4 border-b border-white/10 bg-white/[0.03]">
                 <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Column Mappings</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   {MAPPING_FIELDS.map(({ key, label }) => (
                     <div key={key}>
                       <label className="text-white/40 text-[10px] uppercase tracking-wider font-medium block mb-1.5">{label}</label>

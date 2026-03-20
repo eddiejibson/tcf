@@ -234,7 +234,7 @@ export default function EditCatalogProductPage() {
                 </svg>
               )}
               <span className="text-white/40 text-sm">{uploading ? "Uploading..." : "Upload images"}</span>
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) handleImageUpload(e.target.files); }} />
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) handleImageUpload(e.target.files); e.target.value = ""; }} />
             </label>
           </div>
 

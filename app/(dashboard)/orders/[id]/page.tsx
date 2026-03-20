@@ -180,8 +180,9 @@ export default function OrderDetailPage() {
 
   const compressImage = async (file: File): Promise<Blob> => {
     if (file.size <= 2 * 1024 * 1024) return file;
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = new window.Image();
+      const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const maxSize = 1920;
@@ -193,9 +194,10 @@ export default function OrderDetailPage() {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.8);
+        canvas.toBlob((blob) => { URL.revokeObjectURL(objectUrl); resolve(blob || file); }, "image/jpeg", 0.8);
       };
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error(`Failed to load image: ${file.name}`)); };
+      img.src = objectUrl;
     });
   };
 
@@ -226,17 +228,19 @@ export default function OrderDetailPage() {
 
   const handleDoaImageUpload = async (index: number, files: FileList) => {
     setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, uploading: true } : item));
-    try {
-      const results = await Promise.all(Array.from(files).map(uploadOneImage));
-      setDoaItems((prev) => prev.map((item, i) => i === index ? {
-        ...item,
-        imageKeys: [...item.imageKeys, ...results.map((r) => r.key)],
-        previews: [...item.previews, ...results.map((r) => r.preview)],
-        uploading: false,
-      } : item));
-    } catch {
-      setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, uploading: false } : item));
+    for (const file of Array.from(files)) {
+      try {
+        const result = await uploadOneImage(file);
+        setDoaItems((prev) => prev.map((item, i) => i === index ? {
+          ...item,
+          imageKeys: [...item.imageKeys, result.key],
+          previews: [...item.previews, result.preview],
+        } : item));
+      } catch {
+        // Skip failed file, continue with the rest
+      }
     }
+    setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, uploading: false } : item));
   };
 
   const handleDoaSubmit = async () => {
@@ -703,6 +707,7 @@ export default function OrderDetailPage() {
                           className="hidden"
                           onChange={(e) => {
                             if (e.target.files?.length) handleDoaImageUpload(index, e.target.files);
+                            e.target.value = "";
                           }}
                         />
                       </label>

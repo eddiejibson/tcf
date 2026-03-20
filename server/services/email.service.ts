@@ -216,6 +216,76 @@ export async function sendOrderPaidNotification(
   });
 }
 
+export async function sendApplicationNotification(
+  adminEmails: string[],
+  companyName: string,
+  applicationId: string,
+) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/admin/applications/${applicationId}`;
+
+  await sendWithRetry({
+    from: from(),
+    to: adminEmails,
+    subject: `New Trade Account Application - ${companyName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">New Trade Application</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">A new trade account application has been submitted by <strong style="color: #0984E3;">${companyName}</strong>.</p>
+        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Review Application</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Log in to the admin panel to review this application.</p>
+      </div>
+    `,
+    text: `New trade account application from ${companyName}. Review it here: ${viewUrl}`,
+  });
+}
+
+export async function sendApplicationApproved(
+  contactEmail: string,
+  companyName: string,
+) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const loginUrl = `${baseUrl}/login`;
+
+  await sendWithRetry({
+    from: from(),
+    to: contactEmail,
+    subject: "Trade Account Approved - The Coral Farm",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Great news! Your trade account application for <strong style="color: #ffffff;">${companyName}</strong> has been <strong style="color: #27ae60;">approved</strong>.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">You can now log in to our trade portal using the button below.</p>
+        <a href="${loginUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Log In to Trade Portal</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">Use your email address (${contactEmail}) to request a login link.</p>
+      </div>
+    `,
+    text: `Your trade account application for ${companyName} has been approved! Log in here: ${loginUrl}`,
+  });
+}
+
+export async function sendApplicationRejected(
+  contactEmail: string,
+  companyName: string,
+  reason?: string,
+) {
+  await sendWithRetry({
+    from: from(),
+    to: contactEmail,
+    subject: "Trade Account Application Update - The Coral Farm",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Thank you for your interest in a trade account with The Coral Farm.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Unfortunately, we are unable to approve your application for <strong style="color: #ffffff;">${companyName}</strong> at this time.</p>
+        ${reason ? `<p style="color: #ffffffcc; font-size: 14px; margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">${reason}</p>` : ""}
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
+      </div>
+    `,
+    text: `Thank you for your interest in a trade account with The Coral Farm. Unfortunately, we are unable to approve your application for ${companyName} at this time.${reason ? ` Reason: ${reason}` : ""}`,
+  });
+}
+
 export async function sendAdminOrderCreated(
   userEmail: string,
   orderRef: string,

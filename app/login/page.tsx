@@ -141,6 +141,10 @@ function LoginContent() {
                   )}
                 </button>
               </form>
+              <p className="text-center text-white/30 text-sm mt-4">
+                Don&apos;t have an account?{" "}
+                <Link href="/apply" className="text-[#0984E3] hover:text-[#0984E3]/80 transition-colors">Apply for a trade account</Link>
+              </p>
             </>
           )}
         </div>

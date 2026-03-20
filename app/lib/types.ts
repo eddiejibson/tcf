@@ -8,6 +8,7 @@ import type { DoaItemType } from "@/server/entities/DoaItem";
 import type { DoaReportType } from "@/server/entities/DoaReport";
 import type { CategoryType } from "@/server/entities/Category";
 import type { CatalogProductRecord } from "@/server/entities/CatalogProduct";
+import type { ApplicationType } from "@/server/entities/Application";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K];
@@ -23,6 +24,14 @@ export type SerializedDoaItem = Serialized<DoaItemType>;
 export type SerializedDoaReport = Serialized<DoaReportType>;
 export type SerializedCategory = Serialized<CategoryType>;
 export type SerializedCatalogProduct = Serialized<CatalogProductRecord>;
+export type SerializedApplication = Serialized<ApplicationType>;
+
+export type ApplicationListItem = Pick<SerializedApplication, "id" | "companyName" | "contactName" | "contactEmail" | "status" | "createdAt">;
+
+export type ApplicationDetail = SerializedApplication & {
+  licenseFileUrl: string | null;
+  shopPhotoUrls: string[];
+};
 
 export interface CategoryNode {
   id: string;

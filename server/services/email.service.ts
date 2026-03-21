@@ -57,6 +57,43 @@ export async function sendMagicLink(email: string, url: string) {
   });
 }
 
+export async function sendTeamInvite(
+  email: string,
+  loginUrl: string,
+  inviterEmail: string,
+  companyName: string | null,
+  permissionLabels: string[],
+) {
+  const permList = permissionLabels.length > 0
+    ? permissionLabels.map((p) => `<li style="color: #ffffffcc; font-size: 14px; padding: 4px 0;">${p}</li>`).join("")
+    : `<li style="color: #ffffffcc; font-size: 14px; padding: 4px 0;">Full access</li>`;
+
+  const companyLine = companyName ? ` for <strong style="color: #ffffff;">${companyName}</strong>` : "";
+
+  await sendWithRetry({
+    from: from(),
+    to: email,
+    subject: `You've been invited to The Coral Farm Trade Portal`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffff99; font-size: 14px; margin-bottom: 24px;">Trade Portal Invitation</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 16px;">
+          <strong style="color: #ffffff;">${inviterEmail}</strong> has added you as a team member${companyLine} on The Coral Farm Trade Portal.
+        </p>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 8px;">With your account you can:</p>
+        <ul style="margin: 0 0 24px 16px; padding: 0; list-style: none;">
+          ${permList}
+        </ul>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Click the button below to log in and get started.</p>
+        <a href="${loginUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Log In to Your Account</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+      </div>
+    `,
+    text: `${inviterEmail} has added you as a team member${companyName ? ` for ${companyName}` : ""} on The Coral Farm Trade Portal.\n\nLog in here: ${loginUrl}\n\nIf you weren't expecting this, you can ignore this email.`,
+  });
+}
+
 export async function sendOrderNotification(
   adminEmails: string[],
   userEmail: string,

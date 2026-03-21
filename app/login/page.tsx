@@ -43,7 +43,7 @@ class LoginErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 
 function LoginContent() {
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const redirectTo = searchParams.get("to") || "";

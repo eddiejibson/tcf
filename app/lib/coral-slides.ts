@@ -64,10 +64,8 @@ export const FISH_IMAGE_NAMES: Record<number, string> = {
   22: "Tangs",
 };
 
-/** Ordered list of coral image numbers that actually exist on disk */
 export const CORAL_IMAGE_IDS = Object.keys(CORAL_IMAGE_NAMES).map(Number);
 
-/** Ordered list of fish image numbers */
 export const FISH_IMAGE_IDS = Object.keys(FISH_IMAGE_NAMES).map(Number);
 
 export interface SlideInfo {
@@ -76,7 +74,6 @@ export interface SlideInfo {
   name: string;
 }
 
-/** Build all slides in a fixed interleaved order (coral, fish, coral, fish...) */
 export function buildSlides(): SlideInfo[] {
   const corals: SlideInfo[] = CORAL_IMAGE_IDS.map((id) => ({
     src: `/coral-images/${id}.jpg`,
@@ -89,7 +86,6 @@ export function buildSlides(): SlideInfo[] {
     name: FISH_IMAGE_NAMES[id],
   }));
 
-  // Interleave: 2 corals then 1 fish, repeat
   const result: SlideInfo[] = [];
   let ci = 0;
   let fi = 0;

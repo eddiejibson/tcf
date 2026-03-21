@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { UserOrderDetail, DoaClaimDetail } from "@/app/lib/types";
 import { useAuth } from "@/app/lib/auth-context";
+import { userHasPermission, Permission } from "@/app/lib/permissions";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import SquareCardForm from "@/app/components/SquareCardForm";
 
@@ -263,10 +264,15 @@ export default function OrderDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-8 text-white/40">Order not found</div>;
 
-  const canSelectPayment = order.status === "ACCEPTED" && !order.paymentMethod && !showCardForm;
-  const showBankInfo = order.status === "ACCEPTED" && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
-  const showCardPending = order.status === "ACCEPTED" && order.paymentMethod === "CARD";
-  const showFinancePending = order.status === "ACCEPTED" && order.paymentMethod === "FINANCE";
+  const canManagePayments = user ? userHasPermission(user, Permission.MANAGE_PAYMENTS) : false;
+  const canViewPayments = user ? userHasPermission(user, Permission.VIEW_PAYMENTS) : false;
+  const canViewDoa = user ? userHasPermission(user, Permission.VIEW_DOA) : false;
+  const canCreateDoa = user ? userHasPermission(user, Permission.CREATE_DOA) : false;
+
+  const canSelectPayment = canManagePayments && order.status === "ACCEPTED" && !order.paymentMethod && !showCardForm;
+  const showBankInfo = canManagePayments && order.status === "ACCEPTED" && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
+  const showCardPending = canManagePayments && order.status === "ACCEPTED" && order.paymentMethod === "CARD";
+  const showFinancePending = canManagePayments && order.status === "ACCEPTED" && order.paymentMethod === "FINANCE";
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
 
   return (
@@ -282,7 +288,7 @@ export default function OrderDetailPage() {
           <p className="text-white/50 text-sm mt-1">{order.shipment?.name || "Direct Order"}</p>
         </div>
         <div className="flex items-center gap-2">
-          {["ACCEPTED", "AWAITING_FULFILLMENT", "AWAITING_PAYMENT", "PAID"].includes(order.status) && (
+          {canViewPayments && ["ACCEPTED", "AWAITING_FULFILLMENT", "AWAITING_PAYMENT", "PAID"].includes(order.status) && (
             <button
               onClick={handleDownloadInvoice}
               className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-sm font-medium transition-all flex items-center gap-2"
@@ -297,7 +303,7 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {searchParams.get("payment") === "success" && order.status === "PAID" && (
+      {canViewPayments && searchParams.get("payment") === "success" && order.status === "PAID" && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[16px] p-4 mb-6">
           <p className="text-emerald-400 text-sm font-medium">Payment received! Your order will be processed shortly.</p>
         </div>
@@ -380,7 +386,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {order.useCredit && !Number(order.creditApplied) && order.status !== "ACCEPTED" && order.status !== "PAID" && (
+      {canViewPayments && order.useCredit && !Number(order.creditApplied) && order.status !== "ACCEPTED" && order.status !== "PAID" && (
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -394,7 +400,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {order.status === "ACCEPTED" && user && user.creditBalance > 0 && Number(order.creditApplied) === 0 && (
+      {canManagePayments && order.status === "ACCEPTED" && user && user.creditBalance > 0 && Number(order.creditApplied) === 0 && (
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -413,7 +419,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {order.status === "ACCEPTED" && Number(order.creditApplied) > 0 && (
+      {canManagePayments && order.status === "ACCEPTED" && Number(order.creditApplied) > 0 && (
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -494,7 +500,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {showCardForm && order.status === "ACCEPTED" && !order.paymentMethod && (
+      {canManagePayments && showCardForm && order.status === "ACCEPTED" && !order.paymentMethod && (
         <SquareCardForm
           orderId={order.id}
           total={formatPrice(order.totals.total)}
@@ -582,7 +588,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {isAwaitingPayment && (
+      {canViewPayments && isAwaitingPayment && (
         <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[16px] p-4">
           <p className="text-yellow-400 text-sm font-medium">
             {order.paymentMethod === "BANK_TRANSFER"
@@ -594,13 +600,13 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {order.status === "PAID" && !searchParams.get("payment") && (
+      {canViewPayments && order.status === "PAID" && !searchParams.get("payment") && (
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[16px] p-4">
           <p className="text-emerald-400 text-sm font-medium">Payment confirmed. Thank you!</p>
         </div>
       )}
 
-      {order.status === "PAID" && (
+      {order.status === "PAID" && (canViewDoa || canCreateDoa) && (
         <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
           <h3 className="text-white font-semibold text-lg mb-2">Dead On Arrival (DOA) Report</h3>
 
@@ -739,16 +745,22 @@ export default function OrderDetailPage() {
             </div>
           ) : (
             <div>
-              <p className="text-white/50 text-sm mb-4">Did any items arrive dead? You can report them here with photo evidence.</p>
-              <button
-                onClick={() => {
-                  setShowDoaForm(true);
-                  setDoaItems([{ orderItemId: "", quantity: 0, imageKeys: [], uploading: false, previews: [] }]);
-                }}
-                className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 text-sm font-medium transition-all"
-              >
-                Report DOA
-              </button>
+              {canCreateDoa ? (
+                <>
+                  <p className="text-white/50 text-sm mb-4">Did any items arrive dead? You can report them here with photo evidence.</p>
+                  <button
+                    onClick={() => {
+                      setShowDoaForm(true);
+                      setDoaItems([{ orderItemId: "", quantity: 0, imageKeys: [], uploading: false, previews: [] }]);
+                    }}
+                    className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 text-sm font-medium transition-all"
+                  >
+                    Report DOA
+                  </button>
+                </>
+              ) : (
+                <p className="text-white/50 text-sm">No DOA claims submitted for this order.</p>
+              )}
             </div>
           )}
         </div>

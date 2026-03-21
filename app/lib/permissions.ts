@@ -28,5 +28,8 @@ export function userHasPermission(
 ): boolean {
   if (user.role === "ADMIN") return true;
   if (user.companyRole === "OWNER") return true;
+  // Users without a companyRole (not in the permission system) keep full access
+  if (!user.companyRole) return true;
+  // Only MEMBERs are restricted by their permissions array
   return user.permissions?.includes(permission) ?? false;
 }

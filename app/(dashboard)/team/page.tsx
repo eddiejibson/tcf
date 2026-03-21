@@ -35,6 +35,8 @@ export default function TeamPage() {
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
 
+  const isAdmin = user?.companyRole === "OWNER" || (!!user?.companyName && user?.companyRole !== "MEMBER");
+
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
@@ -49,12 +51,12 @@ export default function TeamPage() {
   }, []);
 
   useEffect(() => {
-    if (user?.companyRole === "OWNER") fetchMembers();
+    if (isAdmin) fetchMembers();
     else setLoading(false);
-  }, [user, fetchMembers]);
+  }, [isAdmin, fetchMembers]);
 
   if (!user) return null;
-  if (user.companyRole !== "OWNER") {
+  if (!isAdmin) {
     return (
       <div className="p-4 md:p-8">
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">

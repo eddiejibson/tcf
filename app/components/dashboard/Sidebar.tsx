@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
+import { userHasPermission, Permission } from "@/app/lib/permissions";
 
 const adminLinks = [
   { href: "/admin/users", label: "Users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
@@ -15,18 +16,45 @@ const adminLinks = [
   { href: "/admin/applications", label: "Applications", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
 ];
 
-const userLinks = [
-  { href: "/shipments", label: "Shipments", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
-  { href: "/catalog", label: "Catalog", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7v10l8 4M12 11V3" },
-  { href: "/orders", label: "My Orders", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
-];
+function getUserLinks(user: { role: string; companyRole?: string | null; permissions?: string[] | null }) {
+  const links: { href: string; label: string; icon: string }[] = [];
+
+  if (userHasPermission(user, Permission.VIEW_SHIPMENTS)) {
+    links.push({ href: "/shipments", label: "Shipments", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" });
+  }
+
+  if (userHasPermission(user, Permission.CREATE_CATALOG_ORDER)) {
+    links.push({ href: "/catalog", label: "Catalog", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7v10l8 4M12 11V3" });
+  }
+
+  if (userHasPermission(user, Permission.VIEW_ORDERS) || userHasPermission(user, Permission.CREATE_ORDER) || userHasPermission(user, Permission.CREATE_CATALOG_ORDER)) {
+    links.push({ href: "/orders", label: "My Orders", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" });
+  }
+
+  if (isCompanyAdmin(user)) {
+    links.push({ href: "/team", label: "Team", icon: "M18 21a8 8 0 00-16 0M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" });
+  }
+
+  return links;
+}
+
+function getRoleDisplay(user: { role: string; companyRole?: string | null; companyName?: string | null }) {
+  if (user.role === "ADMIN") return "Admin";
+  if (user.companyRole === "MEMBER") return "Team Member";
+  if (user.companyRole === "OWNER" || user.companyName) return "Company Admin";
+  return "User";
+}
+
+function isCompanyAdmin(user: { role: string; companyRole?: string | null; companyName?: string | null }) {
+  return user.companyRole === "OWNER" || (!!user.companyName && user.companyRole !== "MEMBER");
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   const isAdmin = user?.role === "ADMIN";
-  const links = isAdmin ? adminLinks : userLinks;
+  const links = isAdmin ? adminLinks : user ? getUserLinks(user) : [];
 
   return (
     <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col h-full">
@@ -74,7 +102,7 @@ export default function Sidebar() {
         )}
         <div className="px-3 mb-3">
           <p className="text-white/80 text-sm font-medium truncate">{user?.email}</p>
-          <p className="text-white/30 text-xs">{user?.role}</p>
+          <p className="text-white/30 text-xs">{user ? getRoleDisplay(user) : ""}</p>
         </div>
         <button
           onClick={logout}

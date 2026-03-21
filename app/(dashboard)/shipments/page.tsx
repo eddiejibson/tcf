@@ -8,12 +8,15 @@ export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<ShipmentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
 
   const fetchShipments = () => {
     setLoading(true);
     setError(false);
+    setForbidden(false);
     fetch("/api/shipments")
       .then((res) => {
+        if (res.status === 401 || res.status === 403) { setForbidden(true); return []; }
         if (!res.ok) throw new Error();
         return res.json();
       })
@@ -39,6 +42,11 @@ export default function ShipmentsPage() {
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      ) : forbidden ? (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+          <p className="text-white/50">You don&apos;t have permission to view shipments.</p>
+          <p className="text-white/30 text-sm mt-2">Contact your company admin to request access.</p>
         </div>
       ) : error ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">

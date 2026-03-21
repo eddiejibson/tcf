@@ -34,7 +34,8 @@ export default function Slideshow({ onSlideChange }: SlideshowProps) {
           next = (next + 1) % slides.length;
           attempts++;
         }
-        onSlideChangeRef.current?.(slides[next].name);
+        // Defer the callback so it doesn't run inside the state updater (render phase)
+        queueMicrotask(() => onSlideChangeRef.current?.(slides[next].name));
         return next;
       });
     }, INTERVAL);

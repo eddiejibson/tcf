@@ -58,11 +58,14 @@ export async function getUserOrders(userId: string) {
 
 export async function getCompanyOrders(companyId: string) {
   const db = await getDb();
-  return db.getRepository(Order).find({
-    relations: ["items", "shipment", "user"],
-    where: { user: { companyId } },
-    order: { createdAt: "DESC" },
-  });
+  return db.getRepository(Order)
+    .createQueryBuilder("order")
+    .leftJoinAndSelect("order.items", "items")
+    .leftJoinAndSelect("order.shipment", "shipment")
+    .leftJoinAndSelect("order.user", "user")
+    .where("user.companyId = :companyId", { companyId })
+    .orderBy("order.createdAt", "DESC")
+    .getMany();
 }
 
 export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user"]) {

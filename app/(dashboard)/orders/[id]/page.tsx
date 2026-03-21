@@ -166,7 +166,7 @@ export default function OrderDetailPage() {
       customerEmail: user?.email || "",
       customerCompanyName: user?.companyName,
       shipmentName: order.shipment?.name || "Direct Order",
-      items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
       shipping: order.totals.shipping,
@@ -327,7 +327,16 @@ export default function OrderDetailPage() {
         {order.items.map((item) => (
           <div key={item.id} className="min-w-[400px] px-4 md:px-6 py-3 border-b border-white/5">
             <div className="flex items-center gap-4">
-              <div className="flex-1"><p className="text-white/90 text-sm font-medium">{item.name}</p></div>
+              <div className="flex-1">
+                <p className="text-white/90 text-sm font-medium">{item.name}</p>
+                {(item.latinName || item.categoryName) && (
+                  <p className="text-white/30 text-xs mt-0.5">
+                    {item.categoryName && <span>{item.categoryName}</span>}
+                    {item.categoryName && item.latinName && <span> · </span>}
+                    {item.latinName && <span className="italic">{item.latinName}</span>}
+                  </p>
+                )}
+              </div>
               <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p></div>
               <div className="w-16 text-center"><p className="text-white/60 text-sm">{item.quantity}</p></div>
               <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.quantity * Number(item.unitPrice))}</p></div>

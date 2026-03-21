@@ -153,6 +153,39 @@ export default function AdminApplicationDetailPage() {
           )}
         </div>
 
+        {/* Addresses */}
+        {(application.billingAddress || application.shippingAddress) && (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+            <h2 className="text-white/30 text-[10px] uppercase tracking-wider font-medium mb-4">Addresses</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {application.billingAddress && (
+                <div>
+                  <p className="text-white/40 text-xs mb-2 font-medium uppercase tracking-wider">Billing</p>
+                  <div className="text-white/80 text-sm space-y-0.5">
+                    <p>{application.billingAddress.line1}</p>
+                    {application.billingAddress.line2 && <p>{application.billingAddress.line2}</p>}
+                    <p>{application.billingAddress.city}{application.billingAddress.county ? `, ${application.billingAddress.county}` : ""}</p>
+                    <p>{application.billingAddress.postcode}</p>
+                    <p>{application.billingAddress.country}</p>
+                  </div>
+                </div>
+              )}
+              {application.shippingAddress && (
+                <div>
+                  <p className="text-white/40 text-xs mb-2 font-medium uppercase tracking-wider">Shipping</p>
+                  <div className="text-white/80 text-sm space-y-0.5">
+                    <p>{application.shippingAddress.line1}</p>
+                    {application.shippingAddress.line2 && <p>{application.shippingAddress.line2}</p>}
+                    <p>{application.shippingAddress.city}{application.shippingAddress.county ? `, ${application.shippingAddress.county}` : ""}</p>
+                    <p>{application.shippingAddress.postcode}</p>
+                    <p>{application.shippingAddress.country}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Files */}
         {(application.licenseFileUrl || application.shopPhotoUrls.length > 0) && (
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">

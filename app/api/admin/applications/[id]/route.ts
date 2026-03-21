@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { Application, ApplicationStatus } from "@/server/entities/Application";
-import { User, UserRole } from "@/server/entities/User";
+import { User, UserRole, CompanyRole } from "@/server/entities/User";
+import { Company } from "@/server/entities/Company";
+import { ALL_PERMISSIONS } from "@/server/lib/permissions";
+import { Address, AddressType } from "@/server/entities/Address";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { sendApplicationApproved, sendApplicationRejected } from "@/server/services/email.service";
 import { isUuid } from "@/server/utils";
@@ -63,24 +66,90 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   if (action === "approve") {
     const userRepo = db.getRepository(User);
+    const companyRepo = db.getRepository(Company);
+    const addressRepo = db.getRepository(Address);
 
-    // Check if user already exists
+    // Create or find Company
+    let company = await companyRepo.findOneBy({
+      name: application.companyName,
+      ...(application.companyNumber ? { companyNumber: application.companyNumber } : {}),
+    });
+
+    if (!company) {
+      company = await companyRepo.save({
+        name: application.companyName,
+        companyNumber: application.companyNumber,
+      });
+    }
+
+    // Create Address records if address data exists
+    if (application.billingAddress) {
+      await addressRepo.save({
+        companyId: company.id,
+        type: AddressType.BILLING,
+        line1: application.billingAddress.line1,
+        line2: application.billingAddress.line2 || null,
+        city: application.billingAddress.city,
+        county: application.billingAddress.county || null,
+        postcode: application.billingAddress.postcode,
+        country: application.billingAddress.country || "United Kingdom",
+      });
+    }
+
+    if (application.shippingAddress) {
+      await addressRepo.save({
+        companyId: company.id,
+        type: AddressType.SHIPPING,
+        line1: application.shippingAddress.line1,
+        line2: application.shippingAddress.line2 || null,
+        city: application.shippingAddress.city,
+        county: application.shippingAddress.county || null,
+        postcode: application.shippingAddress.postcode,
+        country: application.shippingAddress.country || "United Kingdom",
+      });
+    }
+
+    // Create primary user (contactEmail)
     const existing = await userRepo.findOneBy({ email: application.contactEmail });
     let userId: string;
 
     if (existing) {
       userId = existing.id;
-      // Update company name if not set
-      if (!existing.companyName) {
-        await userRepo.update(existing.id, { companyName: application.companyName });
-      }
+      await userRepo.update(existing.id, {
+        companyName: existing.companyName || application.companyName,
+        companyId: company.id,
+        companyRole: CompanyRole.OWNER,
+      });
     } else {
       const user = await userRepo.save({
         email: application.contactEmail,
         role: UserRole.USER,
         companyName: application.companyName,
+        companyId: company.id,
+        companyRole: CompanyRole.OWNER,
       });
       userId = user.id;
+    }
+
+    // Create second user if accountsEmail differs from contactEmail
+    if (
+      application.accountsEmail &&
+      application.accountsEmail.toLowerCase() !== application.contactEmail.toLowerCase()
+    ) {
+      const existingAccounts = await userRepo.findOneBy({ email: application.accountsEmail });
+      if (!existingAccounts) {
+        await userRepo.save({
+          email: application.accountsEmail,
+          role: UserRole.USER,
+          companyName: application.companyName,
+          companyId: company.id,
+        });
+      } else if (!existingAccounts.companyId) {
+        await userRepo.update(existingAccounts.id, {
+          companyName: existingAccounts.companyName || application.companyName,
+          companyId: company.id,
+        });
+      }
     }
 
     await repo.update(id, {
@@ -90,6 +159,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     try {
       await sendApplicationApproved(application.contactEmail, application.companyName);
+      // Also notify accounts email if different
+      if (
+        application.accountsEmail &&
+        application.accountsEmail.toLowerCase() !== application.contactEmail.toLowerCase()
+      ) {
+        await sendApplicationApproved(application.accountsEmail, application.companyName);
+      }
     } catch (emailErr) {
       log.error("Failed to send application approval email", emailErr, {
         route: "/api/admin/applications/[id]",

@@ -20,14 +20,14 @@ export default function Home() {
   return (
     <div className="relative w-full bg-[#151b23]">
       {/* ===== HERO SECTION ===== */}
-      <section className="relative w-full min-h-screen md:min-h-0 md:h-[80vh] overflow-hidden">
+      <section className="relative w-full md:h-[80vh] overflow-hidden">
         {/* Desktop: Right side slideshow - behind the wave */}
         <div className="absolute right-0 top-0 bottom-0 w-[60%] hidden md:block">
           <Slideshow />
         </div>
 
         {/* Desktop: Left side darker gray box with wave edge */}
-        <div className="absolute left-0 top-0 bottom-0 w-[45%] bg-[#1a1f26] hidden md:block z-10">
+        <div className="absolute left-0 top-0 bottom-0 w-[45%] bg-[#0d1219] hidden md:block z-10">
           {/* Subtle animated orbs - kept away from right edge */}
           <div className="hero-orb hero-orb-1" />
           <div className="hero-orb hero-orb-2" />
@@ -50,7 +50,7 @@ export default function Home() {
             viewBox="0 0 150 1440"
             preserveAspectRatio="none"
           >
-            <path d="M0,0 Q150,360 75,720 T112,1440 L0,1440 Z" fill="#252b33" />
+            <path d="M0,0 Q150,360 75,720 T112,1440 L0,1440 Z" fill="#101a24" />
           </svg>
 
           {/* Wave 2 - middle layer */}
@@ -59,7 +59,7 @@ export default function Home() {
             viewBox="0 0 120 1440"
             preserveAspectRatio="none"
           >
-            <path d="M0,0 Q120,360 60,720 T90,1440 L0,1440 Z" fill="#1f252c" />
+            <path d="M0,0 Q120,360 60,720 T90,1440 L0,1440 Z" fill="#0e151e" />
           </svg>
 
           {/* Wave 1 - front, darkest */}
@@ -68,7 +68,7 @@ export default function Home() {
             viewBox="0 0 80 1440"
             preserveAspectRatio="none"
           >
-            <path d="M0,0 Q80,360 40,720 T60,1440 L0,1440 Z" fill="#1a1f26" />
+            <path d="M0,0 Q80,360 40,720 T60,1440 L0,1440 Z" fill="#0d1219" />
           </svg>
         </div>
 
@@ -599,6 +599,84 @@ export default function Home() {
         <div className="max-w-6xl mx-auto h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
       </div>
 
+      {/* ===== JOIN THE FAMILY SECTION ===== */}
+      <section className="relative px-6 md:px-[100px] lg:px-[140px] py-16 md:py-28 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#0984E3]/[0.03] rounded-full blur-[120px]" />
+        </div>
+        <div className="relative max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <div>
+              <SwipeReveal direction="left">
+                <p className="text-[#0984E3] font-semibold text-sm tracking-widest uppercase mb-3">
+                  Trade Accounts
+                </p>
+              </SwipeReveal>
+              <SwipeReveal direction="left" delay={0.1}>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  Join the family
+                </h2>
+              </SwipeReveal>
+              <SwipeReveal direction="left" delay={0.2}>
+                <p className="text-white/60 text-base md:text-lg leading-relaxed mb-8">
+                  Apply for a trade account and get access to our full range of premium coral and marine livestock at wholesale prices. Quick application, fast approval.
+                </p>
+              </SwipeReveal>
+              <SwipeReveal direction="left" delay={0.3}>
+                <Link
+                  href="/apply"
+                  className="inline-flex items-center gap-2 bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg"
+                >
+                  APPLY FOR TRADE ACCOUNT
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+              </SwipeReveal>
+            </div>
+
+            <SwipeReveal delay={0.2}>
+              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5">
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#0984E3]/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#0984E3] font-bold text-sm">1</span>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">Apply online</h4>
+                      <p className="text-white/50 text-sm">Fill in your company details and submit your application.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#0984E3]/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#0984E3] font-bold text-sm">2</span>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">We review</h4>
+                      <p className="text-white/50 text-sm">Our team will review your application and get back to you quickly.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#0984E3]/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#0984E3] font-bold text-sm">3</span>
+                    </div>
+                    <div>
+                      <h4 className="text-white font-semibold mb-1">Start ordering</h4>
+                      <p className="text-white/50 text-sm">Once approved, you can browse and order from our full range.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SwipeReveal>
+          </div>
+        </div>
+      </section>
+
+      {/* Subtle divider */}
+      <div className="px-6 md:px-[100px] lg:px-[140px]">
+        <div className="max-w-6xl mx-auto h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+      </div>
+
       {/* ===== CTA SECTION ===== */}
       <section className="relative px-6 md:px-[100px] lg:px-[140px] py-20 md:py-32 overflow-hidden">
         {/* Subtle radial glow */}
@@ -660,6 +738,7 @@ export default function Home() {
               <h4 className="text-white font-semibold text-sm mb-3">Quick Links</h4>
               <div className="flex flex-col gap-2">
                 <Link href="/gallery" className="text-white/40 text-sm hover:text-white/70 transition-colors">Gallery</Link>
+                <Link href="/apply" className="text-white/40 text-sm hover:text-white/70 transition-colors">Apply for Account</Link>
                 <Link href="/login" className="text-white/40 text-sm hover:text-white/70 transition-colors">Trade Login</Link>
               </div>
             </div>

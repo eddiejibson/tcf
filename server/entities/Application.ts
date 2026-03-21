@@ -40,6 +40,26 @@ export class Application extends BaseEntityWithUpdate {
   @Column({ type: "text", nullable: true })
   additionalInfo: string | null;
 
+  @Column({ type: "jsonb", nullable: true })
+  billingAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    county?: string;
+    postcode: string;
+    country: string;
+  } | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  shippingAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    county?: string;
+    postcode: string;
+    country: string;
+  } | null;
+
   @Column({ type: "enum", enum: ApplicationStatus, default: ApplicationStatus.PENDING })
   status: ApplicationStatus;
 

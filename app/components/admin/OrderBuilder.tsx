@@ -239,37 +239,45 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
 
   const handleCreate = async () => {
     if (!selectedUserId || orderItems.length === 0) return;
+    // Kill any pending auto-save to prevent race conditions
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    savingRef.current = true;
     setCreating(true);
 
-    if (draftOrderId) {
-      // Transition draft -> ACCEPTED
-      const res = await fetch(`/api/admin/orders/${draftOrderId}`, {
-        method: "PATCH",
+    try {
+      if (draftOrderId) {
+        // Transition draft -> ACCEPTED
+        const res = await fetch(`/api/admin/orders/${draftOrderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "ACCEPTED" }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          router.push(`/admin/orders/${data.id}`);
+          return;
+        }
+      }
+
+      // Fallback: create directly as ACCEPTED
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ACCEPTED" }),
+        body: JSON.stringify({
+          userId: selectedUserId,
+          items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity })),
+          notes: notes || undefined,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
         router.push(`/admin/orders/${data.id}`);
         return;
       }
+    } finally {
+      savingRef.current = false;
+      setCreating(false);
     }
-
-    // Fallback: create directly as ACCEPTED
-    const res = await fetch("/api/admin/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: selectedUserId,
-        items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity })),
-        notes: notes || undefined,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/admin/orders/${data.id}`);
-    }
-    setCreating(false);
   };
 
   const handleProductCreated = (product: { id: string; name: string; price: number; type: string }) => {

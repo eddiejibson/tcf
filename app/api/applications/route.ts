@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
     const additionalInfo = (body.additionalInfo as string)?.trim() || null;
     const licenseFileKey = (body.licenseFileKey as string) || null;
     const shopPhotoKeys: string[] = Array.isArray(body.shopPhotoKeys) ? body.shopPhotoKeys : [];
+    const billingAddress = body.billingAddress || null;
+    const shippingAddress = body.shippingAddress || null;
 
     if (!companyName || !contactName || !contactEmail) {
       return NextResponse.json(
@@ -41,6 +43,8 @@ export async function POST(request: NextRequest) {
       licenseFileKey,
       shopPhotoKeys,
       additionalInfo,
+      billingAddress,
+      shippingAddress,
       status: ApplicationStatus.PENDING,
     });
 

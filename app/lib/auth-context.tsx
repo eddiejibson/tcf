@@ -8,6 +8,9 @@ interface AuthUser {
   email: string;
   role: "ADMIN" | "USER";
   companyName: string | null;
+  companyId: string | null;
+  companyRole: "OWNER" | "MEMBER" | null;
+  permissions: string[] | null;
   creditBalance: number;
 }
 

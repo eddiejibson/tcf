@@ -12,5 +12,12 @@ export async function GET() {
   const db = await getDb();
   const dbUser = await db.getRepository(User).findOneBy({ id: user.userId });
   const creditBalance = await getCreditBalance(user.userId);
-  return NextResponse.json({ ...user, companyName: dbUser?.companyName || null, creditBalance });
+  return NextResponse.json({
+    ...user,
+    companyName: dbUser?.companyName || null,
+    companyId: dbUser?.companyId || null,
+    companyRole: dbUser?.companyRole || null,
+    permissions: dbUser?.permissions || null,
+    creditBalance,
+  });
 }

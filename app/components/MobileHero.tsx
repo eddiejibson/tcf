@@ -2,38 +2,23 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BookingForm from "./BookingForm";
 import Slideshow from "./Slideshow";
 
-const CORAL_NAMES = [
-  "Acropora",
-  "Euphyllia",
-  "Zoanthids",
-  "Goniopora",
-  "Chalice",
-  "Montipora",
-  "Torch",
-  "Hammers",
-  "Acans",
-  "Blastomussa",
-];
-
 export default function MobileHero() {
   const [showContact, setShowContact] = useState(false);
-  const [coralIndex, setCoralIndex] = useState(0);
+  const [coralName, setCoralName] = useState("");
   const [isAnimating, setIsAnimating] = useState(false);
+  const animTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCoralIndex((prev) => (prev + 1) % CORAL_NAMES.length);
-        setIsAnimating(false);
-      }, 300);
-    }, 2500);
-
-    return () => clearInterval(timer);
+  const handleSlideChange = useCallback((name: string) => {
+    setIsAnimating(true);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    animTimerRef.current = setTimeout(() => {
+      setCoralName(name);
+      setIsAnimating(false);
+    }, 300);
   }, []);
 
   // Listen for custom event to open contact form
@@ -51,7 +36,7 @@ export default function MobileHero() {
   return (
     <div id="mobile-hero" className="relative md:hidden w-full">
       {/* Mobile: Dark gray box with content */}
-      <div className="relative w-full bg-[#1a1f26] overflow-hidden">
+      <div className="relative w-full bg-gradient-to-b from-[#0a0f16] to-[#0d1219] overflow-hidden">
         {/* Animated orbs and particles - inside dark section */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
           <div className="hero-orb-mobile hero-orb-mobile-1" />
@@ -140,7 +125,7 @@ export default function MobileHero() {
 
       {/* Mobile: Slideshow with diagonal wave overlay */}
       <div className="relative w-full h-[520px]">
-        <Slideshow />
+        <Slideshow onSlideChange={handleSlideChange} />
         {/* Diagonal wave overlay at top - angled to show more image */}
         <svg
           className="absolute top-0 left-0 w-full h-[120px] z-10"
@@ -149,7 +134,7 @@ export default function MobileHero() {
         >
           <path
             d="M0,0 L0,100 Q360,50 720,70 T1440,25 L1440,0 Z"
-            fill="#1a1f26"
+            fill="#0d1219"
           />
         </svg>
 
@@ -171,7 +156,7 @@ export default function MobileHero() {
                       : "opacity-100 blur-0 scale-100"
                   }`}
                 >
-                  {CORAL_NAMES[coralIndex]}
+                  {coralName}
                 </p>
               </div>
             </div>

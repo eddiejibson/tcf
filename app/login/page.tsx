@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, Component, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import AuthBackground from "@/app/components/AuthBackground";
 
 class LoginErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -17,15 +18,16 @@ class LoginErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#1a1f26]">
-          <header className="px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
+        <div className="min-h-screen bg-[#1a1f26] relative">
+          <AuthBackground />
+          <header className="relative px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
               <Image src="/images/logo.png" alt="The Coral Farm" width={40} height={60} />
               <span className="text-white font-extrabold tracking-wider hidden sm:block">THE CORAL FARM</span>
             </Link>
           </header>
-          <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
-            <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12 text-center">
+          <main className="relative px-6 md:px-[100px] lg:px-[140px] py-12">
+            <div className="max-w-md mx-auto bg-black/30 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12 text-center">
               <p className="text-white/60 mb-4">Something went wrong loading this page.</p>
               <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl transition-all">
                 Reload Page
@@ -73,8 +75,9 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1a1f26]">
-      <header className="px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
+    <div className="min-h-screen relative">
+      <AuthBackground />
+      <header className="relative px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
           <Image src="/images/logo.png" alt="The Coral Farm" width={40} height={60} className="transition-transform duration-300 group-hover:scale-105" />
           <span className="text-white font-extrabold tracking-wider hidden sm:block">THE CORAL FARM</span>
@@ -82,8 +85,8 @@ function LoginContent() {
         <Link href="/" className="text-white/60 hover:text-white transition-colors duration-200 text-sm font-medium">Back to Home</Link>
       </header>
 
-      <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
-        <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
+      <main className="relative px-6 md:px-[100px] lg:px-[140px] py-12">
+        <div className="max-w-md mx-auto bg-black/30 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
           {sent ? (
             <>
               <div className="text-center mb-8">
@@ -157,16 +160,17 @@ export default function LoginPage() {
   return (
     <LoginErrorBoundary>
       <Suspense fallback={
-        <div className="min-h-screen bg-[#1a1f26]">
-          <header className="px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
+        <div className="min-h-screen relative">
+          <AuthBackground />
+          <header className="relative px-6 md:px-[100px] lg:px-[140px] py-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Image src="/images/logo.png" alt="The Coral Farm" width={40} height={60} />
               <span className="text-white font-extrabold tracking-wider hidden sm:block">THE CORAL FARM</span>
             </div>
             <Link href="/" className="text-white/60 hover:text-white transition-colors duration-200 text-sm font-medium">Back to Home</Link>
           </header>
-          <main className="px-6 md:px-[100px] lg:px-[140px] py-12">
-            <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
+          <main className="relative px-6 md:px-[100px] lg:px-[140px] py-12">
+            <div className="max-w-md mx-auto bg-black/30 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[#0984E3]/10 flex items-center justify-center">
                   <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />

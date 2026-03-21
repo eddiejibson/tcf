@@ -18,6 +18,9 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  companyId: string | null;
+  companyRole: string | null;
+  permissions: string[] | null;
   [key: string]: unknown;
 }
 
@@ -69,6 +72,9 @@ export async function createSession(user: User): Promise<string> {
     userId: user.id,
     email: user.email,
     role: user.role,
+    companyId: user.companyId || null,
+    companyRole: user.companyRole || null,
+    permissions: user.permissions || null,
   } as JwtPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

@@ -15,12 +15,14 @@ import { Category } from "../entities/Category";
 import { CatalogProduct } from "../entities/CatalogProduct";
 import { CatalogProductImage } from "../entities/CatalogProductImage";
 import { Application } from "../entities/Application";
+import { Company } from "../entities/Company";
+import { Address } from "../entities/Address";
 
 const ca = fs.readFileSync(
   path.join(process.cwd(), "server", "db", "ca-certificate.crt")
 ).toString();
 
-export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem, DoaClaim, DoaItem, DoaReport, CreditTransaction, Category, CatalogProduct, CatalogProductImage, Application];
+export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem, DoaClaim, DoaItem, DoaReport, CreditTransaction, Category, CatalogProduct, CatalogProductImage, Application, Company, Address];
 
 export const baseDbConfig: DataSourceOptions = {
   type: "postgres",

@@ -143,11 +143,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           role: UserRole.USER,
           companyName: application.companyName,
           companyId: company.id,
+          companyRole: CompanyRole.MEMBER,
+          permissions: ALL_PERMISSIONS,
         });
       } else if (!existingAccounts.companyId) {
         await userRepo.update(existingAccounts.id, {
           companyName: existingAccounts.companyName || application.companyName,
           companyId: company.id,
+          companyRole: CompanyRole.MEMBER,
+          permissions: ALL_PERMISSIONS,
         });
       }
     }

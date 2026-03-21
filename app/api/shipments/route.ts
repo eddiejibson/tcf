@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requirePermission } from "@/server/middleware/auth";
 import { getActiveShipments } from "@/server/services/order.service";
+import { Permission } from "@/server/lib/permissions";
 
 export async function GET() {
-  const user = await requireAuth();
+  const user = await requirePermission(Permission.VIEW_SHIPMENTS);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const shipments = await getActiveShipments();

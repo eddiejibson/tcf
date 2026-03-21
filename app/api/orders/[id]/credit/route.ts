@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
 import { applyCredit, removeAppliedCredit, getCreditBalance } from "@/server/services/credit.service";
 import { OrderStatus } from "@/server/entities/Order";
+import { Permission } from "@/server/lib/permissions";
 import { isUuid } from "@/server/utils";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,7 +14,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canAccessOrder(user, order)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(user, Permission.MANAGE_PAYMENTS)) return NextResponse.json({ error: "No permission to manage payments" }, { status: 403 });
   if (order.status !== OrderStatus.ACCEPTED) {
     return NextResponse.json({ error: "Credit can only be applied to accepted orders" }, { status: 400 });
   }
@@ -21,24 +23,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { action } = await request.json();
 
   if (action === "remove") {
-    await removeAppliedCredit(id, user.userId);
+    await removeAppliedCredit(id, order.userId!);
     const updated = await getOrderById(id);
     if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-    const balance = await getCreditBalance(user.userId);
+    const balance = await getCreditBalance(order.userId!);
     return NextResponse.json({ ...updated, totals, creditBalance: balance });
   }
 
   // Apply credit
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge);
-  const balance = await getCreditBalance(user.userId);
+  const balance = await getCreditBalance(order.userId!);
   const toApply = Math.min(balance, totals.total);
 
   if (toApply <= 0) {
     return NextResponse.json({ error: "No credit available to apply" }, { status: 400 });
   }
 
-  const result = await applyCredit(id, user.userId, toApply);
+  const result = await applyCredit(id, order.userId!, toApply);
 
   // Check if credit covers the full amount
   const updatedOrder = await getOrderById(id);

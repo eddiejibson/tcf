@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById, setPaymentMethod, markOrderPaid, calculateOrderTotals } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { processCardPayment } from "@/server/services/payment.service";
+import { Permission } from "@/server/lib/permissions";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
 
@@ -14,7 +15,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canAccessOrder(user, order)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasPermission(user, Permission.MANAGE_PAYMENTS)) return NextResponse.json({ error: "No permission to manage payments" }, { status: 403 });
   if (order.status !== OrderStatus.ACCEPTED) {
     return NextResponse.json({ error: "Order must be accepted before payment" }, { status: 400 });
   }

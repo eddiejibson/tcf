@@ -56,6 +56,15 @@ export async function getUserOrders(userId: string) {
   });
 }
 
+export async function getCompanyOrders(companyId: string) {
+  const db = await getDb();
+  return db.getRepository(Order).find({
+    relations: ["items", "shipment", "user"],
+    where: { user: { companyId } },
+    order: { createdAt: "DESC" },
+  });
+}
+
 export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user"]) {
   const db = await getDb();
   return db.getRepository(Order).findOne({ where: { id }, relations });

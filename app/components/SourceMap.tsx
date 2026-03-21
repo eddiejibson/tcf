@@ -247,12 +247,11 @@ export default function SourceMap() {
           );
         })}
 
-        {/* Tooltip */}
+        {/* Tooltip — desktop: floats near dot; mobile: fixed bar at bottom of map */}
         <AnimatePresence>
           {active !== null && (() => {
             const loc = LOCATIONS[active];
             const flipBelow = loc.y < 25;
-            // For locations near the right edge, anchor from the right side instead
             const nearRight = loc.x > 85;
             const nearLeft = loc.x < 15;
 
@@ -261,7 +260,6 @@ export default function SourceMap() {
             };
 
             if (nearRight) {
-              // Anchor from right: distance from right edge = 100 - loc.x
               posStyle.right = `${100 - loc.x}%`;
               posStyle.transform = flipBelow
                 ? "translate(0, calc(100% + 12px))"
@@ -279,24 +277,46 @@ export default function SourceMap() {
             }
 
             return (
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, y: flipBelow ? -6 : 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: flipBelow ? -6 : 6 }}
-                transition={{ duration: 0.15 }}
-                className="absolute z-50 pointer-events-none"
-                style={posStyle}
-              >
-                <div className="bg-[#1a1f26]/95 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2.5 md:px-4 md:py-3 shadow-xl min-w-[160px] max-w-[200px] md:min-w-[180px] md:max-w-[220px]">
-                  <p className="text-white font-semibold text-[11px] md:text-xs mb-1">
-                    {loc.name}
-                  </p>
-                  <p className="text-white/50 text-[10px] leading-relaxed">
-                    {loc.description}
-                  </p>
-                </div>
-              </motion.div>
+              <>
+                {/* Desktop tooltip - positioned near dot */}
+                <motion.div
+                  key={`desktop-${active}`}
+                  initial={{ opacity: 0, y: flipBelow ? -6 : 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: flipBelow ? -6 : 6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute z-50 pointer-events-none hidden md:block"
+                  style={posStyle}
+                >
+                  <div className="bg-[#1a1f26]/95 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-3 shadow-xl min-w-[180px] max-w-[220px]">
+                    <p className="text-white font-semibold text-xs mb-1">
+                      {loc.name}
+                    </p>
+                    <p className="text-white/50 text-[10px] leading-relaxed">
+                      {loc.description}
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* Mobile tooltip - pinned to bottom of map */}
+                <motion.div
+                  key={`mobile-${active}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none md:hidden p-2"
+                >
+                  <div className="bg-[#1a1f26]/95 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2.5 shadow-xl">
+                    <p className="text-white font-semibold text-[11px] mb-0.5">
+                      {loc.name}
+                    </p>
+                    <p className="text-white/50 text-[10px] leading-relaxed">
+                      {loc.description}
+                    </p>
+                  </div>
+                </motion.div>
+              </>
             );
           })()}
         </AnimatePresence>

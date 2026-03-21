@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
-import { getUserOrders, createOrder, createCatalogOrder, calculateOrderTotals } from "@/server/services/order.service";
+import { requireAuth, hasPermission } from "@/server/middleware/auth";
+import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals } from "@/server/services/order.service";
+import { Permission } from "@/server/lib/permissions";
 
 export async function GET() {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const orders = await getUserOrders(user.userId);
+  // If user has VIEW_ORDERS + belongs to a company, show all company orders
+  const orders = user.companyId && hasPermission(user, Permission.VIEW_ORDERS)
+    ? await getCompanyOrders(user.companyId)
+    : await getUserOrders(user.userId);
 
   return NextResponse.json(
     orders.map((o) => {
@@ -18,6 +22,7 @@ export async function GET() {
         itemCount: o.items?.length || 0,
         total: totals.total,
         createdAt: o.createdAt,
+        userEmail: o.user?.email || null,
       };
     })
   );
@@ -33,12 +38,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (!shipmentId) {
-    // Catalog order
+    // Catalog order — require CREATE_CATALOG_ORDER
+    if (!hasPermission(user, Permission.CREATE_CATALOG_ORDER)) {
+      return NextResponse.json({ error: "You don't have permission to create catalog orders" }, { status: 403 });
+    }
     const order = await createCatalogOrder(user.userId, items.map((i: { catalogProductId: string; quantity: number }) => ({
       catalogProductId: i.catalogProductId,
       quantity: i.quantity,
     })));
     return NextResponse.json(order);
+  }
+
+  // Shipment order — require CREATE_ORDER
+  if (!hasPermission(user, Permission.CREATE_ORDER)) {
+    return NextResponse.json({ error: "You don't have permission to create orders" }, { status: 403 });
   }
 
   const order = await createOrder(user.userId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({

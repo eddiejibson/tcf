@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requireAuth, canAccessOrder } from "@/server/middleware/auth";
 import { getOrderById, updateOrderItems, submitOrder, calculateOrderTotals } from "@/server/services/order.service";
 import { getDb } from "@/server/db/data-source";
 import { Order } from "@/server/entities/Order";
@@ -13,7 +13,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.userId !== user.userId && user.role !== "ADMIN") {
+  if (!canAccessOrder(user, order)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,6 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  // PATCH keeps strict ownership — only the creator can modify drafts
   if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();

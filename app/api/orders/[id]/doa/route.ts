@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById } from "@/server/services/order.service";
 import { createDoaClaim, getDoaClaimByOrderId } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
+import { Permission } from "@/server/lib/permissions";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
 
@@ -15,7 +16,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!canAccessOrder(user, order)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!hasPermission(user, Permission.VIEW_DOA)) return NextResponse.json({ error: "No permission to view DOA claims" }, { status: 403 });
 
     const claim = await getDoaClaimByOrderId(id);
     if (!claim) return NextResponse.json(null);
@@ -43,7 +45,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (order.userId !== user.userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!canAccessOrder(user, order)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!hasPermission(user, Permission.CREATE_DOA)) return NextResponse.json({ error: "No permission to submit DOA claims" }, { status: 403 });
     if (order.status !== "PAID") return NextResponse.json({ error: "Order must be paid to report DOA" }, { status: 400 });
 
     const { items } = await request.json();

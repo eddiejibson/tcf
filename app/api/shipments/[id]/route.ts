@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
+import { requirePermission } from "@/server/middleware/auth";
 import { getShipmentWithProducts } from "@/server/services/order.service";
+import { Permission } from "@/server/lib/permissions";
 import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAuth();
+  const user = await requirePermission(Permission.VIEW_SHIPMENTS);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;

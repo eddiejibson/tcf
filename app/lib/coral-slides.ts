@@ -76,45 +76,27 @@ export interface SlideInfo {
   name: string;
 }
 
-/** Build all slides and shuffle so no two consecutive slides share the same name */
-export function buildShuffledSlides(): SlideInfo[] {
-  const all: SlideInfo[] = [];
+/** Build all slides in a fixed interleaved order (coral, fish, coral, fish...) */
+export function buildSlides(): SlideInfo[] {
+  const corals: SlideInfo[] = CORAL_IMAGE_IDS.map((id) => ({
+    src: `/coral-images/${id}.jpg`,
+    alt: `Coral ${id}`,
+    name: CORAL_IMAGE_NAMES[id],
+  }));
+  const fish: SlideInfo[] = FISH_IMAGE_IDS.map((id) => ({
+    src: `/fish-images/${id}.jpg`,
+    alt: `Fish ${id}`,
+    name: FISH_IMAGE_NAMES[id],
+  }));
 
-  for (const id of CORAL_IMAGE_IDS) {
-    all.push({ src: `/coral-images/${id}.jpg`, alt: `Coral ${id}`, name: CORAL_IMAGE_NAMES[id] });
+  // Interleave: 2 corals then 1 fish, repeat
+  const result: SlideInfo[] = [];
+  let ci = 0;
+  let fi = 0;
+  while (ci < corals.length || fi < fish.length) {
+    if (ci < corals.length) result.push(corals[ci++]);
+    if (ci < corals.length) result.push(corals[ci++]);
+    if (fi < fish.length) result.push(fish[fi++]);
   }
-  for (const id of FISH_IMAGE_IDS) {
-    all.push({ src: `/fish-images/${id}.jpg`, alt: `Fish ${id}`, name: FISH_IMAGE_NAMES[id] });
-  }
-
-  // Fisher-Yates shuffle
-  for (let i = all.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [all[i], all[j]] = [all[j], all[i]];
-  }
-
-  // Fix consecutive duplicates: swap with the next non-duplicate
-  for (let i = 1; i < all.length; i++) {
-    if (all[i].name === all[i - 1].name) {
-      let swapped = false;
-      for (let j = i + 1; j < all.length; j++) {
-        if (all[j].name !== all[i - 1].name && (i + 1 >= all.length || all[j].name !== all[i + 1]?.name)) {
-          [all[i], all[j]] = [all[j], all[i]];
-          swapped = true;
-          break;
-        }
-      }
-      // If we couldn't find a swap forward, try backward
-      if (!swapped) {
-        for (let j = 0; j < i - 1; j++) {
-          if (all[j].name !== all[i].name && all[j].name !== all[j + 1]?.name) {
-            [all[i], all[j]] = [all[j], all[i]];
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  return all;
+  return result;
 }

@@ -114,6 +114,8 @@ export interface AdminShipmentDetailOrder {
   total: number;
   createdAt: string;
   items: AdminShipmentDetailOrderItem[];
+  maxBoxes?: number | null;
+  minBoxes?: number | null;
 }
 
 export interface AdminShipmentDetail {
@@ -131,19 +133,27 @@ export interface AdminShipmentDetail {
 }
 
 export type AdminOrderListItem = Pick<SerializedOrder, "id" | "status" | "createdAt"> & {
-  userEmail: string;
+  userEmail: string | null;
   userCompanyName: string | null;
   shipmentName: string | null;
   itemCount: number;
   total: number;
 };
 
-export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName" | "catalogProductId">;
+export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName" | "catalogProductId"> & {
+  latinName?: string | null;
+  categoryName?: string | null;
+};
+
+export type OrderItemWithMeta = SerializedOrderItem & {
+  latinName?: string | null;
+  categoryName?: string | null;
+};
 
 export type AdminOrderDetail = SerializedOrder & {
-  user: { email: string; companyName: string | null };
+  user: { email: string; companyName: string | null } | null;
   shipment: { name: string; freightCost: number } | null;
-  items: SerializedOrderItem[];
+  items: OrderItemWithMeta[];
   totals: OrderTotals;
 };
 
@@ -163,7 +173,7 @@ export type UserOrderListItem = Pick<SerializedOrder, "id" | "status" | "created
 
 export type UserOrderDetail = SerializedOrder & {
   shipment: { name: string; freightCost: number } | null;
-  items: SerializedOrderItem[];
+  items: OrderItemWithMeta[];
   totals: OrderTotals;
 };
 

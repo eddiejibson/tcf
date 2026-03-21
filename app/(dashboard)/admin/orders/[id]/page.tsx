@@ -38,6 +38,8 @@ export default function AdminOrderDetailPage() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemQty, setNewItemQty] = useState("1");
+  const [maxBoxes, setMaxBoxes] = useState("");
+  const [minBoxes, setMinBoxes] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState("");
 
   const applyOrderData = useCallback((data: AdminOrderDetail) => {
@@ -59,22 +61,31 @@ export default function AdminOrderDetailPage() {
       fc = est > 0 ? est.toFixed(2) : "";
     }
     setFreightCharge(fc);
+    setMaxBoxes(data.maxBoxes != null ? String(data.maxBoxes) : "");
+    setMinBoxes(data.minBoxes != null ? String(data.minBoxes) : "");
 
     setSavedSnapshot(JSON.stringify({
       items: data.items.map((i: EditableOrderItem) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
       includeShipping: data.includeShipping,
       freightCharge: fc,
       adminNotes: data.adminNotes || "",
+      maxBoxes: data.maxBoxes != null ? String(data.maxBoxes) : "",
+      minBoxes: data.minBoxes != null ? String(data.minBoxes) : "",
     }));
   }, []);
 
   const fetchOrder = useCallback(async () => {
     const res = await fetch(`/api/admin/orders/${params.id}`, { cache: "no-store" });
     if (res.ok) {
-      applyOrderData(await res.json());
+      const data = await res.json();
+      if (data.status === "DRAFT") {
+        router.replace(`/admin/orders/${params.id}/edit`);
+        return;
+      }
+      applyOrderData(data);
     }
     setLoading(false);
-  }, [params.id, applyOrderData]);
+  }, [params.id, applyOrderData, router]);
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
@@ -124,6 +135,8 @@ export default function AdminOrderDetailPage() {
         includeShipping,
         freightCharge: freightCharge ? parseFloat(freightCharge) : null,
         adminNotes: adminNotes || null,
+        maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
+        minBoxes: minBoxes ? parseInt(minBoxes) : null,
       });
     } finally {
       setSaving(false);
@@ -139,6 +152,8 @@ export default function AdminOrderDetailPage() {
         includeShipping,
         freightCharge: freightCharge ? parseFloat(freightCharge) : null,
         adminNotes: adminNotes || null,
+        maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
+        minBoxes: minBoxes ? parseInt(minBoxes) : null,
       });
     } finally {
       setSaving(false);
@@ -160,10 +175,10 @@ export default function AdminOrderDetailPage() {
       orderRef: order.id.slice(0, 8).toUpperCase(),
       date: new Date(order.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
       status: order.status,
-      customerEmail: order.user.email,
-      customerCompanyName: order.user.companyName,
+      customerEmail: order.user?.email || "",
+      customerCompanyName: order.user?.companyName || null,
       shipmentName: order.shipment?.name || "Direct Order",
-      items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
       shipping: order.totals.shipping,
@@ -192,6 +207,8 @@ export default function AdminOrderDetailPage() {
     includeShipping,
     freightCharge,
     adminNotes,
+    maxBoxes,
+    minBoxes,
   });
   const hasChanges = savedSnapshot !== "" && currentSnapshot !== savedSnapshot;
 
@@ -205,7 +222,7 @@ export default function AdminOrderDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
-          <p className="text-white/50 text-sm mt-1">{order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email} - {order.shipment?.name || "Direct Order"}</p>
+          <p className="text-white/50 text-sm mt-1">{order.user ? (order.user.companyName ? `${order.user.companyName} (${order.user.email})` : order.user.email) : <span className="italic">No customer assigned</span>} - {order.shipment?.name || "Direct Order"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -274,6 +291,13 @@ export default function AdminOrderDetailPage() {
                 <input value={item.name} onChange={(e) => updateItem(index, "name", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
               ) : (
                 <p className="text-white/90 text-sm font-medium">{item.name}</p>
+              )}
+              {(item.latinName || item.categoryName) && (
+                <p className="text-white/30 text-xs mt-0.5">
+                  {item.categoryName && <span>{item.categoryName}</span>}
+                  {item.categoryName && item.latinName && <span> · </span>}
+                  {item.latinName && <span className="italic">{item.latinName}</span>}
+                </p>
               )}
             </div>
             <div className="w-28">
@@ -370,6 +394,44 @@ export default function AdminOrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {(isEditable || order.maxBoxes != null || order.minBoxes != null) && (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
+          <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Box Limits</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-white/40 text-xs mb-1 block">Min Boxes</label>
+              {isEditable ? (
+                <input
+                  type="number"
+                  min="0"
+                  value={minBoxes}
+                  onChange={(e) => setMinBoxes(e.target.value)}
+                  placeholder="No min"
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50"
+                />
+              ) : (
+                <p className="text-white/70 text-sm">{order.minBoxes != null ? order.minBoxes : "—"}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-white/40 text-xs mb-1 block">Max Boxes</label>
+              {isEditable ? (
+                <input
+                  type="number"
+                  min="0"
+                  value={maxBoxes}
+                  onChange={(e) => setMaxBoxes(e.target.value)}
+                  placeholder="No max"
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50"
+                />
+              ) : (
+                <p className="text-white/70 text-sm">{order.maxBoxes != null ? order.maxBoxes : "—"}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
         <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Invoice Note</p>

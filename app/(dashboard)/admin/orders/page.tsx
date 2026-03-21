@@ -86,8 +86,8 @@ export default function AdminOrdersPage() {
             <Link key={o.id} href={`/admin/orders/${o.id}`} className="min-w-[700px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block">
               <div className="w-24"><p className="text-white/60 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</p></div>
               <div className="flex-1">
-                <p className="text-white/90 text-sm font-medium">{o.userCompanyName || o.userEmail}</p>
-                {o.userCompanyName && <p className="text-white/40 text-xs">{o.userEmail}</p>}
+                <p className="text-white/90 text-sm font-medium">{o.userCompanyName || o.userEmail || <span className="text-white/30 italic">No customer</span>}</p>
+                {o.userCompanyName && o.userEmail && <p className="text-white/40 text-xs">{o.userEmail}</p>}
               </div>
               <div className="w-40"><p className="text-white/60 text-sm truncate">{o.shipmentName || "Direct Order"}</p></div>
               <div className="w-20 text-center"><p className="text-white/60 text-sm">{o.itemCount}</p></div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getAllOrders, calculateOrderTotals, createAdminOrder } from "@/server/services/order.service";
+import { getAllOrders, calculateOrderTotals, createAdminOrder, createAdminDraftOrder } from "@/server/services/order.service";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -31,10 +31,13 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { userId, items, notes } = body;
+  const { userId, items, notes, asDraft } = body;
 
-  if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "userId and items are required" }, { status: 400 });
+  if (!asDraft && !userId) {
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  }
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return NextResponse.json({ error: "items are required" }, { status: 400 });
   }
 
   for (const item of items) {
@@ -44,7 +47,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const order = await createAdminOrder(admin.userId, userId, items, notes);
+    const order = asDraft
+      ? await createAdminDraftOrder(admin.userId, userId || null, items, notes)
+      : await createAdminOrder(admin.userId, userId, items, notes);
     if (!order) return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);

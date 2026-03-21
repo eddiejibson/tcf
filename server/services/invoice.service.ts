@@ -174,10 +174,12 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   y += headerH;
 
   // Table rows
-  const rowH = 8;
   doc.setFontSize(9);
 
   data.items.forEach((item, i) => {
+    const hasSubline = !!(item.latinName || item.categoryName);
+    const rowH = hasSubline ? 12 : 8;
+
     if (y + rowH > 240) {
       doc.addPage();
       y = 20;
@@ -200,7 +202,7 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
       doc.rect(tL, y, cw, rowH, "F");
     }
 
-    const rY = y + 5.3;
+    const rY = y + (hasSubline ? 4.5 : 5.3);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -215,6 +217,19 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
     }
     doc.text(displayName, tL + 5, rY);
 
+    // Latin name / category subtitle
+    if (hasSubline) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY);
+      const parts: string[] = [];
+      if (item.categoryName) parts.push(item.categoryName);
+      if (item.latinName) parts.push(item.latinName);
+      doc.text(parts.join(" · "), tL + 5, rY + 4);
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     doc.setTextColor(...GRAY);
     doc.text(fmtPrice(item.unitPrice), colPrice, rY, { align: "right" });
 

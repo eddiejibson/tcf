@@ -59,7 +59,7 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
       const adminEmails = adminUsers.map((u) => u.email);
       await sendOrderPaidNotification(
         adminEmails,
-        fullOrder.user.email,
+        fullOrder.user!.email,
         fullOrder.id.slice(0, 8).toUpperCase(),
         formatPrice(totals.total),
         "CARD",

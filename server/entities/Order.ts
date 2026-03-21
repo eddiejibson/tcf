@@ -24,12 +24,12 @@ export enum PaymentMethod {
 
 @Entity("orders")
 export class Order extends BaseEntityWithUpdate {
-  @Column({ type: "uuid" })
-  userId: string;
+  @Column({ type: "uuid", nullable: true })
+  userId: string | null;
 
-  @ManyToOne(() => User, (user) => user.orders)
+  @ManyToOne(() => User, (user) => user.orders, { nullable: true })
   @JoinColumn({ name: "userId" })
-  user: Relation<User>;
+  user: Relation<User> | null;
 
   @Column({ type: "uuid", nullable: true })
   shipmentId: string | null;
@@ -64,6 +64,12 @@ export class Order extends BaseEntityWithUpdate {
 
   @Column({ type: "boolean", default: false })
   useCredit: boolean;
+
+  @Column({ type: "int", nullable: true })
+  maxBoxes: number | null;
+
+  @Column({ type: "int", nullable: true })
+  minBoxes: number | null;
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: Relation<OrderItem[]>;

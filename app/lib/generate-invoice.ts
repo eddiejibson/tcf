@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 
 export interface InvoiceItem {
   name: string;
+  latinName?: string | null;
+  categoryName?: string | null;
   quantity: number;
   unitPrice: number;
 }
@@ -203,10 +205,12 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   y += headerH;
 
   // Table rows
-  const rowH = 8;
   doc.setFontSize(9);
 
   data.items.forEach((item, i) => {
+    const hasSubline = !!(item.latinName || item.categoryName);
+    const rowH = hasSubline ? 12 : 8;
+
     // Check if we need a new page
     if (y + rowH > 240) {
       doc.addPage();
@@ -232,7 +236,7 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
       doc.rect(tL, y, cw, rowH, "F");
     }
 
-    const rY = y + 5.3;
+    const rY = y + (hasSubline ? 4.5 : 5.3);
 
     // Item name
     doc.setFont("helvetica", "normal");
@@ -248,7 +252,20 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
     }
     doc.text(displayName, tL + 5, rY);
 
+    // Latin name / category subtitle
+    if (hasSubline) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY);
+      const parts: string[] = [];
+      if (item.categoryName) parts.push(item.categoryName);
+      if (item.latinName) parts.push(item.latinName);
+      doc.text(parts.join(" · "), tL + 5, rY + 4);
+    }
+
     // Price
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     doc.setTextColor(...GRAY);
     doc.text(fmtPrice(item.unitPrice), colPrice, rY, { align: "right" });
 

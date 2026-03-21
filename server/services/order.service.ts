@@ -56,7 +56,7 @@ export async function getUserOrders(userId: string) {
   });
 }
 
-export async function getOrderById(id: string, relations = ["items", "items.product", "shipment", "user"]) {
+export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user"]) {
   const db = await getDb();
   return db.getRepository(Order).findOne({ where: { id }, relations });
 }
@@ -158,7 +158,7 @@ export async function submitOrder(orderId: string) {
   const adminEmails = adminUsers.map((u) => u.email);
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
 
-  sendOrderNotification(adminEmails, order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
+  sendOrderNotification(adminEmails, order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
     .catch((e) => log.error("Failed to send order notification", e));
 
   return order;
@@ -219,7 +219,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
       const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0);
       const grandTotal = totals.total;
       if (grandTotal > 0) {
-        const result = await applyCredit(orderId, order.userId, grandTotal);
+        const result = await applyCredit(orderId, order.userId!, grandTotal);
         if (result.creditApplied > 0) {
           // Re-fetch to get updated creditApplied for invoice
           const refreshed = await getOrderById(orderId);
@@ -245,7 +245,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
       }
     }
     if (Number(order.creditApplied) > 0) {
-      await refundCredit(orderId, order.userId);
+      await refundCredit(orderId, order.userId!);
     }
   }
 
@@ -257,10 +257,16 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         orderRef: order.id.slice(0, 8).toUpperCase(),
         date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
         status: "ACCEPTED",
-        customerEmail: order.user.email,
-        customerCompanyName: order.user.companyName,
+        customerEmail: order.user!.email,
+        customerCompanyName: order.user!.companyName,
         shipmentName: order.shipment?.name || "Catalog Order",
-        items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+        items: order.items.map((i) => ({
+          name: i.name,
+          latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+          categoryName: i.catalogProduct?.category?.name || null,
+          quantity: i.quantity,
+          unitPrice: Number(i.unitPrice),
+        })),
         subtotal: totals.subtotal,
         vat: totals.vat,
         shipping: totals.shipping,
@@ -272,10 +278,10 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         paymentReference: order.paymentReference,
       };
       generateInvoiceBuffer(invoiceData)
-        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
+        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
         .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
-      sendOrderStatusUpdate(order.user.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
+      sendOrderStatusUpdate(order.user!.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
         .catch((e) => log.error("Failed to send status update email", e));
     }
   }
@@ -358,7 +364,7 @@ export async function updateAcceptedOrderItems(
     const updated = await getOrderById(orderId);
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-      sendOrderChanges(updated.user.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
+      sendOrderChanges(updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
@@ -419,7 +425,7 @@ export async function markOrderPaid(orderId: string, reference?: string) {
     try {
       await sendOrderPaidNotification(
         adminEmails,
-        order.user.email,
+        order.user!.email,
         order.id.slice(0, 8).toUpperCase(),
         formatPrice(totals.total),
         order.paymentMethod || "Unknown",
@@ -459,14 +465,16 @@ export async function createAdminOrder(
   const catalogRepo = db.getRepository(CatalogProduct);
 
   // Look up each catalog product
-  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  const orderItems: { catalogProductId: string; name: string; latinName: string | null; categoryName: string | null; quantity: number; unitPrice: number }[] = [];
   for (const item of items) {
-    const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
+    const product = await catalogRepo.findOne({ where: { id: item.catalogProductId }, relations: ["category"] });
     if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
     if (!product.active) throw new Error(`Product is inactive: ${product.name}`);
     orderItems.push({
       catalogProductId: product.id,
       name: product.name,
+      latinName: product.latinName || null,
+      categoryName: product.category?.name || null,
       quantity: item.quantity,
       unitPrice: Number(product.price),
     });
@@ -511,10 +519,16 @@ export async function createAdminOrder(
       orderRef,
       date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
       status: "ACCEPTED",
-      customerEmail: fullOrder.user.email,
-      customerCompanyName: fullOrder.user.companyName,
+      customerEmail: fullOrder.user!.email,
+      customerCompanyName: fullOrder.user!.companyName,
       shipmentName: "Direct Order",
-      items: fullOrder.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      items: fullOrder.items.map((i) => ({
+        name: i.name,
+        latinName: i.catalogProduct?.latinName || null,
+        categoryName: i.catalogProduct?.category?.name || null,
+        quantity: i.quantity,
+        unitPrice: Number(i.unitPrice),
+      })),
       subtotal: totals.subtotal,
       vat: totals.vat,
       shipping: totals.shipping,
@@ -528,7 +542,7 @@ export async function createAdminOrder(
     try {
       const pdfBuffer = await generateInvoiceBuffer(invoiceData);
       await sendAdminOrderCreated(
-        fullOrder.user.email,
+        fullOrder.user!.email,
         orderRef,
         formatPrice(totals.total),
         fullOrder.id,
@@ -540,4 +554,109 @@ export async function createAdminOrder(
   }
 
   return fullOrder;
+}
+
+export async function createAdminDraftOrder(
+  adminUserId: string,
+  targetUserId: string | null,
+  items: { catalogProductId: string; quantity: number }[],
+  notes?: string
+) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const itemRepo = db.getRepository(OrderItem);
+  const catalogRepo = db.getRepository(CatalogProduct);
+
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  for (const item of items) {
+    const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
+    if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
+    orderItems.push({
+      catalogProductId: product.id,
+      name: product.name,
+      quantity: item.quantity,
+      unitPrice: Number(product.price),
+    });
+  }
+
+  const order = orderRepo.create({
+    userId: targetUserId || null,
+    shipmentId: null,
+    status: OrderStatus.DRAFT,
+    notes: notes || null,
+  } as Partial<Order>);
+  const savedOrder = await orderRepo.save(order);
+
+  await itemRepo.save(
+    orderItems.map((item) =>
+      itemRepo.create({
+        orderId: savedOrder.id,
+        productId: null,
+        catalogProductId: item.catalogProductId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })
+    )
+  );
+
+  return getOrderById(savedOrder.id);
+}
+
+export async function updateAdminDraftOrder(
+  orderId: string,
+  items: { catalogProductId: string; quantity: number }[],
+  notes?: string,
+  userId?: string | null
+) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const itemRepo = db.getRepository(OrderItem);
+  const catalogRepo = db.getRepository(CatalogProduct);
+
+  const order = await orderRepo.findOneBy({ id: orderId });
+  if (!order) throw new Error("Order not found");
+  if (order.status !== OrderStatus.DRAFT) throw new Error("Can only update DRAFT orders");
+
+  // Update notes and userId
+  let changed = false;
+  if (notes !== undefined) {
+    order.notes = notes || null;
+    changed = true;
+  }
+  if (userId !== undefined) {
+    order.userId = userId || null;
+    changed = true;
+  }
+  if (changed) await orderRepo.save(order);
+
+  // Replace items
+  await itemRepo.delete({ orderId });
+
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  for (const item of items) {
+    const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
+    if (!product) continue;
+    orderItems.push({
+      catalogProductId: product.id,
+      name: product.name,
+      quantity: item.quantity,
+      unitPrice: Number(product.price),
+    });
+  }
+
+  await itemRepo.save(
+    orderItems.map((item) =>
+      itemRepo.create({
+        orderId,
+        productId: null,
+        catalogProductId: item.catalogProductId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })
+    )
+  );
+
+  return getOrderById(orderId);
 }

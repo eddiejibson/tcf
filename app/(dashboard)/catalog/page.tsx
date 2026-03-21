@@ -433,41 +433,45 @@ export default function CatalogPage() {
       {/* Terms & Conditions modal */}
       {showTerms && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowTerms(false)}>
-          <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-white font-semibold text-lg mb-4">Terms & Conditions</h3>
-            <div className="text-white/60 text-sm space-y-3 mb-6">
-              <p>By submitting this order, you acknowledge and agree to the following:</p>
-              <ul className="list-disc pl-4 space-y-2 text-white/50 text-xs">
-                <li>Once your order is accepted, you are committed to the purchase and payment is expected promptly.</li>
-                <li>All items are subject to availability. Quantities and pricing may be adjusted prior to acceptance.</li>
-                <li>Where items are unavailable, substitutions will be made according to your specified preferences where possible. If no substitute has been set, the item may be removed from your order.</li>
-                <li>The Coral Farm may make adjustments to your order (including item changes, freight, and additional charges) before or after acceptance. Any changes will be communicated to you, and the updated order remains binding.</li>
-                <li>Payment is due upon acceptance. Failure to pay promptly may result in cancellation of your order.</li>
-              </ul>
+          <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] w-full max-w-md max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-white font-semibold text-lg p-6 pb-4 shrink-0">Terms & Conditions</h3>
+            <div className="overflow-y-auto px-6 flex-1 min-h-0">
+              <div className="text-white/60 text-sm space-y-3 mb-4">
+                <p>By submitting this order, you acknowledge and agree to the following:</p>
+                <ul className="list-disc pl-4 space-y-2 text-white/50 text-xs">
+                  <li>Once your order is accepted, you are committed to the purchase and payment is expected promptly.</li>
+                  <li>All items are subject to availability. Quantities and pricing may be adjusted prior to acceptance.</li>
+                  <li>Where items are unavailable, substitutions will be made according to your specified preferences where possible. If no substitute has been set, the item may be removed from your order.</li>
+                  <li>The Coral Farm may make adjustments to your order (including item changes, freight, and additional charges) before or after acceptance. Any changes will be communicated to you, and the updated order remains binding.</li>
+                  <li>Payment is due upon acceptance. Failure to pay promptly may result in cancellation of your order.</li>
+                </ul>
+              </div>
             </div>
-            <label className="flex items-start gap-3 cursor-pointer mb-6">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
-              />
-              <span className="text-white/80 text-sm">I understand and agree to these terms</span>
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleConfirmSubmit}
-                disabled={!termsAccepted || submitting}
-                className="flex-1 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-medium rounded-xl transition-all"
-              >
-                {submitting ? "Submitting..." : "Confirm & Submit Order"}
-              </button>
-              <button
-                onClick={() => { setShowTerms(false); setTermsAccepted(false); }}
-                className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="border-t border-white/10 p-6 pt-4 shrink-0">
+              <label className="flex items-start gap-3 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-white/80 text-sm">I understand and agree to these terms</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleConfirmSubmit}
+                  disabled={!termsAccepted || submitting}
+                  className="flex-1 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-medium rounded-xl transition-all"
+                >
+                  {submitting ? "Submitting..." : "Confirm & Submit Order"}
+                </button>
+                <button
+                  onClick={() => { setShowTerms(false); setTermsAccepted(false); }}
+                  className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

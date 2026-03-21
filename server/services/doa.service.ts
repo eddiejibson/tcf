@@ -205,7 +205,7 @@ export async function generateDoaReport(shipmentId: string) {
     if (creditAmount > 0) {
       try {
         await addDoaCredit(
-          claim.order.userId,
+          claim.order.userId!,
           creditAmount,
           `DOA credit: ${shipment.name}`,
           claim.id

@@ -177,17 +177,17 @@ export default function AdminShipmentDetailPage() {
     // Build flat rows: one row per item, with order info on each row
     const rows: (string | number)[][] = [];
     let hasSize = false;
+    let hasBoxLimits = false;
 
-    // Check if any item has a size
+    // Check if any item has a size, and if any order has box limits
     for (const order of exportableOrders) {
+      if (order.maxBoxes != null || order.minBoxes != null) hasBoxLimits = true;
       for (const item of order.items) {
         const product = shipment.products.find((p) => p.id === item.productId);
         if (product?.size || item.name.match(/\b(S|M|L|XL|XXL|XXXL|SM|MD|LG)\b/i)) {
           hasSize = true;
-          break;
         }
       }
-      if (hasSize) break;
     }
 
     for (const order of exportableOrders) {
@@ -198,6 +198,10 @@ export default function AdminShipmentDetailPage() {
         const row: (string | number)[] = [orderRef, customer, item.name];
         if (hasSize) row.push(product?.size || "");
         row.push(item.quantity);
+        if (hasBoxLimits) {
+          row.push(order.minBoxes != null ? order.minBoxes : "");
+          row.push(order.maxBoxes != null ? order.maxBoxes : "");
+        }
         rows.push(row);
       }
     }
@@ -205,6 +209,10 @@ export default function AdminShipmentDetailPage() {
     const xlHeaders: string[] = ["Order", "Customer", "Name"];
     if (hasSize) xlHeaders.push("Size");
     xlHeaders.push("Qty");
+    if (hasBoxLimits) {
+      xlHeaders.push("Min Boxes");
+      xlHeaders.push("Max Boxes");
+    }
 
     const ws = XLSX.utils.aoa_to_sheet([xlHeaders, ...rows]);
     const cols: { wch: number }[] = [
@@ -214,6 +222,10 @@ export default function AdminShipmentDetailPage() {
     ];
     if (hasSize) cols.push({ wch: 10 }); // Size
     cols.push({ wch: 8 }); // Qty
+    if (hasBoxLimits) {
+      cols.push({ wch: 12 }); // Min Boxes
+      cols.push({ wch: 12 }); // Max Boxes
+    }
     ws["!cols"] = cols;
 
     const wb = XLSX.utils.book_new();

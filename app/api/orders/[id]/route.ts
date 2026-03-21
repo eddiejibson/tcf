@@ -18,7 +18,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   }
 
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
-  return NextResponse.json({ ...order, totals });
+  const items = order.items.map((i) => ({
+    ...i,
+    latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+    categoryName: i.catalogProduct?.category?.name || null,
+  }));
+  return NextResponse.json({ ...order, items, totals });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,11 +42,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await updateOrderItems(id, body.items);
   }
 
-  if (body.includeShipping !== undefined || body.useCredit !== undefined) {
+  if (body.includeShipping !== undefined || body.useCredit !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined) {
     const db = await getDb();
     const update: Record<string, unknown> = {};
     if (body.includeShipping !== undefined) update.includeShipping = body.includeShipping;
     if (body.useCredit !== undefined) update.useCredit = body.useCredit;
+    if (body.maxBoxes !== undefined) update.maxBoxes = body.maxBoxes;
+    if (body.minBoxes !== undefined) update.minBoxes = body.minBoxes;
     await db.getRepository(Order).update(id, update);
   }
 
@@ -52,5 +59,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const updated = await getOrderById(id);
   if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-  return NextResponse.json({ ...updated, totals });
+  const updatedItems = updated.items.map((i) => ({
+    ...i,
+    latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+    categoryName: i.catalogProduct?.category?.name || null,
+  }));
+  return NextResponse.json({ ...updated, items: updatedItems, totals });
 }

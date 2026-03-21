@@ -83,11 +83,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       return {
         id: o.id,
         status: o.status,
-        userEmail: o.user.email,
-        userCompanyName: o.user.companyName || null,
+        userEmail: o.user?.email || null,
+        userCompanyName: o.user?.companyName || null,
         itemCount: o.items.length,
         total: totals.total,
         createdAt: o.createdAt,
+        maxBoxes: o.maxBoxes ?? null,
+        minBoxes: o.minBoxes ?? null,
         items: o.items.map((i) => ({
           id: i.id,
           productId: i.productId,

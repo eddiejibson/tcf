@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
+import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder } from "@/server/services/order.service";
 import { Order, OrderStatus } from "@/server/entities/Order";
+import { OrderItem } from "@/server/entities/OrderItem";
 import { getDb } from "@/server/db/data-source";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -16,7 +17,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
-  return NextResponse.json({ ...order, totals });
+  const items = order.items.map((i) => ({
+    ...i,
+    latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+    categoryName: i.catalogProduct?.category?.name || null,
+  }));
+  return NextResponse.json({ ...order, items, totals });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,16 +39,51 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const currentOrder = await getOrderById(id);
     if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    // Save freight/adminNotes FIRST so the invoice gets the correct values
-    if (body.freightCharge !== undefined || body.adminNotes !== undefined) {
+    // Save freight/adminNotes/boxLimits FIRST so the invoice gets the correct values
+    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined) {
       const db = await getDb();
       const update: Record<string, unknown> = {};
       if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
       if (body.adminNotes !== undefined) update.adminNotes = body.adminNotes;
+      if (body.maxBoxes !== undefined) update.maxBoxes = body.maxBoxes;
+      if (body.minBoxes !== undefined) update.minBoxes = body.minBoxes;
       await db.getRepository(Order).update(id, update);
     }
 
-    if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT)) {
+    // Handle DRAFT order updates
+    if (currentOrder.status === OrderStatus.DRAFT) {
+      if (body.draftItems) {
+        await updateAdminDraftOrder(id, body.draftItems, body.notes, body.userId !== undefined ? (body.userId || null) : undefined);
+      }
+      // DRAFT → ACCEPTED transition: run the full createAdminOrder flow
+      if (body.status === OrderStatus.ACCEPTED) {
+        // Get the current items to pass to createAdminOrder
+        const draftOrder = await getOrderById(id);
+        if (!draftOrder?.userId) {
+          return NextResponse.json({ error: "A customer must be assigned before accepting the order" }, { status: 400 });
+        }
+        if (draftOrder) {
+          const draftItems = draftOrder.items.map((i) => ({
+            catalogProductId: i.catalogProductId!,
+            quantity: i.quantity,
+          })).filter((i) => i.catalogProductId);
+          // Delete the draft items then the draft order, then create as ACCEPTED
+          const db2 = await getDb();
+          await db2.getRepository(OrderItem).delete({ orderId: id });
+          await db2.getRepository(Order).delete(id);
+          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined);
+          if (accepted) {
+            const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied);
+            const resultItems = accepted.items.map((i) => ({
+              ...i,
+              latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+              categoryName: i.catalogProduct?.category?.name || null,
+            }));
+            return NextResponse.json({ ...accepted, items: resultItems, totals });
+          }
+        }
+      }
+    } else if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT)) {
       await updateAcceptedOrderItems(id, body.items, body.includeShipping);
       if (body.status && body.status !== currentOrder.status) {
         await updateOrderStatus(id, body.status, body.includeShipping);
@@ -65,7 +106,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
-    return NextResponse.json({ ...order, totals });
+    const patchItems = order.items.map((i) => ({
+      ...i,
+      latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+      categoryName: i.catalogProduct?.category?.name || null,
+    }));
+    return NextResponse.json({ ...order, items: patchItems, totals });
   } catch (e) {
     log.error("Admin order PATCH failed", e, { route: "/api/admin/orders/[id]", method: "PATCH", meta: { orderId: id } });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });

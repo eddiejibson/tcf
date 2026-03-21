@@ -146,6 +146,8 @@ export default function ShipmentDetailPage() {
   const [pickerForProduct, setPickerForProduct] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [maxBoxes, setMaxBoxes] = useState("");
+  const [minBoxes, setMinBoxes] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearch = useDeferredValue(searchQuery);
   const [cartBarVisible, setCartBarVisible] = useState(true);
@@ -295,7 +297,12 @@ export default function ShipmentDetailPage() {
       await fetch(`/api/orders/${order.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submit", useCredit }),
+        body: JSON.stringify({
+          action: "submit",
+          useCredit,
+          maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
+          minBoxes: minBoxes ? parseInt(minBoxes) : null,
+        }),
       });
       router.push("/orders");
     }
@@ -798,92 +805,131 @@ export default function ShipmentDetailPage() {
           onClick={() => setShowTerms(false)}
         >
           <div
-            className="bg-[#1a1f26] border border-white/10 rounded-[20px] w-full max-w-md p-6"
+            className="bg-[#1a1f26] border border-white/10 rounded-[20px] w-full max-w-md max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-white font-semibold text-lg mb-4">
+            <h3 className="text-white font-semibold text-lg p-6 pb-4 shrink-0">
               Order Summary
             </h3>
-            <div className="bg-white/5 rounded-xl p-3.5 mb-5 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-white/50">Subtotal ({cart.size} items)</span>
-                <span className="text-white font-medium tabular-nums">{formatPrice(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-white/50">VAT (20%)</span>
-                <span className="text-white/60 tabular-nums">{formatPrice(vat)}</span>
-              </div>
-              {estimatedFreight > 0 && (
+            <div className="overflow-y-auto px-6 flex-1 min-h-0">
+              <div className="bg-white/5 rounded-xl p-3.5 mb-5 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/50">Est. Freight ({totalBoxes} boxes)</span>
-                  <span className="text-white/40 tabular-nums">~{formatPrice(estimatedFreight)}</span>
+                  <span className="text-white/50">Subtotal ({cart.size} items)</span>
+                  <span className="text-white font-medium tabular-nums">{formatPrice(subtotal)}</span>
                 </div>
-              )}
-              <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
-                <span className="text-white/70 font-medium">Total</span>
-                <span className="text-[#0984E3] font-bold tabular-nums">{formatPrice(total)}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/50">VAT (20%)</span>
+                  <span className="text-white/60 tabular-nums">{formatPrice(vat)}</span>
+                </div>
+                {estimatedFreight > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/50">Est. Freight ({totalBoxes} boxes)</span>
+                    <span className="text-white/40 tabular-nums">~{formatPrice(estimatedFreight)}</span>
+                  </div>
+                )}
+                <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
+                  <span className="text-white/70 font-medium">Total</span>
+                  <span className="text-[#0984E3] font-bold tabular-nums">{formatPrice(total)}</span>
+                </div>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3.5 mb-5 space-y-3">
+                <p className="text-white/50 text-xs uppercase tracking-wider font-medium">Box Limits <span className="text-white/20 normal-case">(optional)</span></p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-white/40 text-xs mb-1 block">Min Boxes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={minBoxes}
+                      onChange={(e) => setMinBoxes(e.target.value)}
+                      placeholder="No min"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white/40 text-xs mb-1 block">Max Boxes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={maxBoxes}
+                      onChange={(e) => setMaxBoxes(e.target.value)}
+                      placeholder="No max"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-white/60 text-sm space-y-3 mb-4">
+                <p>
+                  By submitting this order, you acknowledge and agree to the
+                  following:
+                </p>
+                <ul className="list-disc pl-4 space-y-2 text-white/50 text-xs">
+                  <li>
+                    Once your order is accepted, you are committed to the purchase
+                    and payment is expected promptly.
+                  </li>
+                  <li>
+                    All items are subject to availability. Quantities and pricing
+                    may be adjusted prior to acceptance.
+                  </li>
+                  <li>
+                    Where items are unavailable, substitutions will be made
+                    according to your specified preferences where possible. If no
+                    substitute has been set, the item may be removed from your
+                    order.
+                  </li>
+                  <li>
+                    The Coral Farm may make adjustments to your order (including
+                    item changes, freight, and additional charges) before or after
+                    acceptance. Any changes will be communicated to you, and the
+                    updated order remains binding.
+                  </li>
+                  <li>
+                    Payment is due upon acceptance. Failure to pay promptly may
+                    result in cancellation of your order.
+                  </li>
+                  <li>
+                    Freight estimates are provided by the shipper and are not
+                    guaranteed. Actual freight charges may differ from estimates
+                    shown. If you would like to limit the maximum number of boxes
+                    on your order, please go back and set your preferred limit
+                    before submitting.
+                  </li>
+                </ul>
               </div>
             </div>
-            <div className="text-white/60 text-sm space-y-3 mb-6">
-              <p>
-                By submitting this order, you acknowledge and agree to the
-                following:
-              </p>
-              <ul className="list-disc pl-4 space-y-2 text-white/50 text-xs">
-                <li>
-                  Once your order is accepted, you are committed to the purchase
-                  and payment is expected promptly.
-                </li>
-                <li>
-                  All items are subject to availability. Quantities and pricing
-                  may be adjusted prior to acceptance.
-                </li>
-                <li>
-                  Where items are unavailable, substitutions will be made
-                  according to your specified preferences where possible. If no
-                  substitute has been set, the item may be removed from your
-                  order.
-                </li>
-                <li>
-                  The Coral Farm may make adjustments to your order (including
-                  item changes, freight, and additional charges) before or after
-                  acceptance. Any changes will be communicated to you, and the
-                  updated order remains binding.
-                </li>
-                <li>
-                  Payment is due upon acceptance. Failure to pay promptly may
-                  result in cancellation of your order.
-                </li>
-              </ul>
-            </div>
-            <label className="flex items-start gap-3 cursor-pointer mb-6">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
-              />
-              <span className="text-white/80 text-sm">
-                I understand and agree to these terms
-              </span>
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleConfirmSubmit}
-                disabled={!termsAccepted || submitting}
-                className="flex-1 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-medium rounded-xl transition-all"
-              >
-                {submitting ? "Submitting..." : "Confirm & Submit Order"}
-              </button>
-              <button
-                onClick={() => {
-                  setShowTerms(false);
-                  setTermsAccepted(false);
-                }}
-                className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="border-t border-white/10 p-6 pt-4 shrink-0">
+              <label className="flex items-start gap-3 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-white/80 text-sm">
+                  I understand and agree to these terms
+                </span>
+              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleConfirmSubmit}
+                  disabled={!termsAccepted || submitting}
+                  className="flex-1 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-medium rounded-xl transition-all"
+                >
+                  {submitting ? "Submitting..." : "Confirm & Submit Order"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTerms(false);
+                    setTermsAccepted(false);
+                  }}
+                  className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

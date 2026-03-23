@@ -3,7 +3,12 @@ import Link from "next/link";
 import AnimatedCounter from "./components/AnimatedCounter";
 import BookAppointmentButton from "./components/BookAppointmentButton";
 import BookingForm from "./components/BookingForm";
+import BubbleParticles from "./components/BubbleParticles";
+import GradientBorder from "./components/GradientBorder";
 import { FadeIn, ScaleIn, SlideInLeft } from "./components/HeroAnimations";
+import InfiniteMarquee from "./components/InfiniteMarquee";
+import MagneticButton from "./components/MagneticButton";
+import MeshGradient from "./components/MeshGradient";
 import MobileHero from "./components/MobileHero";
 import {
   BlurIn,
@@ -13,12 +18,17 @@ import {
   StaggerList,
   SwipeReveal,
 } from "./components/ScrollAnimations";
+import ScrollVelocityText from "./components/ScrollVelocityText";
 import Slideshow from "./components/Slideshow";
 import SourceMap from "./components/SourceMap";
+import SpotlightCursor from "./components/SpotlightCursor";
+import TextScramble from "./components/TextScramble";
+import TiltCard from "./components/TiltCard";
 
 export default function Home() {
   return (
     <div className="relative w-full bg-[#151b23]">
+      <SpotlightCursor />
       {/* ===== HERO SECTION ===== */}
       <section className="relative w-full md:h-[80vh] overflow-hidden">
         {/* Desktop: Right side slideshow - behind the wave */}
@@ -28,20 +38,11 @@ export default function Home() {
 
         {/* Desktop: Left side darker gray box with wave edge */}
         <div className="absolute left-0 top-0 bottom-0 w-[45%] bg-[#0d1219] hidden md:block z-10">
-          {/* Subtle animated orbs - kept away from right edge */}
-          <div className="hero-orb hero-orb-1" />
-          <div className="hero-orb hero-orb-2" />
-          <div className="hero-orb hero-orb-3" />
+          {/* Animated mesh gradient */}
+          <MeshGradient />
 
-          {/* Floating particles */}
-          <div className="hero-particle hero-particle-1" />
-          <div className="hero-particle hero-particle-2" />
-          <div className="hero-particle hero-particle-3" />
-          <div className="hero-particle hero-particle-4" />
-          <div className="hero-particle hero-particle-5" />
-          <div className="hero-particle hero-particle-6" />
-          <div className="hero-particle hero-particle-7" />
-          <div className="hero-particle hero-particle-8" />
+          {/* Underwater bubble particles */}
+          <BubbleParticles />
 
           {/* Layered wave effect - same shape, different sizes */}
           {/* Wave 3 - furthest back, lightest */}
@@ -113,7 +114,7 @@ export default function Home() {
             <div className="space-y-2 mt-[8vh] lg:mt-[10vh]">
               <SlideInLeft delay={0.2}>
                 <h1 className="text-3xl lg:text-4xl xl:text-5xl leading-tight font-black text-white">
-                  We love coral
+                  <TextScramble text="We love coral" />
                 </h1>
               </SlideInLeft>
               <SlideInLeft delay={0.35}>
@@ -148,15 +149,32 @@ export default function Home() {
             {/* CTA Buttons */}
             <FadeIn delay={0.65}>
               <div className="flex flex-row gap-2 lg:gap-3 mt-5">
+                <MagneticButton>
+                  <Link
+                    href="/gallery"
+                    className="bg-[#0984E3] text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
+                  >
+                    VIEW GALLERY
+                  </Link>
+                </MagneticButton>
+                {/* Mobile fallback for non-magnetic */}
                 <Link
                   href="/gallery"
-                  className="bg-[#0984E3] text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
+                  className="md:hidden bg-[#0984E3] text-white font-bold text-xs px-4 py-2.5 rounded-[12px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
                 >
                   VIEW GALLERY
                 </Link>
+                <MagneticButton>
+                  <Link
+                    href="#why-us"
+                    className="bg-transparent border-2 border-white/80 text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center leading-none"
+                  >
+                    LEARN MORE
+                  </Link>
+                </MagneticButton>
                 <Link
                   href="#why-us"
-                  className="bg-transparent border-2 border-white/80 text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:scale-105 active:scale-95 whitespace-nowrap inline-flex items-center justify-center leading-none"
+                  className="md:hidden bg-transparent border-2 border-white/80 text-white font-bold text-xs px-4 py-2.5 rounded-[12px] cursor-pointer transition-all duration-200 hover:bg-white/10 active:scale-95 whitespace-nowrap inline-flex items-center justify-center leading-none"
                 >
                   LEARN MORE
                 </Link>
@@ -169,9 +187,10 @@ export default function Home() {
             delay={0.4}
             className="w-[320px] lg:w-[400px] xl:w-[480px] self-center flex-shrink-0"
           >
+            <GradientBorder rounded="rounded-[20px] lg:rounded-[28px]">
             <div
               id="contact-card"
-              className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-[20px] lg:rounded-[28px] p-5 lg:p-8 xl:p-10 shadow-2xl"
+              className="bg-white/10 backdrop-blur-xl rounded-[20px] lg:rounded-[28px] p-5 lg:p-8 xl:p-10 shadow-2xl"
             >
               <h3 className="text-xl lg:text-2xl xl:text-[28px] font-bold text-white mb-2">
                 Let&apos;s talk
@@ -185,6 +204,7 @@ export default function Home() {
 
               <BookingForm />
             </div>
+            </GradientBorder>
           </ScaleIn>
         </div>
       </section>
@@ -200,6 +220,24 @@ export default function Home() {
         </svg>
       </div>
 
+      {/* ===== MARQUEE TICKER ===== */}
+      <div className="border-y border-white/[0.04]">
+        <InfiniteMarquee
+          items={[
+            "Indonesia",
+            "Australia",
+            "Fiji",
+            "Tonga",
+            "Kenya",
+            "Sri Lanka",
+            "20+ Years Experience",
+            "100+ Trade Customers",
+            "10+ Monthly Shipments",
+            "Exclusive Suppliers",
+          ]}
+        />
+      </div>
+
       {/* ===== OUR PROCESS SECTION ===== */}
       <section className="px-6 md:px-[100px] lg:px-[140px] -mt-6 md:mt-0 py-16 md:py-28 relative">
         <div className="max-w-6xl mx-auto">
@@ -209,9 +247,11 @@ export default function Home() {
             </p>
           </BlurIn>
           <GlowUp delay={0.1}>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Quality you can trust
-            </h2>
+            <ScrollVelocityText>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Quality you can trust
+              </h2>
+            </ScrollVelocityText>
           </GlowUp>
           <BlurIn delay={0.2}>
             <p className="text-white/60 text-base md:text-lg max-w-2xl mb-12">
@@ -223,59 +263,65 @@ export default function Home() {
           <StaggerList className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {/* Step 1 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
-                <Float intensity={5}>
-                  <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
-                    <span className="text-[#0984E3] font-bold text-lg">01</span>
-                  </div>
-                </Float>
-                <h3 className="text-xl font-bold text-white mb-3">
-                  Source the best
-                </h3>
-                <p className="text-white/60 text-sm leading-relaxed">
-                  We work directly with trusted collectors and mariculture
-                  facilities worldwide to bring in only the finest fish and
-                  coral. No middlemen, no compromises.
-                </p>
-              </div>
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                  <Float intensity={5}>
+                    <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
+                      <span className="text-[#0984E3] font-bold text-lg">01</span>
+                    </div>
+                  </Float>
+                  <h3 className="text-xl font-bold text-white mb-3">
+                    Source the best
+                  </h3>
+                  <p className="text-white/60 text-sm leading-relaxed">
+                    We work directly with trusted collectors and mariculture
+                    facilities worldwide to bring in only the finest fish and
+                    coral. No middlemen, no compromises.
+                  </p>
+                </div>
+              </TiltCard>
             </StaggerChild>
 
             {/* Step 2 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
-                <Float intensity={5}>
-                  <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
-                    <span className="text-[#0984E3] font-bold text-lg">02</span>
-                  </div>
-                </Float>
-                <h3 className="text-xl font-bold text-white mb-3">
-                  Quarantine &amp; dip
-                </h3>
-                <p className="text-white/60 text-sm leading-relaxed">
-                  Every coral goes through our strict quarantine protocol. We
-                  dip, treat with antibiotics, inspect and monitor before
-                  anything is sold.
-                </p>
-              </div>
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                  <Float intensity={5}>
+                    <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
+                      <span className="text-[#0984E3] font-bold text-lg">02</span>
+                    </div>
+                  </Float>
+                  <h3 className="text-xl font-bold text-white mb-3">
+                    Quarantine &amp; dip
+                  </h3>
+                  <p className="text-white/60 text-sm leading-relaxed">
+                    Every coral goes through our strict quarantine protocol. We
+                    dip, treat with antibiotics, inspect and monitor before
+                    anything is sold.
+                  </p>
+                </div>
+              </TiltCard>
             </StaggerChild>
 
             {/* Step 3 */}
             <StaggerChild>
-              <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
-                <Float intensity={5}>
-                  <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
-                    <span className="text-[#0984E3] font-bold text-lg">03</span>
-                  </div>
-                </Float>
-                <h3 className="text-xl font-bold text-white mb-3">
-                  Condition &amp; thrive
-                </h3>
-                <p className="text-white/60 text-sm leading-relaxed">
-                  Our state-of-the-art holding systems ensure every coral is
-                  properly rested and ready to go into your customer&apos;s
-                  tanks.
-                </p>
-              </div>
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                  <Float intensity={5}>
+                    <div className="w-12 h-12 rounded-full bg-[#0984E3]/20 flex items-center justify-center mb-5">
+                      <span className="text-[#0984E3] font-bold text-lg">03</span>
+                    </div>
+                  </Float>
+                  <h3 className="text-xl font-bold text-white mb-3">
+                    Condition &amp; thrive
+                  </h3>
+                  <p className="text-white/60 text-sm leading-relaxed">
+                    Our state-of-the-art holding systems ensure every coral is
+                    properly rested and ready to go into your customer&apos;s
+                    tanks.
+                  </p>
+                </div>
+              </TiltCard>
             </StaggerChild>
           </StaggerList>
         </div>
@@ -300,9 +346,11 @@ export default function Home() {
                 </p>
               </SwipeReveal>
               <SwipeReveal direction="left" delay={0.1}>
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-                  Built for the trade
-                </h2>
+                <ScrollVelocityText>
+                  <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                    Built for the trade
+                  </h2>
+                </ScrollVelocityText>
               </SwipeReveal>
               <SwipeReveal direction="left" delay={0.2}>
                 <p className="text-white/60 text-base md:text-lg leading-relaxed mb-8">
@@ -404,36 +452,44 @@ export default function Home() {
             {/* Stats */}
             <StaggerList className="grid grid-cols-2 gap-4">
               <StaggerChild>
+                <TiltCard>
                   <div className="bg-[#1a1f26] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={20} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Years experience</p>
                   </div>
+                </TiltCard>
               </StaggerChild>
               <StaggerChild>
+                <TiltCard>
                   <div className="bg-[#1a1f26] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={100} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Trade customers</p>
                   </div>
+                </TiltCard>
               </StaggerChild>
               <StaggerChild>
+                <TiltCard>
                   <div className="bg-[#1a1f26] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={10} suffix="+" />
                     </p>
                     <p className="text-white/50 text-sm">Shipments monthly</p>
                   </div>
+                </TiltCard>
               </StaggerChild>
               <StaggerChild>
+                <TiltCard>
                   <div className="bg-[#1a1f26] rounded-[20px] p-6 text-center border border-white/5 hover:border-white/10 transition-all duration-300">
                     <p className="text-4xl md:text-5xl font-black text-white mb-2">
                       <AnimatedCounter end={100} suffix="%" />
                     </p>
                     <p className="text-white/50 text-sm">Exclusive Suppliers</p>
                   </div>
+                </TiltCard>
               </StaggerChild>
             </StaggerList>
           </div>
@@ -455,9 +511,11 @@ export default function Home() {
               </p>
             </SwipeReveal>
             <SwipeReveal delay={0.1}>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                We&apos;ve been in your shoes
-              </h2>
+              <ScrollVelocityText>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  We&apos;ve been in your shoes
+                </h2>
+              </ScrollVelocityText>
             </SwipeReveal>
             <SwipeReveal delay={0.2}>
               <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto">
@@ -470,68 +528,73 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {/* Retail Experience */}
             <SwipeReveal delay={0.1}>
-              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
-                    <svg
-                      className="w-6 h-6 text-[#0984E3]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                  <div>
+                    <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
+                      <svg
+                        className="w-6 h-6 text-[#0984E3]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-3">
+                      Retail Veterans
+                    </h3>
+                    <p className="text-white/50 text-sm leading-relaxed">
+                      We got frustrated with inconsistent supply and unreliable
+                      stock - so we built the solution ourselves.
+                    </p>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">
-                    Retail Veterans
-                  </h3>
-                  <p className="text-white/50 text-sm leading-relaxed">
-                    We got frustrated with inconsistent supply and unreliable
-                    stock - so we built the solution ourselves.
-                  </p>
                 </div>
-              </div>
+              </TiltCard>
             </SwipeReveal>
 
             {/* Marine Biologist */}
             <SwipeReveal delay={0.2}>
-              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
-                    <svg
-                      className="w-6 h-6 text-[#0984E3]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                      />
-                    </svg>
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+                  <div>
+                    <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
+                      <svg
+                        className="w-6 h-6 text-[#0984E3]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-3">
+                      Expert Selection
+                    </h3>
+                    <p className="text-white/50 text-sm leading-relaxed">
+                      Our marine biologist travels to exclusive global suppliers,
+                      hand-picking only the healthiest specimens and negotiating
+                      the best prices for you.
+                    </p>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">
-                    Expert Selection
-                  </h3>
-                  <p className="text-white/50 text-sm leading-relaxed">
-                    Our marine biologist travels to exclusive global suppliers,
-                    hand-picking only the healthiest specimens and negotiating
-                    the best prices for you.
-                  </p>
                 </div>
-              </div>
+              </TiltCard>
             </SwipeReveal>
 
             {/* Proper Quarantine */}
             <SwipeReveal delay={0.3}>
-              <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
+              <TiltCard className="h-full">
+                <div className="bg-[#1a1f26] rounded-[20px] p-8 border border-white/5 hover:border-white/10 transition-all duration-300 h-full">
                 <div>
                   <div className="w-12 h-12 rounded-xl bg-[#0984E3]/10 flex items-center justify-center mb-6">
                     <svg
@@ -557,6 +620,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
+              </TiltCard>
             </SwipeReveal>
           </div>
         </div>
@@ -697,12 +761,25 @@ export default function Home() {
           </SwipeReveal>
           <SwipeReveal delay={0.2}>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <BookAppointmentButton className="bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95">
+              <MagneticButton>
+                <BookAppointmentButton className="bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95">
+                  BOOK AN APPOINTMENT
+                </BookAppointmentButton>
+              </MagneticButton>
+              <BookAppointmentButton className="md:hidden bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95">
                 BOOK AN APPOINTMENT
               </BookAppointmentButton>
+              <MagneticButton>
+                <Link
+                  href="/gallery"
+                  className="bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 hover:scale-105 active:scale-95"
+                >
+                  VIEW OUR STOCK
+                </Link>
+              </MagneticButton>
               <Link
                 href="/gallery"
-                className="bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 hover:scale-105 active:scale-95"
+                className="md:hidden bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 active:scale-95"
               >
                 VIEW OUR STOCK
               </Link>

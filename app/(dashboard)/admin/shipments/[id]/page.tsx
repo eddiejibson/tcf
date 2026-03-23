@@ -560,7 +560,7 @@ export default function AdminShipmentDetailPage() {
           <h1 className="text-xl md:text-2xl font-bold text-white">{shipment.name}</h1>
           <div className="flex items-center gap-4 mt-1">
             <span className="text-amber-400 text-sm">Deadline: {new Date(shipment.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-            <span className="text-white/40 text-sm">Ship: {new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+            <span className="text-white/40 text-sm">Arrives: {new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSwipeable } from "react-swipeable";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 
 const totalCoralImages = 37;
 const totalFishImages = 22;
@@ -274,10 +275,10 @@ export default function Gallery() {
             <span className="text-white/40 text-sm">{totalCoralImages} photos</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+          <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
             {coralImages.map((img, index) => (
+              <AnimatedListItem key={img.src}>
               <button
-                key={img.src}
                 onClick={() => openLightbox(index)}
                 className="group relative aspect-square rounded-[16px] overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#0984E3]/20"
               >
@@ -312,8 +313,9 @@ export default function Gallery() {
                   </div>
                 </div>
               </button>
+              </AnimatedListItem>
             ))}
-          </div>
+          </AnimatedList>
         </div>
       </section>
 
@@ -332,10 +334,10 @@ export default function Gallery() {
             <span className="text-white/40 text-sm">{totalFishImages} photos</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+          <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
             {fishImages.map((img, index) => (
+              <AnimatedListItem key={img.src}>
               <button
-                key={img.src}
                 onClick={() => openLightbox(totalCoralImages + index)}
                 className="group relative aspect-square rounded-[16px] overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#0984E3]/20"
               >
@@ -370,8 +372,9 @@ export default function Gallery() {
                   </div>
                 </div>
               </button>
+              </AnimatedListItem>
             ))}
-          </div>
+          </AnimatedList>
         </div>
       </section>
 

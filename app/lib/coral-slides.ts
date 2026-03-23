@@ -1,6 +1,6 @@
 /** Maps coral image number (filename without extension) to the coral type name */
 export const CORAL_IMAGE_NAMES: Record<number, string> = {
-  1: "Goniopora",
+  1: "Catalaphyllia",
   2: "Goniopora",
   3: "Tigers",
   4: "Chalice",

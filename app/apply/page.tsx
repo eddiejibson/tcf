@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import GradientBorder from "@/app/components/GradientBorder";
 
 interface UploadedFile {
   key: string;
@@ -486,7 +487,8 @@ export default function ApplyPage() {
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 md:p-10 overflow-hidden">
+                <GradientBorder rounded="rounded-[24px]">
+                <div className="bg-white/5 backdrop-blur-xl rounded-[24px] p-6 md:p-10 overflow-hidden">
                   <AnimatePresence mode="wait" custom={direction}>
                     {/* Step 1: Company Details */}
                     {step === 1 && (
@@ -899,6 +901,7 @@ export default function ApplyPage() {
                   </div>
                 </div>
 
+                </GradientBorder>
                 {/* Footer link */}
                 <p className="text-center text-white/30 text-sm mt-6">
                   Already have an account?{" "}

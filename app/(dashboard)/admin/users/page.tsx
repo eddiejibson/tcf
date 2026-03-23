@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { UserListItem } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -273,9 +275,7 @@ export default function AdminUsersPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonTable />
       ) : fetchError ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load users</p>
@@ -295,8 +295,10 @@ export default function AdminUsersPage() {
             <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
             <div className="w-14"></div>
           </div>
+          <AnimatedList>
           {users.map((u) => (
-            <div key={u.id} className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+            <AnimatedListItem key={u.id}>
+            <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
               <div className="min-w-0">
                 {editCompanyUserId === u.id ? (
                   <div className="flex items-center gap-2">
@@ -362,7 +364,9 @@ export default function AdminUsersPage() {
                 <button onClick={() => handleDelete(u.id)} className="text-red-400/60 hover:text-red-400 text-xs font-medium transition-colors">Delete</button>
               </div>
             </div>
+            </AnimatedListItem>
           ))}
+          </AnimatedList>
           {users.length === 0 && (
             <div className="py-12 text-center text-white/40">
               {search ? "No users match your search" : "No users found"}

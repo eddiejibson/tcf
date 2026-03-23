@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { CategoryNode } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonOrderList } from "@/app/components/dashboard/Skeleton";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<CategoryNode[]>([]);
@@ -86,7 +88,7 @@ export default function CategoriesPage() {
     setEditSort(String(cat.sortOrder));
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
+  if (loading) return <div className="p-4 md:p-8"><SkeletonOrderList /></div>;
 
   if (fetchError) return (
     <div className="p-4 md:p-8">
@@ -111,8 +113,10 @@ export default function CategoriesPage() {
       </div>
 
       <div className="space-y-6">
+      <AnimatedList className="space-y-6">
         {categories.map((parent) => (
-          <div key={parent.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+          <AnimatedListItem key={parent.id}>
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
             <div className="px-6 py-4 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
               {editingId === parent.id ? (
                 <div className="flex items-center gap-3 flex-1">
@@ -159,7 +163,9 @@ export default function CategoriesPage() {
               )}
             </div>
           </div>
+          </AnimatedListItem>
         ))}
+      </AnimatedList>
 
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5">
           <h3 className="text-white font-semibold">Add Category</h3>

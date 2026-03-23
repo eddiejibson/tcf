@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { AdminOrderListItem } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -60,9 +62,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonTable />
       ) : error ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load orders</p>
@@ -82,8 +82,10 @@ export default function AdminOrdersPage() {
             <div className="w-36 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
             <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
           </div>
+          <AnimatedList>
           {orders.map((o) => (
-            <Link key={o.id} href={`/admin/orders/${o.id}`} className="min-w-[700px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block">
+            <AnimatedListItem key={o.id}>
+            <Link href={`/admin/orders/${o.id}`} className="min-w-[700px] px-4 md:px-6 py-4 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block">
               <div className="w-24"><p className="text-white/60 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</p></div>
               <div className="flex-1">
                 <p className="text-white/90 text-sm font-medium">{o.userCompanyName || o.userEmail || <span className="text-white/30 italic">No customer</span>}</p>
@@ -97,7 +99,9 @@ export default function AdminOrdersPage() {
               </div>
               <div className="w-24"><p className="text-white/40 text-xs">{new Date(o.createdAt).toLocaleDateString("en-GB")}</p></div>
             </Link>
+            </AnimatedListItem>
           ))}
+          </AnimatedList>
           {orders.length === 0 && (
             <div className="py-12 text-center text-white/40">No orders yet</div>
           )}

@@ -4,7 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BookingForm from "./BookingForm";
+import BubbleParticles from "./BubbleParticles";
+import MeshGradient from "./MeshGradient";
 import Slideshow from "./Slideshow";
+import TextScramble from "./TextScramble";
 
 export default function MobileHero() {
   const [showContact, setShowContact] = useState(false);
@@ -37,16 +40,10 @@ export default function MobileHero() {
     <div id="mobile-hero" className="relative md:hidden w-full">
       {/* Mobile: Dark gray box with content */}
       <div className="relative w-full bg-gradient-to-b from-[#0a0f16] to-[#0d1219] overflow-hidden">
-        {/* Animated orbs and particles - inside dark section */}
+        {/* Animated mesh gradient and bubbles */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
-          <div className="hero-orb-mobile hero-orb-mobile-1" />
-          <div className="hero-orb-mobile hero-orb-mobile-2" />
-          <div className="hero-particle-mobile hero-particle-mobile-1" />
-          <div className="hero-particle-mobile hero-particle-mobile-2" />
-          <div className="hero-particle-mobile hero-particle-mobile-3" />
-          <div className="hero-particle-mobile hero-particle-mobile-4" />
-          <div className="hero-particle-mobile hero-particle-mobile-5" />
-          <div className="hero-particle-mobile hero-particle-mobile-6" />
+          <MeshGradient mobile />
+          <BubbleParticles mobile />
         </div>
 
         <div className="relative z-10 px-6 py-8 pb-4 text-center">
@@ -79,7 +76,7 @@ export default function MobileHero() {
           {/* Main Headline */}
           <div className="space-y-2">
             <h1 className="text-4xl leading-tight font-black text-white">
-              We love coral
+              <TextScramble text="We love coral" />
             </h1>
             <p
               className="text-base leading-relaxed font-medium text-white"

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { ApplicationListItem } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-500/20 text-yellow-400",
@@ -69,9 +71,7 @@ export default function AdminApplicationsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonTable />
       ) : fetchError ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load applications</p>
@@ -89,9 +89,10 @@ export default function AdminApplicationsPage() {
               <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
               <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
             </div>
+            <AnimatedList>
             {applications.map((a) => (
+              <AnimatedListItem key={a.id}>
               <div
-                key={a.id}
                 onClick={() => router.push(`/admin/applications/${a.id}`)}
                 className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1.5fr_2fr_1fr_1.5fr] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
               >
@@ -105,7 +106,9 @@ export default function AdminApplicationsPage() {
                 </div>
                 <div><p className="text-white/40 text-xs">{new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p></div>
               </div>
+              </AnimatedListItem>
             ))}
+            </AnimatedList>
             {applications.length === 0 && (
               <div className="py-12 text-center text-white/40">
                 {statusFilter ? "No applications with this status" : "No applications yet"}

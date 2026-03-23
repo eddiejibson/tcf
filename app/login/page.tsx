@@ -6,6 +6,7 @@ import { useState, Component, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import AuthBackground from "@/app/components/AuthBackground";
+import GradientBorder from "@/app/components/GradientBorder";
 
 class LoginErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -86,7 +87,8 @@ function LoginContent() {
       </header>
 
       <main className="relative px-6 md:px-[100px] lg:px-[140px] py-12">
-        <div className="max-w-md mx-auto bg-black/30 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
+        <GradientBorder className="max-w-md mx-auto" rounded="rounded-[24px]">
+        <div className="bg-black/30 backdrop-blur-xl rounded-[24px] p-8 md:p-12">
           {sent ? (
             <>
               <div className="text-center mb-8">
@@ -151,6 +153,7 @@ function LoginContent() {
             </>
           )}
         </div>
+        </GradientBorder>
       </main>
     </div>
   );

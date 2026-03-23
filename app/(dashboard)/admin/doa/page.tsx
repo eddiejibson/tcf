@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { DoaShipmentGroup, DoaReportDetail } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonOrderList } from "@/app/components/dashboard/Skeleton";
 
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-500/20 text-yellow-400",
@@ -95,8 +97,8 @@ export default function AdminDoaPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      <div className="p-4 md:p-8">
+        <SkeletonOrderList />
       </div>
     );
   }
@@ -124,9 +126,10 @@ export default function AdminDoaPage() {
           <p className="text-white/40">No DOA claims yet</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <AnimatedList className="space-y-4">
           {groups.map((group) => (
-            <div key={group.shipment.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+            <AnimatedListItem key={group.shipment.id}>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
               <div
                 onClick={() => toggleShipment(group.shipment.id)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer"
@@ -260,8 +263,9 @@ export default function AdminDoaPage() {
                 </div>
               )}
             </div>
+            </AnimatedListItem>
           ))}
-        </div>
+        </AnimatedList>
       )}
 
       {lightboxUrl && (

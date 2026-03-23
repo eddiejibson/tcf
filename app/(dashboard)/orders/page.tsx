@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { UserOrderListItem } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonOrderList } from "@/app/components/dashboard/Skeleton";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -55,9 +57,7 @@ export default function OrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonOrderList />
       ) : forbidden ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50">You don&apos;t have permission to view orders.</p>
@@ -71,9 +71,10 @@ export default function OrdersPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <AnimatedList className="space-y-4">
           {orders.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
+            <AnimatedListItem key={o.id}>
+            <Link href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
@@ -91,6 +92,7 @@ export default function OrdersPage() {
                 </div>
               </div>
             </Link>
+            </AnimatedListItem>
           ))}
           {orders.length === 0 && (
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
@@ -102,7 +104,7 @@ export default function OrdersPage() {
               </div>
             </div>
           )}
-        </div>
+        </AnimatedList>
       )}
     </div>
   );

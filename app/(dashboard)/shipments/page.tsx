@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { ShipmentListItem } from "@/app/lib/types";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonShipmentGrid } from "@/app/components/dashboard/Skeleton";
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<ShipmentListItem[]>([]);
@@ -40,9 +42,7 @@ export default function ShipmentsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonShipmentGrid />
       ) : forbidden ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50">You don&apos;t have permission to view shipments.</p>
@@ -56,11 +56,12 @@ export default function ShipmentsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <AnimatedList className="grid gap-4">
           {shipments.map((s) => {
             const days = daysUntil(s.deadline);
             return (
-              <Link key={s.id} href={`/shipments/${s.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-all block">
+              <AnimatedListItem key={s.id}>
+              <Link href={`/shipments/${s.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-all block">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-[#0984E3]/20 flex items-center justify-center shrink-0">
@@ -75,7 +76,7 @@ export default function ShipmentsPage() {
                           {days} day{days !== 1 ? "s" : ""} left
                         </span>
                         <span className="text-white/40 text-sm">{s.productCount} products</span>
-                        <span className="text-white/40 text-sm">Ships {new Date(s.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                        <span className="text-white/40 text-sm">Arrives {new Date(s.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                       </div>
                     </div>
                   </div>
@@ -84,6 +85,7 @@ export default function ShipmentsPage() {
                   </svg>
                 </div>
               </Link>
+              </AnimatedListItem>
             );
           })}
           {shipments.length === 0 && (
@@ -91,7 +93,7 @@ export default function ShipmentsPage() {
               No shipments available right now. Check back soon.
             </div>
           )}
-        </div>
+        </AnimatedList>
       )}
     </div>
   );

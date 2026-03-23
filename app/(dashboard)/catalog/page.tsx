@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/lib/auth-context";
 import type { CategoryNode } from "@/app/lib/types";
 import ProductImageCarousel from "@/app/components/ProductImageCarousel";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonShipmentGrid } from "@/app/components/dashboard/Skeleton";
 
 interface SearchProductImage {
   id: string;
@@ -181,7 +183,7 @@ export default function CatalogPage() {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
+  if (loading) return <div className="p-4 md:p-8"><SkeletonShipmentGrid /></div>;
 
   if (error) return (
     <div className="p-4 md:p-8">
@@ -272,7 +274,7 @@ export default function CatalogPage() {
           )}
 
           {/* Product grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {products
               .filter((p) => {
                 if (wysiwygOnly && !p.wysiwyg) return false;
@@ -287,7 +289,8 @@ export default function CatalogPage() {
                 const oos = isOutOfStock(p);
                 const inCart = cart.find((i) => i.catalogProductId === p.id);
                 return (
-                  <div key={p.id} className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col ${oos ? "opacity-40" : "hover:border-white/20 hover:bg-white/[0.07]"}`}>
+                  <AnimatedListItem key={p.id}>
+                  <div className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col h-full ${oos ? "opacity-40" : "hover:border-white/20 hover:bg-white/[0.07]"}`}>
                     <div className="aspect-[4/3] bg-white/5 relative">
                       <ProductImageCarousel images={p.images} alt={p.name} />
                       <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
@@ -340,12 +343,13 @@ export default function CatalogPage() {
                       </div>
                     </div>
                   </div>
+                  </AnimatedListItem>
                 );
               })}
             {products.length === 0 && (
               <div className="col-span-full py-12 text-center text-white/40">No products found</div>
             )}
-          </div>
+          </AnimatedList>
         </div>
 
         {/* Cart sidebar */}

@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/app/lib/auth-context";
 import { ALL_PERMISSIONS, PERMISSION_LABELS, Permission } from "@/app/lib/permissions";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
+import AnimatedModal from "@/app/components/dashboard/AnimatedModal";
 
 interface TeamMember {
   id: string;
@@ -140,136 +143,128 @@ export default function TeamPage() {
       </div>
 
       {/* Invite Modal */}
-      {showInvite && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowInvite(false)}>
-          <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-white mb-4">Invite Team Member</h2>
-            <form onSubmit={handleInvite}>
-              <div className="mb-4">
-                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Email Address</label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
-                  placeholder="member@example.com"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="mb-5">
-                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-3">Permissions</label>
-                <div className="space-y-2">
-                  {ALL_PERMISSIONS.map((perm) => (
-                    <label key={perm} className="flex items-start gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={invitePerms.includes(perm)}
-                        onChange={() => setInvitePerms(togglePerm(invitePerms, perm))}
-                        className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#0984E3] focus:ring-[#0984E3]/50 cursor-pointer"
-                      />
-                      <div>
-                        <p className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{PERMISSION_LABELS[perm as Permission].label}</p>
-                        <p className="text-white/40 text-xs">{PERMISSION_LABELS[perm as Permission].description}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {inviteError && <p className="text-red-400 text-sm mb-3">{inviteError}</p>}
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={inviting}
-                  className="flex-1 px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
-                >
-                  {inviting ? "Inviting..." : "Send Invite"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowInvite(false)}
-                  className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Permissions Modal */}
-      {editId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditId(null)}>
-          <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-white mb-1">Edit Permissions</h2>
-            <p className="text-white/40 text-sm mb-4">{members.find((m) => m.id === editId)?.email}</p>
-            <div className="space-y-2 mb-5">
-              {ALL_PERMISSIONS.map((perm) => (
-                <label key={perm} className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={editPerms.includes(perm)}
-                    onChange={() => setEditPerms(togglePerm(editPerms, perm))}
-                    className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#0984E3] focus:ring-[#0984E3]/50 cursor-pointer"
-                  />
-                  <div>
-                    <p className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{PERMISSION_LABELS[perm as Permission].label}</p>
-                    <p className="text-white/40 text-xs">{PERMISSION_LABELS[perm as Permission].description}</p>
-                  </div>
-                </label>
-              ))}
+      <AnimatedModal open={showInvite} onClose={() => setShowInvite(false)}>
+        <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold text-white mb-4">Invite Team Member</h2>
+          <form onSubmit={handleInvite}>
+            <div className="mb-4">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Email Address</label>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
+                placeholder="member@example.com"
+                required
+                autoFocus
+              />
             </div>
+            <div className="mb-5">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-3">Permissions</label>
+              <div className="space-y-2">
+                {ALL_PERMISSIONS.map((perm) => (
+                  <label key={perm} className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={invitePerms.includes(perm)}
+                      onChange={() => setInvitePerms(togglePerm(invitePerms, perm))}
+                      className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#0984E3] focus:ring-[#0984E3]/50 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{PERMISSION_LABELS[perm as Permission].label}</p>
+                      <p className="text-white/40 text-xs">{PERMISSION_LABELS[perm as Permission].description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {inviteError && <p className="text-red-400 text-sm mb-3">{inviteError}</p>}
             <div className="flex gap-3">
               <button
-                onClick={handleSavePerms}
-                disabled={saving}
+                type="submit"
+                disabled={inviting}
                 className="flex-1 px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
               >
-                {saving ? "Saving..." : "Save Permissions"}
+                {inviting ? "Inviting..." : "Send Invite"}
               </button>
               <button
-                onClick={() => setEditId(null)}
+                type="button"
+                onClick={() => setShowInvite(false)}
                 className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
               >
                 Cancel
               </button>
             </div>
+          </form>
+        </div>
+      </AnimatedModal>
+
+      {/* Edit Permissions Modal */}
+      <AnimatedModal open={!!editId} onClose={() => setEditId(null)}>
+        <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold text-white mb-1">Edit Permissions</h2>
+          <p className="text-white/40 text-sm mb-4">{members.find((m) => m.id === editId)?.email}</p>
+          <div className="space-y-2 mb-5">
+            {ALL_PERMISSIONS.map((perm) => (
+              <label key={perm} className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={editPerms.includes(perm)}
+                  onChange={() => setEditPerms(togglePerm(editPerms, perm))}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#0984E3] focus:ring-[#0984E3]/50 cursor-pointer"
+                />
+                <div>
+                  <p className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{PERMISSION_LABELS[perm as Permission].label}</p>
+                  <p className="text-white/40 text-xs">{PERMISSION_LABELS[perm as Permission].description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSavePerms}
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
+            >
+              {saving ? "Saving..." : "Save Permissions"}
+            </button>
+            <button
+              onClick={() => setEditId(null)}
+              className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
+      </AnimatedModal>
 
       {/* Remove Confirmation Modal */}
-      {removeId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setRemoveId(null)}>
-          <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-white mb-2">Remove Member</h2>
-            <p className="text-white/50 text-sm mb-5">
-              Remove <span className="text-white font-medium">{members.find((m) => m.id === removeId)?.email}</span> from the team? Their order history will be preserved.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleRemove}
-                disabled={removing}
-                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-500/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
-              >
-                {removing ? "Removing..." : "Remove"}
-              </button>
-              <button
-                onClick={() => setRemoveId(null)}
-                className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+      <AnimatedModal open={!!removeId} onClose={() => setRemoveId(null)}>
+        <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 w-full max-w-sm mx-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold text-white mb-2">Remove Member</h2>
+          <p className="text-white/50 text-sm mb-5">
+            Remove <span className="text-white font-medium">{members.find((m) => m.id === removeId)?.email}</span> from the team? Their order history will be preserved.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleRemove}
+              disabled={removing}
+              className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-500/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
+            >
+              {removing ? "Removing..." : "Remove"}
+            </button>
+            <button
+              onClick={() => setRemoveId(null)}
+              className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
+      </AnimatedModal>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonTable />
       ) : error ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">{error}</p>
@@ -287,8 +282,10 @@ export default function TeamPage() {
               <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
               <div className="w-28"></div>
             </div>
+            <AnimatedList>
             {members.map((m) => (
-              <div key={m.id} className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+              <AnimatedListItem key={m.id}>
+              <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                 <div className="min-w-0">
                   <p className="text-white/90 text-sm font-medium truncate">{m.email}</p>
                   <p className="text-white/40 text-xs">Joined {new Date(m.createdAt).toLocaleDateString("en-GB")}</p>
@@ -347,7 +344,9 @@ export default function TeamPage() {
                   )}
                 </div>
               </div>
+              </AnimatedListItem>
             ))}
+            </AnimatedList>
             {members.length === 0 && (
               <div className="py-12 text-center text-white/40">
                 No team members yet. Invite someone to get started.

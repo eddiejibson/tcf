@@ -9,6 +9,12 @@
   --blue-primary: #0984e3;
   --purple-overlay: #71569d;
   --text-dark: #332c2c;
+  --mesh-hue-1: 210;
+  --mesh-hue-2: 180;
+  --mesh-hue-3: 350;
+  --mesh-hue-4: 270;
+  --mesh-hue-5: 195;
+  --gradient-angle: 0deg;
 }
 
 @theme inline {
@@ -360,5 +366,135 @@ body {
   100% {
     transform: scale(3);
     opacity: 0;
+  }
+}
+
+/* ===== Animation Overhaul ===== */
+
+/* Phase 1A: Film grain */
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -15%); }
+  40% { transform: translate(-5%, 15%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 10%); }
+  80% { transform: translate(3%, 15%); }
+  90% { transform: translate(-10%, 10%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Phase 1B: Mesh gradient blob drifts */
+@keyframes mesh-drift-1 {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  33% { transform: translate(-50%, -50%) translate(60px, -40px); }
+  66% { transform: translate(-50%, -50%) translate(-40px, 30px); }
+}
+@keyframes mesh-drift-2 {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  33% { transform: translate(-50%, -50%) translate(-50px, 50px); }
+  66% { transform: translate(-50%, -50%) translate(30px, -60px); }
+}
+@keyframes mesh-drift-3 {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  33% { transform: translate(-50%, -50%) translate(40px, 30px); }
+  66% { transform: translate(-50%, -50%) translate(-60px, -20px); }
+}
+@keyframes mesh-drift-4 {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  33% { transform: translate(-50%, -50%) translate(-30px, -50px); }
+  66% { transform: translate(-50%, -50%) translate(50px, 40px); }
+}
+@keyframes mesh-drift-5 {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  33% { transform: translate(-50%, -50%) translate(50px, 60px); }
+  66% { transform: translate(-50%, -50%) translate(-40px, -40px); }
+}
+
+/* Mesh hue rotation via CSS custom properties */
+@property --mesh-hue-1 {
+  syntax: "<number>";
+  initial-value: 210;
+  inherits: false;
+}
+@property --mesh-hue-2 {
+  syntax: "<number>";
+  initial-value: 180;
+  inherits: false;
+}
+@property --mesh-hue-3 {
+  syntax: "<number>";
+  initial-value: 350;
+  inherits: false;
+}
+@property --mesh-hue-4 {
+  syntax: "<number>";
+  initial-value: 270;
+  inherits: false;
+}
+@property --mesh-hue-5 {
+  syntax: "<number>";
+  initial-value: 195;
+  inherits: false;
+}
+
+/* Phase 1E: Bubble rise */
+@keyframes bubble-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--bubble-drift, 0px));
+    opacity: 0;
+  }
+}
+
+/* Phase 2C: Infinite marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Phase 3B: Skeleton shimmer */
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Phase 4B: Gradient border rotation */
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes gradient-rotate {
+  0% { --gradient-angle: 0deg; }
+  100% { --gradient-angle: 360deg; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

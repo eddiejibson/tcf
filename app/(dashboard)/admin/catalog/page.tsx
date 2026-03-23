@@ -5,6 +5,8 @@ import type { CatalogProductListItem, CategoryNode } from "@/app/lib/types";
 import { generatePriceList, type PriceListProduct } from "@/app/lib/generate-price-list";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
+import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
 const stockLevelColors: Record<string, string> = {
   LOW: "bg-amber-500/20 text-amber-400",
@@ -144,9 +146,7 @@ export default function CatalogPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-        </div>
+        <SkeletonTable />
       ) : error ? (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load catalog</p>
@@ -186,9 +186,10 @@ export default function CatalogPage() {
               </div>
               <div className="w-16"></div>
             </div>
+            <AnimatedList>
             {products.map((p) => (
+              <AnimatedListItem key={p.id}>
               <Link
-                key={p.id}
                 href={`/admin/catalog/${p.id}`}
                 className={`min-w-[800px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block ${!p.active ? "opacity-50" : ""}`}
               >
@@ -258,7 +259,9 @@ export default function CatalogPage() {
                   <span className="text-white/30 text-xs">Edit</span>
                 </div>
               </Link>
+              </AnimatedListItem>
             ))}
+            </AnimatedList>
             {products.length === 0 && (
               <div className="py-12 text-center text-white/40">
                 No products found

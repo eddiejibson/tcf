@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { useAuth } from "@/app/lib/auth-context";
 import { userHasPermission, Permission } from "@/app/lib/permissions";
+import FlipNumber from "@/app/components/FlipNumber";
 
 const adminLinks = [
   { href: "/admin/users", label: "Users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
@@ -78,16 +80,23 @@ export default function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 ${
                 isActive
-                  ? "bg-[#0984E3]/10 text-[#0984E3]"
+                  ? "text-[#0984E3]"
                   : "text-white/50 hover:text-white/80 hover:bg-white/5"
               }`}
             >
-              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active"
+                  className="absolute inset-0 bg-[#0984E3]/10 rounded-xl"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+              <svg className="relative w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={link.icon} />
               </svg>
-              {link.label}
+              <span className="relative">{link.label}</span>
             </Link>
           );
         })}
@@ -97,7 +106,9 @@ export default function Sidebar() {
         {user && user.creditBalance > 0 && (
           <div className="px-3 py-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
             <p className="text-emerald-400/60 text-[10px] uppercase tracking-wider font-medium">Account Credit</p>
-            <p className="text-emerald-400 text-sm font-bold tabular-nums">£{Number(user.creditBalance).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-emerald-400 text-sm font-bold tabular-nums">
+              <FlipNumber value={`£${Number(user.creditBalance).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+            </p>
           </div>
         )}
         <div className="px-3 mb-3">

@@ -73,7 +73,7 @@ export default function ShipmentsPage() {
                       <h3 className="text-white font-semibold">{s.name}</h3>
                       <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
                         <span className={`text-sm font-medium ${days <= 3 ? "text-red-400" : days <= 7 ? "text-amber-400" : "text-green-400"}`}>
-                          {days} day{days !== 1 ? "s" : ""} left
+                          {days <= 0 ? "Due today" : `${days} day${days !== 1 ? "s" : ""} left`}
                         </span>
                         <span className="text-white/40 text-sm">{s.productCount} products</span>
                         <span className="text-white/40 text-sm">Arrives {new Date(s.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>

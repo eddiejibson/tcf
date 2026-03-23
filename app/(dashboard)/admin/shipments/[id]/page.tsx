@@ -564,6 +564,9 @@ export default function AdminShipmentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/admin/shipments/${shipment.id}/edit`} className="px-4 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-sm font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all">
+            Edit Shipment
+          </Link>
           <span className={`px-4 py-1.5 rounded-lg text-sm font-medium ${statusColors[shipment.status] || "bg-white/10 text-white/60"}`}>{shipment.status}</span>
         </div>
       </div>

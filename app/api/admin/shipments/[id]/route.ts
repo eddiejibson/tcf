@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { Shipment } from "@/server/entities/Shipment";
+import { Product } from "@/server/entities/Product";
 import { calculateOrderTotals } from "@/server/services/order.service";
 import { isUuid } from "@/server/utils";
 
@@ -73,6 +74,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     products: shipment.products.map((p) => ({
       id: p.id,
       name: p.name,
+      latinName: p.latinName,
       price: p.price,
       size: p.size,
       qtyPerBox: p.qtyPerBox,
@@ -116,7 +118,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const shipment = await repo.findOneBy({ id });
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
-  const { name, deadline, shipmentDate, freightCost, margin, status } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products } = body;
   if (name !== undefined) shipment.name = name;
   if (deadline !== undefined) shipment.deadline = new Date(deadline);
   if (shipmentDate !== undefined) shipment.shipmentDate = new Date(shipmentDate);
@@ -124,6 +126,62 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (margin !== undefined) shipment.margin = margin;
   if (status !== undefined) shipment.status = status;
 
-  await repo.save(shipment);
-  return NextResponse.json(shipment);
+  if (products !== undefined && Array.isArray(products)) {
+    await db.transaction(async (manager) => {
+      await manager.save(Shipment, shipment);
+
+      const existingProducts = await manager.find(Product, { where: { shipmentId: id } });
+      const incomingIds = new Set(
+        products.filter((p: { id?: string }) => p.id).map((p: { id: string }) => p.id)
+      );
+
+      // Delete products not in incoming list
+      const toDelete = existingProducts.filter((p) => !incomingIds.has(p.id));
+      for (const p of toDelete) {
+        await manager.query(`UPDATE order_items SET "productId" = NULL WHERE "productId" = $1`, [p.id]);
+        await manager.remove(Product, p);
+      }
+
+      // Update existing and create new
+      for (const p of products) {
+        if (p.id) {
+          await manager.update(Product, p.id, {
+            name: p.name,
+            latinName: p.latinName ?? null,
+            price: p.price,
+            size: p.size ?? null,
+            qtyPerBox: p.qtyPerBox ?? 1,
+            availableQty: p.availableQty ?? null,
+          });
+        } else {
+          const newProduct = manager.create(Product, {
+            shipmentId: id,
+            name: p.name,
+            latinName: p.latinName ?? null,
+            price: p.price,
+            size: p.size ?? null,
+            qtyPerBox: p.qtyPerBox ?? 1,
+            availableQty: p.availableQty ?? null,
+          });
+          await manager.save(Product, newProduct);
+        }
+      }
+    });
+  } else {
+    await repo.save(shipment);
+  }
+
+  const updated = await repo.findOne({ where: { id }, relations: ["products"] });
+  return NextResponse.json({
+    ...updated,
+    products: updated?.products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      latinName: p.latinName,
+      price: p.price,
+      size: p.size,
+      qtyPerBox: p.qtyPerBox,
+      availableQty: p.availableQty,
+    })),
+  });
 }

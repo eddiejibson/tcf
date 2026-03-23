@@ -4,7 +4,7 @@ import { OrderItem } from "../entities/OrderItem";
 import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
 import { log } from "../logger";
-import { MoreThan } from "typeorm";
+import { MoreThanOrEqual } from "typeorm";
 import { Shipment } from "../entities/Shipment";
 import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated, sendOrderPaidNotification } from "./email.service";
 import { generateInvoiceBuffer } from "./invoice.service";
@@ -33,7 +33,7 @@ export function formatPrice(price: number): string {
 export async function getActiveShipments() {
   const db = await getDb();
   return db.getRepository(Shipment).find({
-    where: { status: "ACTIVE" as never, deadline: MoreThan(new Date()) },
+    where: { status: "ACTIVE" as never, deadline: MoreThanOrEqual(new Date(new Date().toISOString().split("T")[0])) },
     relations: ["products"],
     order: { deadline: "ASC" },
   });

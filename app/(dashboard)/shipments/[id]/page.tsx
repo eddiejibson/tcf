@@ -834,6 +834,11 @@ export default function ShipmentDetailPage() {
             </h3>
             <div className="overflow-y-auto px-6 flex-1 min-h-0">
               <div className="bg-white/5 rounded-xl p-3.5 mb-5 space-y-2">
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm pb-1">
+                    <span className="text-[#0984E3] font-medium">{discount}% discount applied</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">Subtotal ({cart.size} items)</span>
                   <span className="text-white font-medium tabular-nums">{formatPrice(subtotal)}</span>

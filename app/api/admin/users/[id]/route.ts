@@ -150,7 +150,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     await em.getRepository(CreditTransaction).delete({ userId: id });
     await em.getRepository(Order).update({ userId: id }, { userId: null });
     await em.getRepository(Application).update({ userId: id }, { userId: null });
-    await em.getRepository(Shipment).update({ createdById: id }, { createdById: admin.id });
+    await em.getRepository(Shipment).update({ createdById: id }, { createdById: admin.userId });
     await em.getRepository(User).update({ invitedById: id }, { invitedById: null });
     await em.getRepository(User).delete(id);
   });

@@ -12,6 +12,7 @@ interface AuthUser {
   companyRole: "OWNER" | "MEMBER" | null;
   permissions: string[] | null;
   creditBalance: number;
+  companyDiscount: number;
 }
 
 interface AuthContextValue {

@@ -11,6 +11,9 @@ export class Company extends BaseEntityWithUpdate {
   @Column({ type: "varchar", nullable: true })
   companyNumber: string | null;
 
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  discount: number;
+
   @OneToMany(() => Address, (address) => address.company)
   addresses: Relation<Address[]>;
 

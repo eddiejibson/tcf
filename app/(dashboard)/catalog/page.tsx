@@ -7,6 +7,7 @@ import type { CategoryNode } from "@/app/lib/types";
 import ProductImageCarousel from "@/app/components/ProductImageCarousel";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonShipmentGrid } from "@/app/components/dashboard/Skeleton";
+import { applyDiscount } from "@/app/lib/discount";
 
 interface SearchProductImage {
   id: string;
@@ -61,6 +62,7 @@ function formatPrice(n: number) {
 export default function CatalogPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const discount = user?.companyDiscount || 0;
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [products, setProducts] = useState<SearchProduct[]>([]);
   const [activeParentId, setActiveParentId] = useState("");
@@ -148,7 +150,7 @@ export default function CatalogPage() {
     setCart(cart.filter((i) => i.catalogProductId !== catalogProductId));
   };
 
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = cart.reduce((sum, i) => sum + applyDiscount(i.price, discount) * i.quantity, 0);
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
   const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
@@ -330,6 +332,11 @@ export default function CatalogPage() {
                       <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 mt-auto pt-2.5">
                         {Number(p.price) === 0 ? (
                           <span className="px-2.5 py-1 rounded-lg bg-white/10 text-white/50 text-xs font-medium">POA</span>
+                        ) : discount > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-white/30 text-xs line-through">{formatPrice(p.price)}</span>
+                            <span className="text-[#0984E3] text-base font-bold">{formatPrice(applyDiscount(p.price, discount))}</span>
+                          </div>
                         ) : (
                           <span className="text-[#0984E3] text-base font-bold">{formatPrice(p.price)}</span>
                         )}
@@ -365,7 +372,7 @@ export default function CatalogPage() {
                   <div key={item.catalogProductId} className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-white/90 text-sm truncate">{item.name}</p>
-                      <p className="text-white/40 text-xs">{formatPrice(item.price)} each</p>
+                      <p className="text-white/40 text-xs">{formatPrice(applyDiscount(item.price, discount))} each</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -383,7 +390,7 @@ export default function CatalogPage() {
                       </button>
                     </div>
                     <div className="text-right">
-                      <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.price * item.quantity)}</p>
+                      <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(applyDiscount(item.price, discount) * item.quantity)}</p>
                       <button onClick={() => removeItem(item.catalogProductId)} className="text-red-400/40 hover:text-red-400 text-[10px] transition-colors">Remove</button>
                     </div>
                   </div>
@@ -393,6 +400,11 @@ export default function CatalogPage() {
 
             {cart.length > 0 && (
               <>
+                {discount > 0 && (
+                  <div className="mt-3 px-2.5 py-1.5 bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-lg">
+                    <p className="text-[#0984E3] text-xs font-medium">{discount}% discount applied</p>
+                  </div>
+                )}
                 <div className="border-t border-white/10 pt-4 space-y-2">
                   <div className="flex justify-between text-white/60 text-sm">
                     <span>Subtotal</span>

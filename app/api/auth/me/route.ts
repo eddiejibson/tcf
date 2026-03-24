@@ -10,7 +10,10 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
   const db = await getDb();
-  const dbUser = await db.getRepository(User).findOneBy({ id: user.userId });
+  const dbUser = await db.getRepository(User).findOne({
+    where: { id: user.userId },
+    relations: ["company"],
+  });
   const creditBalance = await getCreditBalance(user.userId);
   return NextResponse.json({
     ...user,
@@ -19,5 +22,6 @@ export async function GET() {
     companyRole: dbUser?.companyRole || null,
     permissions: dbUser?.permissions || null,
     creditBalance,
+    companyDiscount: Number((dbUser?.company as any)?.discount) || 0,
   });
 }

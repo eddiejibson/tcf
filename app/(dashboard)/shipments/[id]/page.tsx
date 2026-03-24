@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/app/lib/auth-context";
+import { applyDiscount } from "@/app/lib/discount";
 import type { SerializedProduct, ShipmentDetail } from "@/app/lib/types";
 import { useParams, useRouter } from "next/navigation";
 import React, {
@@ -135,6 +136,7 @@ export default function ShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const discount = user?.companyDiscount || 0;
   const [shipment, setShipment] = useState<ShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<Map<string, number>>(new Map());
@@ -243,7 +245,7 @@ export default function ShipmentDetailPage() {
 
   const subtotal =
     shipment?.products.reduce(
-      (sum, p) => sum + getQty(p.id) * Number(p.price),
+      (sum, p) => sum + getQty(p.id) * applyDiscount(Number(p.price), discount),
       0,
     ) || 0;
 
@@ -362,6 +364,11 @@ export default function ShipmentDetailPage() {
           ref={cartBarRef}
           className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6"
         >
+          {discount > 0 && (
+            <div className="mb-3 px-2.5 py-1.5 bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-lg inline-block">
+              <p className="text-[#0984E3] text-xs font-medium">{discount}% discount applied</p>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-3 md:flex md:flex-wrap md:items-start md:gap-6 mb-4">
             <div>
               <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">
@@ -523,7 +530,7 @@ export default function ShipmentDetailPage() {
             )}
             {filteredProducts.map((product) => {
               const qty = getQty(product.id);
-              const lineTotal = qty * Number(product.price);
+              const lineTotal = qty * applyDiscount(Number(product.price), discount);
               const unavail = isUnavailable(product);
               const max = getMaxQty(product);
               const sub = substitutes.get(product.id);
@@ -602,9 +609,16 @@ export default function ShipmentDetailPage() {
                         )}
                       </div>
                       <div className="text-right shrink-0 w-16">
-                        <p className="text-white/60 text-xs tabular-nums">
-                          {formatPrice(Number(product.price))}
-                        </p>
+                        {discount > 0 ? (
+                          <>
+                            <p className="text-white/30 text-[10px] tabular-nums line-through">{formatPrice(Number(product.price))}</p>
+                            <p className="text-[#0984E3] text-xs tabular-nums font-medium">{formatPrice(applyDiscount(Number(product.price), discount))}</p>
+                          </>
+                        ) : (
+                          <p className="text-white/60 text-xs tabular-nums">
+                            {formatPrice(Number(product.price))}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center shrink-0">
                         {unavail ? (
@@ -672,9 +686,16 @@ export default function ShipmentDetailPage() {
                           <p className="text-white/25 text-[11px] italic mt-0.5">{product.latinName}</p>
                         )}
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-white/50 text-xs tabular-nums font-medium">
-                            {formatPrice(Number(product.price))}
-                          </span>
+                          {discount > 0 ? (
+                            <>
+                              <span className="text-white/30 text-[10px] tabular-nums line-through">{formatPrice(Number(product.price))}</span>
+                              <span className="text-[#0984E3] text-xs tabular-nums font-medium">{formatPrice(applyDiscount(Number(product.price), discount))}</span>
+                            </>
+                          ) : (
+                            <span className="text-white/50 text-xs tabular-nums font-medium">
+                              {formatPrice(Number(product.price))}
+                            </span>
+                          )}
                           {product.size && (
                             <>
                               <span className="text-white/15">·</span>

@@ -25,6 +25,7 @@ export interface InvoiceData {
   includeShipping: boolean;
   paymentMethod?: string | null;
   paymentReference?: string | null;
+  discountPercent?: number;
 }
 
 const BRAND: [number, number, number] = [9, 132, 227];
@@ -175,8 +176,22 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
     }
   }
 
+  // ─── DISCOUNT NOTE ──────────────────────────────────────────────────
+  let itemsStartY = data.paymentMethod ? 74 : 68;
+  if (data.discountPercent && data.discountPercent > 0) {
+    const discY = itemsStartY;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(16, 185, 129);
+    doc.text("DISCOUNT", m, discY, { charSpace: 1 });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`${data.discountPercent}% company discount applied`, m + 22, discY);
+    itemsStartY += 8;
+  }
+
   // ─── ITEMS TABLE ──────────────────────────────────────────────────────
-  y = data.paymentMethod ? 74 : 68;
+  y = itemsStartY;
 
   const tL = m;
   const tR = pw - m;

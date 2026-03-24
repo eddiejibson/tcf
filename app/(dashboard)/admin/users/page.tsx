@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import type { UserListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
@@ -89,8 +90,14 @@ export default function AdminUsersPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Delete this user? This action cannot be undone.")) return;
     const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    if (res.ok) fetchUsers();
+    if (res.ok) {
+      fetchUsers();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Failed to delete user");
+    }
   };
 
   const handleRoleToggle = async (id: string, currentRole: string) => {
@@ -315,21 +322,13 @@ export default function AdminUsersPage() {
                     <button onClick={() => setEditCompanyUserId(null)} className="text-white/40 text-xs">Cancel</button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 group/name">
+                  <Link href={`/admin/users/${u.id}`} className="flex items-center gap-2 group/name hover:opacity-80 transition-opacity">
                     <div className="min-w-0">
                       <p className="text-white/90 text-sm font-medium truncate">{u.companyName || u.email}</p>
                       {u.companyName && <p className="text-white/40 text-xs truncate">{u.email}</p>}
                     </div>
-                    {u.role !== "ADMIN" && (
-                      <button
-                        onClick={() => { setEditCompanyUserId(u.id); setEditCompanyName(u.companyName || ""); }}
-                        className="opacity-0 group-hover/name:opacity-100 text-white/30 hover:text-white/60 transition-all shrink-0"
-                        title="Edit company name"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                      </button>
-                    )}
-                  </div>
+                    <svg className="w-4 h-4 text-white/20 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </Link>
                 )}
               </div>
               <div className="text-center">

@@ -166,7 +166,7 @@ export default function OrderDetailPage() {
       customerEmail: user?.email || "",
       customerCompanyName: user?.companyName,
       shipmentName: order.shipment?.name || "Direct Order",
-      items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
       shipping: order.totals.shipping,

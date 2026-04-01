@@ -554,6 +554,7 @@ export async function createAdminOrder(
         categoryName: i.catalogProduct?.category?.name || null,
         quantity: i.quantity,
         unitPrice: Number(i.unitPrice),
+        surcharge: Number(i.surcharge) || 0,
       })),
       subtotal: totals.subtotal,
       vat: totals.vat,

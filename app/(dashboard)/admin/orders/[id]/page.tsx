@@ -108,6 +108,7 @@ export default function AdminOrderDetailPage() {
       name: newItemName,
       quantity: parseInt(newItemQty) || 1,
       unitPrice: parseFloat(newItemPrice) || 0,
+      surcharge: 0,
       substituteProductId: null,
       substituteName: null,
     }]);

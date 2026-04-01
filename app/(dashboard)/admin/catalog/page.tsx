@@ -37,6 +37,10 @@ export default function CatalogPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showBulkSurcharge, setShowBulkSurcharge] = useState(false);
+  const [bulkSurchargeValue, setBulkSurchargeValue] = useState("");
+  const [bulkSurchargeCategoryId, setBulkSurchargeCategoryId] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     const res = await fetch("/api/admin/categories");
@@ -108,6 +112,13 @@ export default function CatalogPage() {
             )}
             Export Price List
           </button>
+          <button
+            onClick={() => setShowBulkSurcharge(!showBulkSurcharge)}
+            className={`px-4 py-2.5 border text-sm font-medium rounded-xl transition-all flex items-center gap-2 ${showBulkSurcharge ? "bg-amber-500/20 border-amber-500/30 text-amber-400" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"}`}
+          >
+            <span className="text-xs font-bold">%</span>
+            Bulk Surcharge
+          </button>
           <Link
             href="/admin/catalog/new"
             className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl text-sm transition-all"
@@ -116,6 +127,85 @@ export default function CatalogPage() {
           </Link>
         </div>
       </div>
+
+      {showBulkSurcharge && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-[20px] p-4 md:p-6 mb-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-amber-400 font-semibold text-sm">Bulk Surcharge</h3>
+              <p className="text-amber-400/60 text-xs mt-0.5">Set surcharge % for active products — all or by category</p>
+            </div>
+            <button onClick={() => { setShowBulkSurcharge(false); setBulkSurchargeCategoryId(""); }} className="text-white/40 hover:text-white text-sm transition-colors">Cancel</button>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-56">
+              <label className="text-amber-400/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Category</label>
+              <CategoryPicker
+                categories={categories}
+                value={bulkSurchargeCategoryId}
+                onChange={setBulkSurchargeCategoryId}
+                placeholder="All Categories"
+                allowAll
+              />
+            </div>
+            <div>
+              <label className="text-amber-400/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Surcharge</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={bulkSurchargeValue}
+                  onChange={(e) => setBulkSurchargeValue(e.target.value)}
+                  placeholder="0"
+                  className="w-24 px-3 py-2 bg-white/5 border border-amber-500/30 rounded-lg text-white text-sm text-right tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  autoFocus
+                />
+                <span className="text-amber-400/60 text-sm">%</span>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setBulkSaving(true);
+                // If a parent category is selected, include its child IDs too
+                let categoryIds: string[] | undefined;
+                if (bulkSurchargeCategoryId) {
+                  categoryIds = [bulkSurchargeCategoryId];
+                  const parent = categories.find((c) => c.id === bulkSurchargeCategoryId);
+                  if (parent) {
+                    categoryIds.push(...parent.children.map((ch) => ch.id));
+                  } else {
+                    // Might be a child — check parents
+                    for (const cat of categories) {
+                      const child = cat.children.find((ch) => ch.id === bulkSurchargeCategoryId);
+                      if (child) break;
+                    }
+                  }
+                }
+                const res = await fetch("/api/admin/catalog", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    surcharge: parseFloat(bulkSurchargeValue) || 0,
+                    ...(categoryIds ? { categoryIds } : {}),
+                  }),
+                });
+                if (res.ok) {
+                  fetchProducts();
+                  setShowBulkSurcharge(false);
+                  setBulkSurchargeValue("");
+                  setBulkSurchargeCategoryId("");
+                }
+                setBulkSaving(false);
+              }}
+              disabled={bulkSaving}
+              className="px-4 py-2 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:bg-white/10 disabled:text-white/30 text-sm font-medium rounded-lg transition-all"
+            >
+              {bulkSaving ? "Applying..." : bulkSurchargeCategoryId ? "Apply to Category" : "Apply to All"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
@@ -157,7 +247,7 @@ export default function CatalogPage() {
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[800px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+            <div className="min-w-[880px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="w-12"></div>
               <div className="flex-1">
                 <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
@@ -184,6 +274,11 @@ export default function CatalogPage() {
                   Stock
                 </p>
               </div>
+              <div className="w-16 text-center">
+                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
+                  Sur %
+                </p>
+              </div>
               <div className="w-16"></div>
             </div>
             <AnimatedList>
@@ -191,7 +286,7 @@ export default function CatalogPage() {
               <AnimatedListItem key={p.id}>
               <Link
                 href={`/admin/catalog/${p.id}`}
-                className={`min-w-[800px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block ${!p.active ? "opacity-50" : ""}`}
+                className={`min-w-[880px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors block ${!p.active ? "opacity-50" : ""}`}
               >
                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                   {p.images?.[0]?.imageUrl ? (
@@ -254,6 +349,28 @@ export default function CatalogPage() {
                       {stockLevelLabels[p.stockLevel || ""] || p.stockLevel || "—"}
                     </span>
                   )}
+                </div>
+                <div className="w-16 text-center" onClick={(e) => e.preventDefault()}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    defaultValue={p.surcharge || ""}
+                    placeholder="0"
+                    onClick={(e) => e.preventDefault()}
+                    onBlur={async (e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      if (val !== (p.surcharge || 0)) {
+                        await fetch(`/api/admin/catalog/${p.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ surcharge: val }),
+                        });
+                      }
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                    className="w-14 px-1.5 py-1 bg-white/5 border border-white/10 rounded text-white/60 text-xs text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
                 <div className="w-16 text-right">
                   <span className="text-white/30 text-xs">Edit</span>

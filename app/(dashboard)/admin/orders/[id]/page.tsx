@@ -194,7 +194,10 @@ export default function AdminOrderDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-4 md:p-8 text-white/40">Order not found</div>;
 
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * Number(i.unitPrice), 0);
+  const subtotal = items.reduce((sum, i) => {
+    const base = i.quantity * Number(i.unitPrice);
+    return sum + base + base * ((Number(i.surcharge) || 0) / 100);
+  }, 0);
   const shipping = includeShipping ? 25 : 0;
   const freight = parseFloat(freightCharge) || 0;
   const vat = (subtotal + shipping + freight) * 0.2;
@@ -278,6 +281,7 @@ export default function AdminOrderDetailPage() {
         <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
           <div className="w-28"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
+          <div className="w-16 text-center"><p className="text-amber-400/50 text-[10px] uppercase tracking-wider font-medium">Sur %</p></div>
           <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
           <div className="w-28 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
           {isEditable && <div className="w-16"></div>}
@@ -307,6 +311,13 @@ export default function AdminOrderDetailPage() {
                 <p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p>
               )}
             </div>
+            <div className="w-16 text-center">
+              {Number(item.surcharge) > 0 ? (
+                <span className="text-amber-400/70 text-xs tabular-nums">{Number(item.surcharge)}%</span>
+              ) : (
+                <span className="text-white/20 text-xs">—</span>
+              )}
+            </div>
             <div className="w-20">
               {isEditable ? (
                 <input type="number" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
@@ -314,7 +325,7 @@ export default function AdminOrderDetailPage() {
                 <p className="text-white/60 text-sm text-center">{item.quantity}</p>
               )}
             </div>
-            <div className="w-28 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.quantity * Number(item.unitPrice))}</p></div>
+            <div className="w-28 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice((item.quantity * Number(item.unitPrice)) * (1 + (Number(item.surcharge) || 0) / 100))}</p></div>
             {isEditable && (
               <div className="w-16 text-right">
                 <button onClick={() => removeItem(index)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>

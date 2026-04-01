@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getAllCatalogProducts, createCatalogProduct } from "@/server/services/catalog.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
+import { getDb } from "@/server/db/data-source";
+import { CatalogProduct } from "@/server/entities/CatalogProduct";
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin();
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
       stockMode: p.stockMode,
       stockQty: p.stockQty,
       stockLevel: p.stockLevel,
+      surcharge: Number(p.surcharge) || 0,
       active: p.active,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
@@ -73,4 +76,29 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal error" }, { status: 400 });
   }
+}
+
+export async function PATCH(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { surcharge, categoryIds } = await request.json();
+  if (surcharge === undefined) return NextResponse.json({ error: "Missing surcharge" }, { status: 400 });
+
+  const db = await getDb();
+  const repo = db.getRepository(CatalogProduct);
+  const value = parseFloat(surcharge) || 0;
+
+  if (categoryIds && Array.isArray(categoryIds) && categoryIds.length > 0) {
+    await repo.createQueryBuilder()
+      .update(CatalogProduct)
+      .set({ surcharge: value })
+      .where("active = true")
+      .andWhere("\"categoryId\" IN (:...categoryIds)", { categoryIds })
+      .execute();
+  } else {
+    await repo.update({ active: true }, { surcharge: value });
+  }
+
+  return NextResponse.json({ success: true });
 }

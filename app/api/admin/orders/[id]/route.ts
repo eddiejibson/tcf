@@ -66,6 +66,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           const draftItems = draftOrder.items.map((i) => ({
             catalogProductId: i.catalogProductId!,
             quantity: i.quantity,
+            surcharge: Number(i.surcharge) || 0,
           })).filter((i) => i.catalogProductId);
           // Delete the draft items then the draft order, then create as ACCEPTED
           const db2 = await getDb();

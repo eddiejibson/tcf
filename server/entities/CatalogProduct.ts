@@ -60,6 +60,9 @@ export class CatalogProduct extends BaseEntityWithUpdate {
 
   @Column({ type: "boolean", default: false })
   wysiwyg: boolean;
+
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  surcharge: number;
 }
 
 export type CatalogProductRecord = Omit<CatalogProduct, "category" | "images">;

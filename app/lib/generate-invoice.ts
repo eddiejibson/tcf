@@ -6,6 +6,7 @@ export interface InvoiceItem {
   categoryName?: string | null;
   quantity: number;
   unitPrice: number;
+  surcharge?: number;
 }
 
 export interface InvoiceData {
@@ -288,10 +289,12 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
     doc.setTextColor(...GRAY);
     doc.text(String(item.quantity), colQty, rY, { align: "center" });
 
-    // Line total
+    // Line total (include surcharge)
+    const lineBase = item.quantity * item.unitPrice;
+    const lineSurcharge = lineBase * ((item.surcharge || 0) / 100);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...DARK);
-    doc.text(fmtPrice(item.quantity * item.unitPrice), colTotal, rY, { align: "right" });
+    doc.text(fmtPrice(lineBase + lineSurcharge), colTotal, rY, { align: "right" });
 
     y += rowH;
   });
@@ -316,7 +319,19 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
     y += 6.5;
   };
 
-  drawTotalRow("Subtotal", fmtPrice(data.subtotal));
+  // Calculate surcharge total from items
+  const surchargeTotal = data.items.reduce((sum, item) => {
+    const base = item.quantity * item.unitPrice;
+    return sum + base * ((item.surcharge || 0) / 100);
+  }, 0);
+
+  // Show base subtotal (without surcharge) if there is surcharge
+  if (surchargeTotal > 0) {
+    drawTotalRow("Subtotal", fmtPrice(data.subtotal - surchargeTotal));
+    drawTotalRow("Freight Excess", fmtPrice(surchargeTotal));
+  } else {
+    drawTotalRow("Subtotal", fmtPrice(data.subtotal));
+  }
   if (data.freight && data.freight > 0) {
     drawTotalRow("Freight", fmtPrice(data.freight));
   }

@@ -48,6 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.stockLevel !== undefined) data.stockLevel = body.stockLevel;
   if (body.active !== undefined) data.active = body.active;
   if (body.wysiwyg !== undefined) data.wysiwyg = body.wysiwyg;
+  if (body.surcharge !== undefined) data.surcharge = parseFloat(body.surcharge) || 0;
 
   try {
     const product = await updateCatalogProduct(id, data);

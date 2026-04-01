@@ -39,6 +39,9 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "varchar", nullable: true })
   substituteName: string | null;
 
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  surcharge: number;
+
   @Column({ type: "uuid", nullable: true })
   catalogProductId: string | null;
 

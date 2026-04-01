@@ -31,12 +31,13 @@ export default function AdminEditDraftOrderPage() {
     // Map order items back to OrderLineItem format
     const items: OrderLineItem[] = order.items
       .filter((i: { catalogProductId?: string | null }) => i.catalogProductId)
-      .map((i: { catalogProductId: string; name: string; unitPrice: number; quantity: number; catalogProduct?: { type?: string } }) => ({
+      .map((i: { catalogProductId: string; name: string; unitPrice: number; quantity: number; surcharge?: number; catalogProduct?: { type?: string } }) => ({
         catalogProductId: i.catalogProductId,
         name: i.name,
         price: Number(i.unitPrice),
         type: i.catalogProduct?.type || "FRAG",
         quantity: i.quantity,
+        surcharge: Number(i.surcharge) || 0,
       }));
 
     setInitialItems(items);

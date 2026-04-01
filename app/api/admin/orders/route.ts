@@ -46,10 +46,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const mappedItems = items.map((i: { catalogProductId: string; quantity: number; surcharge?: number }) => ({
+    catalogProductId: i.catalogProductId,
+    quantity: i.quantity,
+    surcharge: i.surcharge,
+  }));
+
   try {
     const order = asDraft
-      ? await createAdminDraftOrder(admin.userId, userId || null, items, notes)
-      : await createAdminOrder(admin.userId, userId, items, notes);
+      ? await createAdminDraftOrder(admin.userId, userId || null, mappedItems, notes)
+      : await createAdminOrder(admin.userId, userId, mappedItems, notes);
     if (!order) return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);

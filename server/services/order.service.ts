@@ -17,8 +17,11 @@ import { getUserDiscount, applyDiscount } from "../lib/discount";
 const SHIPPING_COST = 25;
 const VAT_RATE = 0.2;
 
-export function calculateOrderTotals(items: { unitPrice: number; quantity: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number) {
-  const subtotal = items.reduce((sum, item) => sum + Number(item.unitPrice) * item.quantity, 0);
+export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number) {
+  const subtotal = items.reduce((sum, item) => {
+    const base = Number(item.unitPrice) * item.quantity;
+    return sum + base + base * ((Number(item.surcharge) || 0) / 100);
+  }, 0);
   const shipping = includeShipping ? SHIPPING_COST : 0;
   const freight = Number(freightCharge) || 0;
   const vat = (subtotal + shipping + freight) * VAT_RATE;
@@ -284,6 +287,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
           categoryName: i.catalogProduct?.category?.name || null,
           quantity: i.quantity,
           unitPrice: Number(i.unitPrice),
+          surcharge: Number(i.surcharge) || 0,
         })),
         subtotal: totals.subtotal,
         vat: totals.vat,
@@ -475,7 +479,7 @@ export async function getAvailableStock(productId: string): Promise<number | nul
 export async function createAdminOrder(
   adminUserId: string,
   targetUserId: string,
-  items: { catalogProductId: string; quantity: number }[],
+  items: { catalogProductId: string; quantity: number; surcharge?: number }[],
   notes?: string
 ) {
   const db = await getDb();
@@ -485,7 +489,7 @@ export async function createAdminOrder(
 
   // Look up each catalog product
   const discountPct = await getUserDiscount(targetUserId);
-  const orderItems: { catalogProductId: string; name: string; latinName: string | null; categoryName: string | null; quantity: number; unitPrice: number }[] = [];
+  const orderItems: { catalogProductId: string; name: string; latinName: string | null; categoryName: string | null; quantity: number; unitPrice: number; surcharge: number }[] = [];
   for (const item of items) {
     const product = await catalogRepo.findOne({ where: { id: item.catalogProductId }, relations: ["category"] });
     if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
@@ -497,6 +501,7 @@ export async function createAdminOrder(
       categoryName: product.category?.name || null,
       quantity: item.quantity,
       unitPrice: applyDiscount(Number(product.price), discountPct),
+      surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }
 
@@ -519,6 +524,7 @@ export async function createAdminOrder(
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        surcharge: item.surcharge,
       })
     )
   );
@@ -580,7 +586,7 @@ export async function createAdminOrder(
 export async function createAdminDraftOrder(
   adminUserId: string,
   targetUserId: string | null,
-  items: { catalogProductId: string; quantity: number }[],
+  items: { catalogProductId: string; quantity: number; surcharge?: number }[],
   notes?: string
 ) {
   const db = await getDb();
@@ -590,7 +596,7 @@ export async function createAdminDraftOrder(
 
   const discountPct = targetUserId ? await getUserDiscount(targetUserId) : 0;
 
-  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number; surcharge: number }[] = [];
   for (const item of items) {
     const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
     if (!product) throw new Error(`Catalog product not found: ${item.catalogProductId}`);
@@ -599,6 +605,7 @@ export async function createAdminDraftOrder(
       name: product.name,
       quantity: item.quantity,
       unitPrice: applyDiscount(Number(product.price), discountPct),
+      surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }
 
@@ -619,6 +626,7 @@ export async function createAdminDraftOrder(
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        surcharge: item.surcharge,
       })
     )
   );
@@ -628,7 +636,7 @@ export async function createAdminDraftOrder(
 
 export async function updateAdminDraftOrder(
   orderId: string,
-  items: { catalogProductId: string; quantity: number }[],
+  items: { catalogProductId: string; quantity: number; surcharge?: number }[],
   notes?: string,
   userId?: string | null
 ) {
@@ -659,7 +667,7 @@ export async function updateAdminDraftOrder(
   const effectiveUserId = (userId !== undefined ? userId : order.userId) || null;
   const discountPct = effectiveUserId ? await getUserDiscount(effectiveUserId) : 0;
 
-  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
+  const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number; surcharge: number }[] = [];
   for (const item of items) {
     const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
     if (!product) continue;
@@ -668,6 +676,7 @@ export async function updateAdminDraftOrder(
       name: product.name,
       quantity: item.quantity,
       unitPrice: applyDiscount(Number(product.price), discountPct),
+      surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }
 
@@ -680,6 +689,7 @@ export async function updateAdminDraftOrder(
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        surcharge: item.surcharge,
       })
     )
   );

@@ -29,6 +29,9 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "int", nullable: true })
   availableQty: number | null;
 
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  surcharge: number;
+
   @Column({ type: "jsonb", nullable: true })
   originalRow: Record<string, unknown>;
 }

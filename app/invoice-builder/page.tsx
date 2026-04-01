@@ -17,12 +17,6 @@ interface ParsedFile {
   items: ParsedItem[];
 }
 
-interface CartItem {
-  fileIndex: number;
-  itemIndex: number;
-  quantity: number;
-}
-
 const SHIPPING_HANDLING = 225;
 
 // Convert to title case (handles uppercase text)
@@ -35,16 +29,15 @@ function parseItemName(name: string): {
   cleanName: string;
   minQty: string | null;
 } {
-  // Match patterns like "5 FISH MIN.", "10 MIN", "(MIN 5)", "MINIMUM 3" etc.
   const minPatterns = [
-    /\s*-?\s*(\d+)\s+\w*\s*MIN\.?\s*$/i, // "5 FISH MIN." or "5 MIN"
-    /\s*\(?\s*(\d+)\s*MIN\.?\s*\)?$/i, // "(5 MIN)" or "5 MIN"
-    /\s*\(?\s*MIN\.?\s*(\d+)\s*\)?$/i, // "(MIN 5)" or "MIN 5"
-    /\s*\(?\s*MINIMUM\s*[:\s]*(\d+)\s*\)?$/i, // "MINIMUM 5" or "MINIMUM: 5"
-    /\s*\(?\s*(\d+)\s*MINIMUM\s*\)?$/i, // "5 MINIMUM"
-    /\s*-\s*(\d+)\s*MIN\.?$/i, // "- 5 MIN"
-    /\s*x\s*(\d+)\s*MIN\.?$/i, // "x5 MIN"
-    /\s*\(\s*(\d+)\s*\)\s*MIN\.?\s*$/i, // "(5) MIN"
+    /\s*-?\s*(\d+)\s+\w*\s*MIN\.?\s*$/i,
+    /\s*\(?\s*(\d+)\s*MIN\.?\s*\)?$/i,
+    /\s*\(?\s*MIN\.?\s*(\d+)\s*\)?$/i,
+    /\s*\(?\s*MINIMUM\s*[:\s]*(\d+)\s*\)?$/i,
+    /\s*\(?\s*(\d+)\s*MINIMUM\s*\)?$/i,
+    /\s*-\s*(\d+)\s*MIN\.?$/i,
+    /\s*x\s*(\d+)\s*MIN\.?$/i,
+    /\s*\(\s*(\d+)\s*\)\s*MIN\.?\s*$/i,
   ];
 
   for (const pattern of minPatterns) {
@@ -68,6 +61,10 @@ function InvoiceBuilderContent() {
   const [checkingUrl, setCheckingUrl] = useState(true);
   const [expandedFiles, setExpandedFiles] = useState<Set<number>>(new Set());
   const [cart, setCart] = useState<Map<string, number>>(new Map());
+
+  // Surcharge state
+  const [itemSurcharges, setItemSurcharges] = useState<Map<string, number>>(new Map());
+  const [invoiceSurcharge, setInvoiceSurcharge] = useState(0);
 
   useEffect(() => {
     const urlPassword = searchParams.get("p");
@@ -141,15 +138,10 @@ function InvoiceBuilderContent() {
   const getQuantity = (fileIndex: number, itemIndex: number) =>
     cart.get(getCartKey(fileIndex, itemIndex)) || 0;
 
-  const updateQuantity = (
-    fileIndex: number,
-    itemIndex: number,
-    delta: number
-  ) => {
+  const updateQuantity = (fileIndex: number, itemIndex: number, delta: number) => {
     const key = getCartKey(fileIndex, itemIndex);
     const current = cart.get(key) || 0;
     const newQty = Math.max(0, current + delta);
-
     const newCart = new Map(cart);
     if (newQty === 0) {
       newCart.delete(key);
@@ -170,34 +162,54 @@ function InvoiceBuilderContent() {
     setCart(newCart);
   };
 
+  const getItemSurcharge = (fileIndex: number, itemIndex: number) =>
+    itemSurcharges.get(getCartKey(fileIndex, itemIndex)) || 0;
+
+  const setItemSurcharge = (fileIndex: number, itemIndex: number, pct: number) => {
+    const key = getCartKey(fileIndex, itemIndex);
+    const newMap = new Map(itemSurcharges);
+    if (pct <= 0) {
+      newMap.delete(key);
+    } else {
+      newMap.set(key, pct);
+    }
+    setItemSurcharges(newMap);
+  };
+
   const getItemTotal = (fileIndex: number, itemIndex: number) => {
     const qty = getQuantity(fileIndex, itemIndex);
     const item = files[fileIndex]?.items[itemIndex];
-    return qty * (item?.price || 0);
+    const base = qty * (item?.price || 0);
+    const surPct = getItemSurcharge(fileIndex, itemIndex);
+    return base + base * (surPct / 100);
   };
 
   const getShipmentSubtotal = (fileIndex: number) => {
     let total = 0;
     const file = files[fileIndex];
     if (!file) return 0;
-
-    file.items.forEach((item, itemIndex) => {
-      const qty = getQuantity(fileIndex, itemIndex);
-      total += qty * item.price;
+    file.items.forEach((_, itemIndex) => {
+      total += getItemTotal(fileIndex, itemIndex);
     });
     return total;
   };
 
+  const getShipmentSurchargeAmount = (fileIndex: number) => {
+    const subtotal = getShipmentSubtotal(fileIndex);
+    return subtotal * (invoiceSurcharge / 100);
+  };
+
   const getShipmentGrandTotal = (fileIndex: number) => {
     const subtotal = getShipmentSubtotal(fileIndex);
-    return subtotal > 0 ? subtotal + SHIPPING_HANDLING : 0;
+    if (subtotal <= 0) return 0;
+    const surchargeAmt = subtotal * (invoiceSurcharge / 100);
+    return subtotal + surchargeAmt + SHIPPING_HANDLING;
   };
 
   const getShipmentItemCount = (fileIndex: number) => {
     let count = 0;
     const file = files[fileIndex];
     if (!file) return 0;
-
     file.items.forEach((_, itemIndex) => {
       count += getQuantity(fileIndex, itemIndex);
     });
@@ -245,26 +257,12 @@ function InvoiceBuilderContent() {
             <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-8 md:p-12">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[#0984E3]/20 flex items-center justify-center">
-                  <svg
-                    className="w-8 h-8 text-[#0984E3]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
+                  <svg className="w-8 h-8 text-[#0984E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                  Invoice Builder
-                </h1>
-                <p className="text-white/50">
-                  Enter your password to build an invoice
-                </p>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Invoice Builder</h1>
+                <p className="text-white/50">Enter your password to build an invoice</p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
@@ -276,13 +274,11 @@ function InvoiceBuilderContent() {
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 focus:ring-2 focus:ring-[#0984E3]/20 transition-all"
                   autoFocus
                 />
-
                 {error && (
                   <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
                     <p className="text-red-400 text-sm text-center">{error}</p>
                   </div>
                 )}
-
                 <button
                   type="submit"
                   disabled={loading || !password}
@@ -300,12 +296,73 @@ function InvoiceBuilderContent() {
             /* Invoice Builder */
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                  Invoice Builder
-                </h1>
-                <p className="text-white/50">
-                  Select items from upcoming shipments
-                </p>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Invoice Builder</h1>
+                <p className="text-white/50">Select items from upcoming shipments</p>
+              </div>
+
+              {/* Surcharge Controls */}
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                      <span className="text-amber-400 text-xs font-bold">%</span>
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">Freight Excess</p>
+                      <p className="text-white/40 text-xs">Applied to entire invoice subtotal</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={invoiceSurcharge || ""}
+                      onChange={(e) => setInvoiceSurcharge(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-white/40 text-sm">%</span>
+                  </div>
+                </div>
+                <div className="border-t border-white/5 pt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                      <span className="text-white/40 text-xs font-bold">%</span>
+                    </div>
+                    <div>
+                      <p className="text-white/70 text-sm font-medium">Set All Item Surcharges</p>
+                      <p className="text-white/40 text-xs">Apply same % surcharge to every item (per-item)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      id="bulk-item-surcharge"
+                      placeholder="0"
+                      className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right tabular-nums focus:outline-none focus:border-[#0984E3]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-white/40 text-sm">%</span>
+                    <button
+                      onClick={() => {
+                        const input = document.getElementById("bulk-item-surcharge") as HTMLInputElement;
+                        const pct = parseFloat(input?.value) || 0;
+                        const newMap = new Map<string, number>();
+                        files.forEach((file, fi) => {
+                          file.items.forEach((_, ii) => {
+                            if (pct > 0) newMap.set(getCartKey(fi, ii), pct);
+                          });
+                        });
+                        setItemSurcharges(newMap);
+                      }}
+                      className="px-3 py-2 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Shipment Cards */}
@@ -322,47 +379,24 @@ function InvoiceBuilderContent() {
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-[#0984E3]/20 flex items-center justify-center flex-shrink-0">
-                          <svg
-                            className="w-6 h-6 text-[#0984E3]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                            />
+                          <svg className="w-6 h-6 text-[#0984E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
                         </div>
                         <div className="text-left">
-                          <p className="text-white font-semibold">
-                            {file.displayName}
-                          </p>
-                          <p className="text-amber-400 text-sm font-medium">
-                            Deadline: {file.deadline}
-                          </p>
+                          <p className="text-white font-semibold">{file.displayName}</p>
+                          <p className="text-amber-400 text-sm font-medium">Deadline: {file.deadline}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-white/40 text-sm">
-                          {file.items.length} items
-                        </span>
+                        <span className="text-white/40 text-sm">{file.items.length} items</span>
                         <svg
-                          className={`w-5 h-5 text-white/40 transition-transform duration-200 ${
-                            expandedFiles.has(fileIndex) ? "rotate-180" : ""
-                          }`}
+                          className={`w-5 h-5 text-white/40 transition-transform duration-200 ${expandedFiles.has(fileIndex) ? "rotate-180" : ""}`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
                     </button>
@@ -371,128 +405,88 @@ function InvoiceBuilderContent() {
                     {expandedFiles.has(fileIndex) && (
                       <div className="border-t border-white/10">
                         {file.items.length === 0 ? (
-                          <div className="p-6 text-center text-white/40">
-                            No items found in this file
-                          </div>
+                          <div className="p-6 text-center text-white/40">No items found in this file</div>
                         ) : (
                           <>
                             {/* Column Headers */}
                             <div className="px-5 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
                               <div className="min-w-0 flex-1">
-                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
-                                  Item
-                                </p>
+                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p>
                               </div>
                               <div className="text-right shrink-0 w-16">
-                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
-                                  Price
-                                </p>
+                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p>
+                              </div>
+                              <div className="shrink-0 w-16 text-center">
+                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Sur %</p>
                               </div>
                               <div className="shrink-0 w-[86px] text-center">
-                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
-                                  Qty
-                                </p>
+                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p>
                               </div>
                               <div className="text-right shrink-0 w-20">
-                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">
-                                  Total
-                                </p>
+                                <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p>
                               </div>
                             </div>
 
                             <div className="divide-y divide-white/5">
                               {file.items.map((item, itemIndex) => {
                                 const qty = getQuantity(fileIndex, itemIndex);
-                                const itemTotal = getItemTotal(
-                                  fileIndex,
-                                  itemIndex
-                                );
-                                const { cleanName, minQty } = parseItemName(
-                                  item.name
-                                );
+                                const itemTotal = getItemTotal(fileIndex, itemIndex);
+                                const surPct = getItemSurcharge(fileIndex, itemIndex);
+                                const { cleanName, minQty } = parseItemName(item.name);
 
                                 return (
                                   <div
                                     key={itemIndex}
-                                    className={`px-5 py-3 flex items-center gap-4 transition-colors ${
-                                      qty > 0
-                                        ? "bg-[#0984E3]/5"
-                                        : "hover:bg-white/[0.02]"
-                                    }`}
+                                    className={`px-5 py-3 flex items-center gap-4 transition-colors ${qty > 0 ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}
                                   >
-                                    {/* Item Info */}
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-white/90 text-[13px] leading-snug font-medium font-semibold">
-                                        {cleanName}
-                                      </p>
-                                      {minQty && (
-                                        <p className="text-white/30 text-[11px] mt-0.5">
-                                          Minimum {minQty}
-                                        </p>
-                                      )}
+                                      <p className="text-white/90 text-[13px] leading-snug font-medium font-semibold">{cleanName}</p>
+                                      {minQty && <p className="text-white/30 text-[11px] mt-0.5">Minimum {minQty}</p>}
                                     </div>
 
-                                    {/* Price */}
                                     <div className="text-right shrink-0 w-16">
-                                      <p className="text-white/60 text-xs tabular-nums">
-                                        {formatPrice(item.price)}
-                                      </p>
+                                      <p className="text-white/60 text-xs tabular-nums">{formatPrice(item.price)}</p>
                                     </div>
 
-                                    {/* Quantity Stepper */}
+                                    {/* Per-item surcharge % */}
+                                    <div className="shrink-0 w-16">
+                                      <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        value={surPct || ""}
+                                        onChange={(e) => setItemSurcharge(fileIndex, itemIndex, parseFloat(e.target.value) || 0)}
+                                        placeholder="0"
+                                        className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/60 text-xs text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      />
+                                    </div>
+
                                     <div className="flex items-center shrink-0">
                                       <button
-                                        onClick={() =>
-                                          updateQuantity(
-                                            fileIndex,
-                                            itemIndex,
-                                            -1
-                                          )
-                                        }
+                                        onClick={() => updateQuantity(fileIndex, itemIndex, -1)}
                                         className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all"
                                       >
-                                        <span className="text-sm font-medium">
-                                          −
-                                        </span>
+                                        <span className="text-sm font-medium">−</span>
                                       </button>
                                       <input
                                         type="number"
                                         value={qty}
-                                        onChange={(e) =>
-                                          setQuantity(
-                                            fileIndex,
-                                            itemIndex,
-                                            parseInt(e.target.value) || 0
-                                          )
-                                        }
+                                        onChange={(e) => setQuantity(fileIndex, itemIndex, parseInt(e.target.value) || 0)}
                                         className="w-8 h-7 bg-transparent text-white text-center text-xs font-medium focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       />
                                       <button
-                                        onClick={() =>
-                                          updateQuantity(
-                                            fileIndex,
-                                            itemIndex,
-                                            1
-                                          )
-                                        }
+                                        onClick={() => updateQuantity(fileIndex, itemIndex, 1)}
                                         className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all"
                                       >
-                                        <span className="text-sm font-medium">
-                                          +
-                                        </span>
+                                        <span className="text-sm font-medium">+</span>
                                       </button>
                                     </div>
 
-                                    {/* Line Total */}
                                     <div className="text-right shrink-0 w-20">
                                       {qty > 0 ? (
-                                        <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
-                                          {formatPrice(itemTotal)}
-                                        </p>
+                                        <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(itemTotal)}</p>
                                       ) : (
-                                        <p className="text-white/20 text-sm tabular-nums">
-                                          —
-                                        </p>
+                                        <p className="text-white/20 text-sm tabular-nums">—</p>
                                       )}
                                     </div>
                                   </div>
@@ -504,30 +498,23 @@ function InvoiceBuilderContent() {
                             {getShipmentSubtotal(fileIndex) > 0 && (
                               <div className="border-t border-white/10 bg-white/[0.02] p-4 space-y-2">
                                 <div className="flex items-center justify-between text-white/60 text-sm">
-                                  <span>
-                                    Subtotal ({getShipmentItemCount(fileIndex)}{" "}
-                                    items)
-                                  </span>
-                                  <span>
-                                    {formatPrice(
-                                      getShipmentSubtotal(fileIndex)
-                                    )}
-                                  </span>
+                                  <span>Subtotal ({getShipmentItemCount(fileIndex)} items)</span>
+                                  <span>{formatPrice(getShipmentSubtotal(fileIndex))}</span>
                                 </div>
+                                {invoiceSurcharge > 0 && (
+                                  <div className="flex items-center justify-between text-amber-400/80 text-sm">
+                                    <span>Freight Excess ({invoiceSurcharge}%)</span>
+                                    <span>{formatPrice(getShipmentSurchargeAmount(fileIndex))}</span>
+                                  </div>
+                                )}
                                 <div className="flex items-center justify-between text-white/60 text-sm">
                                   <span>Shipping + Handling</span>
                                   <span>{formatPrice(SHIPPING_HANDLING)}</span>
                                 </div>
                                 <div className="h-px bg-white/10" />
                                 <div className="flex items-center justify-between">
-                                  <span className="text-white font-semibold">
-                                    Grand Total
-                                  </span>
-                                  <span className="text-[#0984E3] font-bold text-lg">
-                                    {formatPrice(
-                                      getShipmentGrandTotal(fileIndex)
-                                    )}
-                                  </span>
+                                  <span className="text-white font-semibold">Grand Total</span>
+                                  <span className="text-[#0984E3] font-bold text-lg">{formatPrice(getShipmentGrandTotal(fileIndex))}</span>
                                 </div>
                               </div>
                             )}

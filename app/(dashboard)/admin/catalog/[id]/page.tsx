@@ -30,6 +30,7 @@ export default function EditCatalogProductPage() {
   const [stockLevel, setStockLevel] = useState("AVERAGE");
   const [active, setActive] = useState(true);
   const [wysiwyg, setWysiwyg] = useState(false);
+  const [surcharge, setSurcharge] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
@@ -59,6 +60,7 @@ export default function EditCatalogProductPage() {
       setStockLevel(p.stockLevel || "AVERAGE");
       setActive(p.active);
       setWysiwyg(p.wysiwyg ?? false);
+      setSurcharge(p.surcharge ? String(Number(p.surcharge)) : "");
     }
     setLoading(false);
   }, [params.id]);
@@ -134,6 +136,7 @@ export default function EditCatalogProductPage() {
         stockLevel: stockMode === "ROUGH" ? stockLevel : null,
         active,
         wysiwyg,
+        surcharge: parseFloat(surcharge) || 0,
       }),
     });
     setSaving(false);
@@ -175,10 +178,14 @@ export default function EditCatalogProductPage() {
             <input value={latinName} onChange={(e) => setLatinName(e.target.value)} placeholder="e.g. Acropora millepora" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/20 italic focus:outline-none focus:border-[#0984E3]/50" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Price</label>
               <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div>
+              <label className="text-amber-400/70 text-xs uppercase tracking-wider font-medium mb-2 block">Surcharge %</label>
+              <input type="number" step="0.1" min="0" value={surcharge} onChange={(e) => setSurcharge(e.target.value)} placeholder="0" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
             </div>
             <div>
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Type</label>

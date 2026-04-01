@@ -61,6 +61,7 @@ export interface CatalogProductListItem {
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;
+  surcharge: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;

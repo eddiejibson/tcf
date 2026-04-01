@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       stockMode: p.stockMode,
       stockQty: p.stockQty,
       stockLevel: p.stockLevel,
+      surcharge: Number(p.surcharge) || 0,
       wysiwyg: p.wysiwyg,
     }))
   );

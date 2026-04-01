@@ -24,6 +24,7 @@ interface SearchProduct {
   stockMode: string;
   stockQty: number | null;
   stockLevel: string | null;
+  surcharge?: number;
 }
 
 export interface OrderLineItem {
@@ -32,6 +33,7 @@ export interface OrderLineItem {
   price: number;
   type: string;
   quantity: number;
+  surcharge: number;
 }
 
 const stockLevelColors: Record<string, string> = {
@@ -165,7 +167,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId: selectedUserId || null,
-              items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity })),
+              items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
               notes: notes || undefined,
               asDraft: true,
             }),
@@ -180,7 +182,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              draftItems: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity })),
+              draftItems: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
               notes: notes || undefined,
               userId: selectedUserId || null,
             }),
@@ -215,8 +217,15 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
         price: Number(product.price),
         type: product.type,
         quantity: 1,
+        surcharge: Number(product.surcharge) || 0,
       }]);
     }
+  };
+
+  const updateItemSurcharge = (catalogProductId: string, surcharge: number) => {
+    setOrderItems(orderItems.map((i) =>
+      i.catalogProductId === catalogProductId ? { ...i, surcharge } : i
+    ));
   };
 
   const updateQty = (catalogProductId: string, qty: number) => {
@@ -233,7 +242,10 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
     setOrderItems(orderItems.filter((i) => i.catalogProductId !== catalogProductId));
   };
 
-  const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = orderItems.reduce((sum, i) => {
+    const base = i.price * i.quantity;
+    return sum + base + base * ((i.surcharge || 0) / 100);
+  }, 0);
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
 
@@ -265,7 +277,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedUserId,
-          items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity })),
+          items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
           notes: notes || undefined,
         }),
       });
@@ -282,7 +294,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
 
   const handleProductCreated = (product: { id: string; name: string; price: number; type: string }) => {
     setShowNewProduct(false);
-    addItem({ ...product, categoryId: "", categoryName: "", images: [], stockMode: "EXACT", stockQty: null, stockLevel: null });
+    addItem({ ...product, categoryId: "", categoryName: "", images: [], stockMode: "EXACT", stockQty: null, stockLevel: null, surcharge: 0 });
     fetchProducts();
   };
 
@@ -459,33 +471,72 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
               <p className="text-white/30 text-sm">No items added yet</p>
             ) : (
               <div className="space-y-3 mb-4">
-                {orderItems.map((item) => (
-                  <div key={item.catalogProductId} className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white/90 text-sm truncate">{item.name}</p>
-                      <p className="text-white/40 text-xs">{formatPrice(item.price)} each</p>
+                {orderItems.map((item) => {
+                  const base = item.price * item.quantity;
+                  const lineTotal = base + base * ((item.surcharge || 0) / 100);
+                  return (
+                    <div key={item.catalogProductId} className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/90 text-sm truncate">{item.name}</p>
+                        <p className="text-white/40 text-xs">{formatPrice(item.price)} each</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-amber-400/60 text-[10px]">Sur %</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={item.surcharge || ""}
+                            onChange={(e) => updateItemSurcharge(item.catalogProductId, parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-12 px-1 py-0.5 bg-white/5 border border-white/10 rounded text-white/60 text-[10px] text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => updateQty(item.catalogProductId, item.quantity - 1)}
+                          className="w-6 h-6 rounded bg-white/10 text-white/60 hover:text-white text-xs flex items-center justify-center transition-colors"
+                        >
+                          -
+                        </button>
+                        <span className="text-white text-sm w-6 text-center tabular-nums">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQty(item.catalogProductId, item.quantity + 1)}
+                          className="w-6 h-6 rounded bg-white/10 text-white/60 hover:text-white text-xs flex items-center justify-center transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(lineTotal)}</p>
+                        <button onClick={() => removeItem(item.catalogProductId)} className="text-red-400/40 hover:text-red-400 text-[10px] transition-colors">Remove</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateQty(item.catalogProductId, item.quantity - 1)}
-                        className="w-6 h-6 rounded bg-white/10 text-white/60 hover:text-white text-xs flex items-center justify-center transition-colors"
-                      >
-                        -
-                      </button>
-                      <span className="text-white text-sm w-6 text-center tabular-nums">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQty(item.catalogProductId, item.quantity + 1)}
-                        className="w-6 h-6 rounded bg-white/10 text-white/60 hover:text-white text-xs flex items-center justify-center transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.price * item.quantity)}</p>
-                      <button onClick={() => removeItem(item.catalogProductId)} className="text-red-400/40 hover:text-red-400 text-[10px] transition-colors">Remove</button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
+
+                {/* Bulk surcharge */}
+                <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+                  <span className="text-amber-400/60 text-[10px] shrink-0">Set all %</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    id="order-bulk-surcharge"
+                    placeholder="0"
+                    className="w-14 px-1.5 py-1 bg-white/5 border border-white/10 rounded text-white/60 text-[10px] text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById("order-bulk-surcharge") as HTMLInputElement;
+                      const pct = parseFloat(input?.value) || 0;
+                      setOrderItems(orderItems.map((i) => ({ ...i, surcharge: pct })));
+                    }}
+                    className="px-2 py-1 bg-amber-500/20 text-amber-400 text-[10px] font-medium rounded hover:bg-amber-500/30 transition-all"
+                  >
+                    Apply
+                  </button>
+                </div>
               </div>
             )}
 

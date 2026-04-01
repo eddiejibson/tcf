@@ -141,7 +141,7 @@ export type AdminOrderListItem = Pick<SerializedOrder, "id" | "status" | "create
   total: number;
 };
 
-export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "substituteProductId" | "substituteName" | "catalogProductId"> & {
+export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "surcharge" | "substituteProductId" | "substituteName" | "catalogProductId"> & {
   latinName?: string | null;
   categoryName?: string | null;
 };

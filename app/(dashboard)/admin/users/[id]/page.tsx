@@ -146,14 +146,10 @@ export default function AdminUserDetailPage() {
                 <p className="text-white text-sm">{user.email}</p>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-4 pt-2 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Orders</p>
                 <p className="text-white text-sm font-semibold">{user.orderCount}</p>
-              </div>
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Credit</p>
-                <p className={`text-sm font-semibold ${user.creditBalance > 0 ? "text-emerald-400" : "text-white/40"}`}>{formatPrice(user.creditBalance)}</p>
               </div>
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Last Login</p>

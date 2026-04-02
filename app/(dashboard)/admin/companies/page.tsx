@@ -3,10 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
+function formatPrice(n: number) {
+  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 interface CompanyRow {
   id: string;
   name: string;
   discount: number;
+  creditBalance: number;
   userCount: number;
   createdAt: string;
 }
@@ -20,6 +25,10 @@ export default function AdminCompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendDoneId, setResendDoneId] = useState<string | null>(null);
+  const [creditCompanyId, setCreditCompanyId] = useState<string | null>(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditDescription, setCreditDescription] = useState("");
+  const [creditSaving, setCreditSaving] = useState(false);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -114,12 +123,47 @@ export default function AdminCompaniesPage() {
         </Link>
       </div>
 
+      {creditCompanyId && (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+          <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Adjust Credit for {companies.find((c) => c.id === creditCompanyId)?.name}</p>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!creditCompanyId || !creditAmount) return;
+            setCreditSaving(true);
+            const res = await fetch(`/api/admin/companies/${creditCompanyId}/credit`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ amount: parseFloat(creditAmount), description: creditDescription }),
+            });
+            if (res.ok) {
+              setCreditCompanyId(null);
+              setCreditAmount("");
+              setCreditDescription("");
+              fetchCompanies();
+            }
+            setCreditSaving(false);
+          }} className="flex flex-wrap items-end gap-3 md:gap-4">
+            <div className="w-36">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Amount</label>
+              <input type="number" step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm" placeholder="10.00" required autoFocus />
+            </div>
+            <div className="flex-1">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Description</label>
+              <input type="text" value={creditDescription} onChange={(e) => setCreditDescription(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm" placeholder="Reason for adjustment..." />
+            </div>
+            <button type="submit" disabled={creditSaving || !creditAmount} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all">{creditSaving ? "Saving..." : "Apply"}</button>
+            <button type="button" onClick={() => { setCreditCompanyId(null); setCreditAmount(""); setCreditDescription(""); }} className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors">Cancel</button>
+          </form>
+        </div>
+      )}
+
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
         {/* Table header */}
-        <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_80px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
+        <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_120px_80px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Company</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Users</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Discount</p>
+          <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p>
           <div></div>
         </div>
@@ -133,14 +177,14 @@ export default function AdminCompaniesPage() {
             {companies.map((company) => (
               <div
                 key={company.id}
-                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_80px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
+                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
               >
-                <div>
+                <Link href={`/admin/companies/${company.id}`} className="block hover:opacity-80 transition-opacity">
                   <p className="text-white/90 text-sm font-semibold">{company.name}</p>
                   <p className="text-white/30 text-xs md:hidden mt-0.5">
                     {company.userCount} user{company.userCount !== 1 ? "s" : ""}
                   </p>
-                </div>
+                </Link>
                 <p className="hidden md:block text-white/50 text-sm">{company.userCount}</p>
                 <div>
                   {editingId === company.id ? (
@@ -197,6 +241,13 @@ export default function AdminCompaniesPage() {
                       </svg>
                     </button>
                   )}
+                </div>
+                <div className="hidden md:flex items-center gap-1.5">
+                  <span className={`text-sm font-medium tabular-nums ${company.creditBalance > 0 ? "text-emerald-400" : "text-white/40"}`}>{formatPrice(company.creditBalance)}</span>
+                  <button
+                    onClick={() => setCreditCompanyId(creditCompanyId === company.id ? null : company.id)}
+                    className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-[10px] text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                  >Adj</button>
                 </div>
                 <p className="hidden md:block text-white/30 text-xs">
                   {new Date(company.createdAt).toLocaleDateString("en-GB", {

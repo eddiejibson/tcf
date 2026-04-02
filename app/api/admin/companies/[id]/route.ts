@@ -27,6 +27,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     name: company.name,
     companyNumber: company.companyNumber,
     discount: Number(company.discount) || 0,
+    creditBalance: Number(company.creditBalance) || 0,
     createdAt: company.createdAt,
     users: users.map((u) => ({
       id: u.id,

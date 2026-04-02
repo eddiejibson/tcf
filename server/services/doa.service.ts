@@ -6,7 +6,7 @@ import { Order } from "../entities/Order";
 import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
-import { addDoaCredit } from "./credit.service";
+import { addDoaCredit, getCompanyIdForUser } from "./credit.service";
 import JSZip from "jszip";
 
 export async function createDoaClaim(
@@ -202,10 +202,12 @@ export async function generateDoaReport(shipmentId: string) {
         creditAmount += item.quantity * Number(item.orderItem.unitPrice);
       }
     }
-    if (creditAmount > 0) {
+    if (creditAmount > 0 && claim.order.userId) {
       try {
+        const companyId = await getCompanyIdForUser(claim.order.userId);
+        if (!companyId) throw new Error("User has no company — cannot credit");
         await addDoaCredit(
-          claim.order.userId!,
+          companyId,
           creditAmount,
           `DOA credit: ${shipment.name}`,
           claim.id

@@ -206,7 +206,7 @@ export default function Home() {
       </section>
 
       {/* ===== HERO TO CONTENT WAVE DIVIDER (Desktop) ===== */}
-      <div className="hidden md:block relative h-20 -mt-20 z-30">
+      <div className="hidden md:block relative h-20 -mt-20 z-30 overflow-visible">
         <svg
           className="absolute bottom-0 w-full h-full"
           viewBox="0 0 1440 80"
@@ -214,14 +214,14 @@ export default function Home() {
         >
           <path d="M0,80 Q360,0 720,40 T1440,20 L1440,80 Z" fill="#151b23" />
         </svg>
+        {/* Ambient gradient glow that bleeds into the section below */}
+        <div className="absolute -bottom-48 left-0 w-[700px] h-[500px] pointer-events-none" style={{ background: "radial-gradient(ellipse at 30% 20%, hsla(210, 80%, 55%, 0.07) 0%, transparent 70%)", filter: "blur(80px)" }} />
+        <div className="absolute -bottom-40 right-0 w-[600px] h-[450px] pointer-events-none" style={{ background: "radial-gradient(ellipse at 70% 20%, hsla(190, 80%, 50%, 0.05) 0%, transparent 70%)", filter: "blur(80px)" }} />
       </div>
 
 
       {/* ===== OUR PROCESS SECTION ===== */}
-      <section className="px-6 md:px-[100px] lg:px-[140px] -mt-6 md:mt-0 py-16 md:py-28 relative overflow-hidden">
-        {/* Ambient gradient glow bleeding from hero */}
-        <div className="absolute top-0 left-0 w-[600px] h-[400px] pointer-events-none -translate-y-1/3" style={{ background: "radial-gradient(ellipse at 20% 0%, hsla(210, 80%, 55%, 0.08) 0%, transparent 70%)", filter: "blur(60px)" }} />
-        <div className="absolute top-0 right-0 w-[500px] h-[350px] pointer-events-none -translate-y-1/4" style={{ background: "radial-gradient(ellipse at 80% 0%, hsla(190, 80%, 50%, 0.06) 0%, transparent 70%)", filter: "blur(60px)" }} />
+      <section className="px-6 md:px-[100px] lg:px-[140px] -mt-6 md:mt-0 py-16 md:py-28 relative">
         <div className="max-w-6xl mx-auto">
           <BlurIn>
             <p className="text-[#0984E3] font-semibold text-sm tracking-widest uppercase mb-3">

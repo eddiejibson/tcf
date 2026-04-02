@@ -347,6 +347,7 @@ export async function sendAdminOrderCreated(
 ) {
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
   const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
+  const payUrl = `${baseUrl}/pay/${orderId}`;
 
   await sendWithRetry({
     from: from(),
@@ -358,12 +359,17 @@ export async function sendAdminOrderCreated(
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">An order has been created for you by The Coral Farm.</p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
-        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in to complete payment.</p>
-        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Log In &amp; Pay</a>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in or use the quick pay link below to complete payment.</p>
+        <div style="margin-bottom: 12px;">
+          <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">Log In &amp; Pay</a>
+        </div>
+        <div>
+          <a href="${payUrl}" style="display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #ffffffcc; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: 600; font-size: 14px;">Pay Without Logging In</a>
+        </div>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
       </div>
     `,
-    text: `An order has been created for you by The Coral Farm. Order #${orderRef}, Total: ${orderTotal}. Your invoice is attached. Log in and pay: ${viewUrl}`,
+    text: `An order has been created for you by The Coral Farm. Order #${orderRef}, Total: ${orderTotal}. Your invoice is attached. Log in and pay: ${viewUrl} — Or pay without logging in: ${payUrl}`,
     attachments: [
       {
         filename: `TCF-Invoice-${orderRef}.pdf`,

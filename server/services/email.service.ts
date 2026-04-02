@@ -178,6 +178,7 @@ export async function sendOrderAcceptedWithInvoice(
 ) {
   const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
   const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
+  const payUrl = `${baseUrl}/pay/${orderId}`;
 
   await sendWithRetry({
     from: from(),
@@ -188,12 +189,17 @@ export async function sendOrderAcceptedWithInvoice(
         <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your order for <strong style="color: #ffffff;">${shipmentName}</strong> has been <strong style="color: #27ae60;">accepted</strong>.</p>
         <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Total: <strong style="color: #0984E3;">${orderTotal}</strong></p>
-        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in to complete payment.</p>
-        <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order &amp; Pay</a>
+        <p style="color: #ffffffcc; font-size: 14px; margin-bottom: 24px;">Your invoice is attached to this email. Please log in or use the quick pay link below to complete payment.</p>
+        <div style="margin-bottom: 12px;">
+          <a href="${viewUrl}" style="display: inline-block; background: #0984E3; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order &amp; Pay</a>
+        </div>
+        <div>
+          <a href="${payUrl}" style="display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #ffffffcc; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: 600; font-size: 14px;">Pay Without Logging In</a>
+        </div>
         <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">If you have any questions, please contact us.</p>
       </div>
     `,
-    text: `Your order for "${shipmentName}" has been accepted. Total: ${orderTotal}. View your order and pay: ${viewUrl}`,
+    text: `Your order for "${shipmentName}" has been accepted. Total: ${orderTotal}. View your order and pay: ${viewUrl} — Or pay without logging in: ${payUrl}`,
     attachments: [
       {
         filename: `TCF-Invoice-${orderRef}.pdf`,

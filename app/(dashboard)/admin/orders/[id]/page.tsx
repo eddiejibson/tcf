@@ -41,6 +41,9 @@ export default function AdminOrderDetailPage() {
   const [maxBoxes, setMaxBoxes] = useState("");
   const [minBoxes, setMinBoxes] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const applyOrderData = useCallback((data: AdminOrderDetail) => {
     setOrder(data);
@@ -192,6 +195,25 @@ export default function AdminOrderDetailPage() {
     });
   };
 
+  const handleResendEmail = async () => {
+    if (!order) return;
+    setResending(true);
+    setResendDone(false);
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resendEmail: true }),
+      });
+      if (res.ok) {
+        setResendDone(true);
+        setTimeout(() => setResendDone(false), 3000);
+      }
+    } finally {
+      setResending(false);
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-4 md:p-8 text-white/40">Order not found</div>;
 
@@ -259,6 +281,55 @@ export default function AdminOrderDetailPage() {
               {(order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && (
                 <button onClick={handleMarkPaid} className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Confirm Payment</button>
               )}
+              {(order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT" || order.status === "PAID") && (
+                <button
+                  onClick={handleResendEmail}
+                  disabled={resending}
+                  className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-white/50 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                >
+                  {resending ? (
+                    <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : resendDone ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      <span className="text-emerald-400">Sent</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                      Resend Email
+                    </>
+                  )}
+                </button>
+              )}
+              {(order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT" || order.status === "PAID") && (
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/pay/${order.id}`;
+                    navigator.clipboard.writeText(url);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2500);
+                  }}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap overflow-hidden ${
+                    linkCopied
+                      ? "bg-gradient-to-r from-emerald-500/25 to-[#0984E3]/25 border border-emerald-500/30 text-emerald-400 scale-105"
+                      : "bg-gradient-to-r from-[#0984E3]/15 to-purple-500/15 border border-[#0984E3]/20 text-[#0984E3] hover:from-[#0984E3]/25 hover:to-purple-500/25 hover:border-[#0984E3]/40 hover:scale-[1.02] active:scale-95"
+                  }`}
+                >
+                  {linkCopied && <span className="absolute inset-0 bg-emerald-400/10 animate-ping rounded-lg" />}
+                  {linkCopied ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 relative" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      <span className="relative">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-4.072a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" /></svg>
+                      Pay Link
+                    </>
+                  )}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -290,7 +361,7 @@ export default function AdminOrderDetailPage() {
 
         {items.map((item, index) => (
           <div key={index} className="min-w-[500px] px-4 md:px-6 py-3 border-b border-white/5">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4">
             <div className="flex-1">
               {isEditable ? (
                 <input value={item.name} onChange={(e) => updateItem(index, "name", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
@@ -340,12 +411,15 @@ export default function AdminOrderDetailPage() {
         ))}
 
         {isEditable && (
-          <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-end gap-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-start gap-4 border-b border-white/10 bg-white/[0.02]">
             <div className="flex-1">
               <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
             </div>
             <div className="w-28">
               <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+            </div>
+            <div className="w-16">
+              <span className="text-white/20 text-xs flex items-center justify-center h-[30px]">—</span>
             </div>
             <div className="w-20">
               <input type="number" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder } from "@/server/services/order.service";
+import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder, formatPrice } from "@/server/services/order.service";
+import { getUserDiscount } from "@/server/lib/discount";
 import { Order, OrderStatus } from "@/server/entities/Order";
 import { OrderItem } from "@/server/entities/OrderItem";
 import { getDb } from "@/server/db/data-source";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
+import { sendOrderAcceptedWithInvoice } from "@/server/services/email.service";
+import { generateInvoiceBuffer } from "@/server/services/invoice.service";
+import type { InvoiceData } from "@/app/lib/generate-invoice";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -101,6 +105,51 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (body.markPaid) {
       await markOrderPaid(id, body.paymentReference);
+    }
+
+    // Resend invoice email
+    if (body.resendEmail) {
+      const resendOrder = await getOrderById(id);
+      if (resendOrder && resendOrder.user) {
+        const totals = calculateOrderTotals(resendOrder.items, resendOrder.includeShipping, resendOrder.freightCharge, resendOrder.creditApplied);
+        const orderRef = resendOrder.id.slice(0, 8).toUpperCase();
+        const discountPct = resendOrder.userId ? await getUserDiscount(resendOrder.userId) : 0;
+        const invoiceData: InvoiceData = {
+          orderRef,
+          date: new Date(resendOrder.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+          status: resendOrder.status,
+          customerEmail: resendOrder.user.email,
+          customerCompanyName: resendOrder.user.companyName,
+          shipmentName: resendOrder.shipment?.name || "Direct Order",
+          items: resendOrder.items.map((i) => ({
+            name: i.name,
+            latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+            categoryName: i.catalogProduct?.category?.name || null,
+            quantity: i.quantity,
+            unitPrice: Number(i.unitPrice),
+            surcharge: Number(i.surcharge) || 0,
+          })),
+          subtotal: totals.subtotal,
+          vat: totals.vat,
+          shipping: totals.shipping,
+          freight: totals.freight,
+          credit: totals.credit,
+          total: totals.total,
+          includeShipping: resendOrder.includeShipping,
+          paymentMethod: resendOrder.paymentMethod,
+          paymentReference: resendOrder.paymentReference,
+          discountPercent: discountPct,
+        };
+        const pdfBuffer = await generateInvoiceBuffer(invoiceData);
+        await sendOrderAcceptedWithInvoice(
+          resendOrder.user.email,
+          resendOrder.shipment?.name || "Direct Order",
+          formatPrice(totals.total),
+          resendOrder.id,
+          orderRef,
+          pdfBuffer,
+        );
+      }
     }
 
     const order = await getOrderById(id);

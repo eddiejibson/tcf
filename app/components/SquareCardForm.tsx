@@ -7,6 +7,7 @@ interface SquareCardFormProps {
   total: string;
   onSuccess: () => void;
   onCancel: () => void;
+  chargeUrl?: string;
 }
 
 declare global {
@@ -23,7 +24,7 @@ declare global {
   }
 }
 
-export default function SquareCardForm({ orderId, total, onSuccess, onCancel }: SquareCardFormProps) {
+export default function SquareCardForm({ orderId, total, onSuccess, onCancel, chargeUrl }: SquareCardFormProps) {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +123,7 @@ export default function SquareCardForm({ orderId, total, onSuccess, onCancel }: 
         return;
       }
 
-      const res = await fetch(`/api/orders/${orderId}/payment/charge`, {
+      const res = await fetch(chargeUrl || `/api/orders/${orderId}/payment/charge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceId: result.token }),

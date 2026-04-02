@@ -1,0 +1,40 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getOrderById, setPaymentMethod, markOrderPaid, calculateOrderTotals } from "@/server/services/order.service";
+import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
+import { processCardPayment } from "@/server/services/payment.service";
+import { log } from "@/server/logger";
+import { isUuid } from "@/server/utils";
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const order = await getOrderById(id);
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  if (order.status !== OrderStatus.ACCEPTED) {
+    return NextResponse.json({ error: "Order must be accepted before payment" }, { status: 400 });
+  }
+
+  const { sourceId } = await request.json();
+  if (!sourceId) return NextResponse.json({ error: "Missing sourceId" }, { status: 400 });
+
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+  const totalPence = Math.round(totals.total * 100);
+
+  try {
+    const result = await processCardPayment(sourceId, totalPence, id);
+
+    if (result.status === "COMPLETED") {
+      await setPaymentMethod(id, PaymentMethod.CARD, result.paymentId);
+      await markOrderPaid(id, result.paymentId);
+      return NextResponse.json({ status: "PAID", paymentId: result.paymentId });
+    }
+
+    await setPaymentMethod(id, PaymentMethod.CARD, result.paymentId);
+    return NextResponse.json({ status: result.status, paymentId: result.paymentId });
+  } catch (e) {
+    log.error("Square card payment failed (pay page)", e, { meta: { orderId: id } });
+    const message = e instanceof Error ? e.message : "Payment failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

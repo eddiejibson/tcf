@@ -151,11 +151,22 @@ export type OrderItemWithMeta = SerializedOrderItem & {
   categoryName?: string | null;
 };
 
+export type AddressSummary = {
+  line1: string;
+  line2: string | null;
+  city: string;
+  county: string | null;
+  postcode: string;
+  country: string;
+};
+
 export type AdminOrderDetail = SerializedOrder & {
   user: { email: string; companyName: string | null } | null;
   shipment: { name: string; freightCost: number } | null;
   items: OrderItemWithMeta[];
   totals: OrderTotals;
+  shippingAddress?: AddressSummary | null;
+  billingAddress?: AddressSummary | null;
 };
 
 export type ShipmentListItem = Pick<SerializedShipment, "id" | "name" | "deadline" | "shipmentDate" | "freightCost"> & {

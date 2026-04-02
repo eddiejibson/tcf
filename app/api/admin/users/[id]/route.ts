@@ -25,12 +25,14 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Get addresses from company
+  // Get company with addresses and users
   let addresses: Address[] = [];
   let company: Company | null = null;
+  let companyUsers: User[] = [];
   if (user.companyId) {
     company = await db.getRepository(Company).findOneBy({ id: user.companyId });
     addresses = await db.getRepository(Address).find({ where: { companyId: user.companyId } });
+    companyUsers = await db.getRepository(User).find({ where: { companyId: user.companyId } });
   }
 
   // Find application by email
@@ -57,6 +59,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       id: company.id,
       name: company.name,
       companyNumber: company.companyNumber,
+      discount: Number(company.discount) || 0,
+      users: companyUsers.map((u) => ({ id: u.id, email: u.email, companyRole: u.companyRole })),
     } : null,
     addresses: addresses.map((a) => ({
       id: a.id,

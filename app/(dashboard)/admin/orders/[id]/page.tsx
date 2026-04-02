@@ -348,6 +348,38 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
+      {/* Addresses */}
+      {(order.shippingAddress || order.billingAddress) && ["ACCEPTED", "AWAITING_PAYMENT", "PAID"].includes(order.status) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {order.shippingAddress && (
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
+              <p className="text-[#0984E3] text-[10px] uppercase tracking-wider font-medium mb-2">Shipping Address</p>
+              <p className="text-white/80 text-sm leading-relaxed">
+                {order.shippingAddress.line1}
+                {order.shippingAddress.line2 && <><br />{order.shippingAddress.line2}</>}
+                <br />{order.shippingAddress.city}
+                {order.shippingAddress.county && <>, {order.shippingAddress.county}</>}
+                <br />{order.shippingAddress.postcode}
+                <br /><span className="text-white/40">{order.shippingAddress.country}</span>
+              </p>
+            </div>
+          )}
+          {order.billingAddress && (
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
+              <p className="text-white/50 text-[10px] uppercase tracking-wider font-medium mb-2">Billing Address</p>
+              <p className="text-white/80 text-sm leading-relaxed">
+                {order.billingAddress.line1}
+                {order.billingAddress.line2 && <><br />{order.billingAddress.line2}</>}
+                <br />{order.billingAddress.city}
+                {order.billingAddress.county && <>, {order.billingAddress.county}</>}
+                <br />{order.billingAddress.postcode}
+                <br /><span className="text-white/40">{order.billingAddress.country}</span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
         <div className="overflow-x-auto">
         <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">

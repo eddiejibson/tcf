@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { User } from "./User";
+import { Company } from "./Company";
 import { Order } from "./Order";
 import { DoaClaim } from "./DoaClaim";
 
@@ -13,12 +14,19 @@ export enum CreditType {
 
 @Entity("credit_transactions")
 export class CreditTransaction extends BaseEntity {
-  @Column({ type: "uuid" })
-  userId: string;
+  @Column({ type: "uuid", nullable: true })
+  userId: string | null;
 
-  @ManyToOne(() => User, (user) => user.creditTransactions)
+  @ManyToOne(() => User, (user) => user.creditTransactions, { nullable: true })
   @JoinColumn({ name: "userId" })
-  user: Relation<User>;
+  user: Relation<User> | null;
+
+  @Column({ type: "uuid" })
+  companyId: string;
+
+  @ManyToOne(() => Company, { nullable: false })
+  @JoinColumn({ name: "companyId" })
+  company: Relation<Company>;
 
   @Column({ type: "enum", enum: CreditType })
   type: CreditType;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface CompanyRow {
   id: string;
@@ -17,6 +18,8 @@ export default function AdminCompaniesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendDoneId, setResendDoneId] = useState<string | null>(null);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -101,18 +104,24 @@ export default function AdminCompaniesPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Companies</h1>
-        <p className="text-white/50 text-sm mt-1">Manage company discounts</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Companies</h1>
+          <p className="text-white/50 text-sm mt-1">Manage company discounts</p>
+        </div>
+        <Link href="/admin/companies/new" className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+          Add Company
+        </Link>
       </div>
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
         {/* Table header */}
-        <div className="hidden md:grid grid-cols-[1fr_100px_100px_140px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
+        <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_80px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Company</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Users</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Discount</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p>
+          <div></div>
         </div>
 
         {companies.length === 0 ? (
@@ -124,7 +133,7 @@ export default function AdminCompaniesPage() {
             {companies.map((company) => (
               <div
                 key={company.id}
-                className="grid grid-cols-1 md:grid-cols-[1fr_100px_100px_140px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
+                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_80px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
               >
                 <div>
                   <p className="text-white/90 text-sm font-semibold">{company.name}</p>
@@ -196,6 +205,40 @@ export default function AdminCompaniesPage() {
                     year: "numeric",
                   })}
                 </p>
+                <div className="hidden md:block">
+                  <button
+                    onClick={async () => {
+                      setResendingId(company.id);
+                      setResendDoneId(null);
+                      const res = await fetch(`/api/admin/companies/${company.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ resendWelcome: true }),
+                      });
+                      if (res.ok) {
+                        setResendDoneId(company.id);
+                        setTimeout(() => setResendDoneId(null), 2500);
+                      }
+                      setResendingId(null);
+                    }}
+                    disabled={resendingId === company.id}
+                    className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-white hover:bg-white/10 text-[11px] font-medium transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                  >
+                    {resendingId === company.id ? (
+                      <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : resendDoneId === company.id ? (
+                      <>
+                        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-emerald-400">Sent</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                        Resend
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

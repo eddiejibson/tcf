@@ -14,6 +14,9 @@ export class Company extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   discount: number;
 
+  @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
+  creditBalance: number;
+
   @OneToMany(() => Address, (address) => address.company)
   addresses: Relation<Address[]>;
 

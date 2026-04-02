@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { UserListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
@@ -11,18 +12,18 @@ function formatPrice(n: number) {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
-  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newCompanyId, setNewCompanyId] = useState("");
   const [newRole, setNewRole] = useState("USER");
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [creditUserId, setCreditUserId] = useState<string | null>(null);
-  const [creditAmount, setCreditAmount] = useState("");
-  const [creditDescription, setCreditDescription] = useState("");
-  const [creditSaving, setCreditSaving] = useState(false);
   const [editCompanyUserId, setEditCompanyUserId] = useState<string | null>(null);
   const [editCompanyName, setEditCompanyName] = useState("");
 
@@ -58,6 +59,10 @@ export default function AdminUsersPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
+  useEffect(() => {
+    fetch("/api/admin/companies").then((r) => r.ok ? r.json() : []).then((data) => setCompanies(data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))));
+  }, []);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => {
@@ -74,11 +79,11 @@ export default function AdminUsersPage() {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newEmail, companyName: newCompanyName, role: newRole }),
+      body: JSON.stringify({ email: newEmail, companyId: newRole === "ADMIN" ? undefined : (newCompanyId || undefined), role: newRole }),
     });
     if (res.ok) {
       setNewEmail("");
-      setNewCompanyName("");
+      setNewCompanyId("");
       setNewRole("USER");
       setShowCreate(false);
       fetchUsers();
@@ -123,23 +128,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleCreditAdjust = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!creditUserId || !creditAmount) return;
-    setCreditSaving(true);
-    const res = await fetch(`/api/admin/users/${creditUserId}/credit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(creditAmount), description: creditDescription }),
-    });
-    if (res.ok) {
-      setCreditUserId(null);
-      setCreditAmount("");
-      setCreditDescription("");
-      fetchUsers();
-    }
-    setCreditSaving(false);
-  };
+
 
   return (
     <div className="p-4 md:p-8">
@@ -148,16 +137,24 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-bold text-white">Users</h1>
           <p className="text-white/50 text-sm mt-1">Manage trade portal accounts</p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all"
-        >
-          Add User
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/companies/new"
+            className="px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
+          >
+            Add Company
+          </Link>
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all"
+          >
+            Add User
+          </button>
+        </div>
       </div>
 
       {showCreate && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6 overflow-visible relative z-20">
           <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 md:gap-4">
             <div className="flex-1 sm:col-span-2 md:col-span-1">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Email</label>
@@ -171,17 +168,68 @@ export default function AdminUsersPage() {
                 autoFocus
               />
             </div>
-            <div className="md:w-48">
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Company Name{newRole !== "ADMIN" && " *"}</label>
-              <input
-                type="text"
-                value={newCompanyName}
-                onChange={(e) => setNewCompanyName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
-                placeholder={newRole === "ADMIN" ? "Optional" : "Company name"}
-                required={newRole !== "ADMIN"}
-              />
-            </div>
+            {newRole !== "ADMIN" && (
+              <div className="md:w-56 relative">
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Company *</label>
+                <button
+                  type="button"
+                  onClick={() => { setCompanyDropdownOpen(!companyDropdownOpen); setCompanySearch(""); }}
+                  className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-sm text-left flex items-center justify-between gap-2 transition-all ${companyDropdownOpen ? "border-[#0984E3]/50 ring-1 ring-[#0984E3]/20" : "border-white/10 hover:border-white/20"}`}
+                >
+                  <span className={newCompanyId ? "text-white" : "text-white/30"}>
+                    {newCompanyId ? companies.find((c) => c.id === newCompanyId)?.name || "Select..." : "Select company..."}
+                  </span>
+                  <svg className={`w-4 h-4 text-white/30 transition-transform ${companyDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {companyDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setCompanyDropdownOpen(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-[#1a1f26] border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
+                      <div className="p-2">
+                        <input
+                          type="text"
+                          value={companySearch}
+                          onChange={(e) => setCompanySearch(e.target.value)}
+                          placeholder="Search..."
+                          autoFocus
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50"
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-auto">
+                        {companies
+                          .filter((c) => !companySearch || c.name.toLowerCase().includes(companySearch.toLowerCase()))
+                          .map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setNewCompanyId(c.id); setCompanyDropdownOpen(false); }}
+                            className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center gap-2 ${newCompanyId === c.id ? "bg-[#0984E3]/10 text-[#0984E3]" : "text-white/80 hover:bg-white/5"}`}
+                          >
+                            {newCompanyId === c.id && (
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            )}
+                            <span className="truncate">{c.name}</span>
+                          </button>
+                        ))}
+                        {companies.filter((c) => !companySearch || c.name.toLowerCase().includes(companySearch.toLowerCase())).length === 0 && (
+                          <p className="px-3 py-3 text-white/30 text-xs text-center">No companies found</p>
+                        )}
+                      </div>
+                      <div className="border-t border-white/5 p-1.5">
+                        <button
+                          type="button"
+                          onClick={() => router.push("/admin/companies/new")}
+                          className="w-full px-3 py-2.5 text-left text-sm text-[#0984E3] hover:bg-[#0984E3]/10 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                          Add New Company
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="md:w-40">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Role</label>
               <div className="relative">
@@ -207,51 +255,6 @@ export default function AdminUsersPage() {
             </button>
           </form>
           {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
-        </div>
-      )}
-
-      {creditUserId && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
-          <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Adjust Credit for {users.find((u) => u.id === creditUserId)?.email}</p>
-          <form onSubmit={handleCreditAdjust} className="flex flex-wrap items-end gap-3 md:gap-4">
-            <div className="w-36">
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                value={creditAmount}
-                onChange={(e) => setCreditAmount(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
-                placeholder="10.00"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Description</label>
-              <input
-                type="text"
-                value={creditDescription}
-                onChange={(e) => setCreditDescription(e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
-                placeholder="Reason for adjustment..."
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={creditSaving || !creditAmount}
-              className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all"
-            >
-              {creditSaving ? "Saving..." : "Apply"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setCreditUserId(null); setCreditAmount(""); setCreditDescription(""); }}
-              className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </form>
         </div>
       )}
 

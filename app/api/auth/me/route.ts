@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
-import { getCreditBalance } from "@/server/services/credit.service";
+import { getCreditBalanceForUser } from "@/server/services/credit.service";
 import { getDb } from "@/server/db/data-source";
 import { User } from "@/server/entities/User";
 
@@ -14,7 +14,7 @@ export async function GET() {
     where: { id: user.userId },
     relations: ["company"],
   });
-  const creditBalance = await getCreditBalance(user.userId);
+  const creditBalance = await getCreditBalanceForUser(user.userId);
   return NextResponse.json({
     ...user,
     companyName: dbUser?.companyName || null,

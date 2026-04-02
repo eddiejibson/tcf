@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
-import { applyCredit, removeAppliedCredit, getCreditBalance } from "@/server/services/credit.service";
+import { applyCredit, removeAppliedCredit, getCreditBalance, getCompanyIdForUser } from "@/server/services/credit.service";
 import { OrderStatus } from "@/server/entities/Order";
 import { Permission } from "@/server/lib/permissions";
 import { isUuid } from "@/server/utils";
@@ -20,29 +20,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Credit can only be applied to accepted orders" }, { status: 400 });
   }
 
+  const companyId = await getCompanyIdForUser(order.userId!);
+  if (!companyId) return NextResponse.json({ error: "No company linked — credit unavailable" }, { status: 400 });
+
   const { action } = await request.json();
 
   if (action === "remove") {
-    await removeAppliedCredit(id, order.userId!);
+    await removeAppliedCredit(id, companyId);
     const updated = await getOrderById(id);
     if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-    const balance = await getCreditBalance(order.userId!);
+    const balance = await getCreditBalance(companyId);
     return NextResponse.json({ ...updated, totals, creditBalance: balance });
   }
 
   // Apply credit
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge);
-  const balance = await getCreditBalance(order.userId!);
+  const balance = await getCreditBalance(companyId);
   const toApply = Math.min(balance, totals.total);
 
   if (toApply <= 0) {
     return NextResponse.json({ error: "No credit available to apply" }, { status: 400 });
   }
 
-  const result = await applyCredit(id, order.userId!, toApply);
+  const result = await applyCredit(id, companyId, toApply);
 
-  // Check if credit covers the full amount
   const updatedOrder = await getOrderById(id);
   if (!updatedOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   const newTotals = calculateOrderTotals(updatedOrder.items, updatedOrder.includeShipping, updatedOrder.freightCharge, updatedOrder.creditApplied);

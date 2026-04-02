@@ -4,6 +4,9 @@ import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderI
 import { getUserDiscount } from "@/server/lib/discount";
 import { Order, OrderStatus } from "@/server/entities/Order";
 import { OrderItem } from "@/server/entities/OrderItem";
+import { Address } from "@/server/entities/Address";
+import { Application } from "@/server/entities/Application";
+import { User } from "@/server/entities/User";
 import { getDb } from "@/server/db/data-source";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -26,7 +29,39 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
   }));
-  return NextResponse.json({ ...order, items, totals });
+
+  // Fetch shipping/billing address from company addresses or application
+  let shippingAddress: { line1: string; line2: string | null; city: string; county: string | null; postcode: string; country: string } | null = null;
+  let billingAddress: { line1: string; line2: string | null; city: string; county: string | null; postcode: string; country: string } | null = null;
+  if (order.userId) {
+    const db = await getDb();
+    // First try: company addresses
+    const user = await db.getRepository(User).findOneBy({ id: order.userId });
+    if (user?.companyId) {
+      const addresses = await db.getRepository(Address).find({ where: { companyId: user.companyId } });
+      const shipping = addresses.find((a) => a.type === "SHIPPING");
+      const billing = addresses.find((a) => a.type === "BILLING");
+      if (shipping) shippingAddress = { line1: shipping.line1, line2: shipping.line2, city: shipping.city, county: shipping.county, postcode: shipping.postcode, country: shipping.country };
+      if (billing) billingAddress = { line1: billing.line1, line2: billing.line2, city: billing.city, county: billing.county, postcode: billing.postcode, country: billing.country };
+    }
+    // Fallback: application addresses (stored as JSON)
+    if (!shippingAddress || !billingAddress) {
+      const app = await db.getRepository(Application).findOne({
+        where: [{ userId: order.userId }, ...(user?.email ? [{ contactEmail: user.email }] : [])],
+        order: { createdAt: "DESC" },
+      });
+      if (app) {
+        if (!shippingAddress && app.shippingAddress) {
+          shippingAddress = { line1: app.shippingAddress.line1, line2: app.shippingAddress.line2 || null, city: app.shippingAddress.city, county: app.shippingAddress.county || null, postcode: app.shippingAddress.postcode, country: app.shippingAddress.country || "United Kingdom" };
+        }
+        if (!billingAddress && app.billingAddress) {
+          billingAddress = { line1: app.billingAddress.line1, line2: app.billingAddress.line2 || null, city: app.billingAddress.city, county: app.billingAddress.county || null, postcode: app.billingAddress.postcode, country: app.billingAddress.country || "United Kingdom" };
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ ...order, items, totals, shippingAddress, billingAddress });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

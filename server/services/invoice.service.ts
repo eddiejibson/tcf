@@ -15,7 +15,7 @@ function fmtPrice(n: number): string {
 
 function loadLogoDataUrl(): string | null {
   try {
-    const logoPath = path.join(process.cwd(), "public/images/logo.png");
+    const logoPath = path.join(process.cwd(), "public/images/logo-invoice.png");
     const buf = fs.readFileSync(logoPath);
     return `data:image/png;base64,${buf.toString("base64")}`;
   } catch {
@@ -25,7 +25,7 @@ function loadLogoDataUrl(): string | null {
 
 export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> {
   const { default: jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;
   const m = 20;
   const cw = pw - m * 2;

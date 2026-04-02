@@ -42,7 +42,7 @@ function fmtPrice(n: number): string {
 
 async function loadLogoDataUrl(): Promise<string | null> {
   try {
-    const res = await fetch("/images/logo.png");
+    const res = await fetch("/images/logo-invoice.png");
     const blob = await res.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -56,7 +56,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
 }
 
 export async function generateInvoice(data: InvoiceData): Promise<void> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;
   const m = 20;
   const cw = pw - m * 2;

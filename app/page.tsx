@@ -4,9 +4,7 @@ import AnimatedCounter from "./components/AnimatedCounter";
 import BookAppointmentButton from "./components/BookAppointmentButton";
 import BookingForm from "./components/BookingForm";
 import BubbleParticles from "./components/BubbleParticles";
-import GradientBorder from "./components/GradientBorder";
 import { FadeIn, ScaleIn, SlideInLeft } from "./components/HeroAnimations";
-import InfiniteMarquee from "./components/InfiniteMarquee";
 import MagneticButton from "./components/MagneticButton";
 import MeshGradient from "./components/MeshGradient";
 import MobileHero from "./components/MobileHero";
@@ -187,10 +185,9 @@ export default function Home() {
             delay={0.4}
             className="w-[320px] lg:w-[400px] xl:w-[480px] self-center flex-shrink-0"
           >
-            <GradientBorder rounded="rounded-[20px] lg:rounded-[28px]">
             <div
               id="contact-card"
-              className="bg-white/10 backdrop-blur-xl rounded-[20px] lg:rounded-[28px] p-5 lg:p-8 xl:p-10 shadow-2xl"
+              className="bg-white/[0.06] backdrop-blur-xl border border-white/[0.08] rounded-[20px] lg:rounded-[28px] p-5 lg:p-8 xl:p-10 shadow-2xl shadow-black/20"
             >
               <h3 className="text-xl lg:text-2xl xl:text-[28px] font-bold text-white mb-2">
                 Let&apos;s talk
@@ -204,7 +201,6 @@ export default function Home() {
 
               <BookingForm />
             </div>
-            </GradientBorder>
           </ScaleIn>
         </div>
       </section>
@@ -220,26 +216,12 @@ export default function Home() {
         </svg>
       </div>
 
-      {/* ===== MARQUEE TICKER ===== */}
-      <div className="border-y border-white/[0.04]">
-        <InfiniteMarquee
-          items={[
-            "Indonesia",
-            "Australia",
-            "Fiji",
-            "Tonga",
-            "Kenya",
-            "Sri Lanka",
-            "20+ Years Experience",
-            "100+ Trade Customers",
-            "10+ Monthly Shipments",
-            "Exclusive Suppliers",
-          ]}
-        />
-      </div>
 
       {/* ===== OUR PROCESS SECTION ===== */}
-      <section className="px-6 md:px-[100px] lg:px-[140px] -mt-6 md:mt-0 py-16 md:py-28 relative">
+      <section className="px-6 md:px-[100px] lg:px-[140px] -mt-6 md:mt-0 py-16 md:py-28 relative overflow-hidden">
+        {/* Ambient gradient glow bleeding from hero */}
+        <div className="absolute top-0 left-0 w-[600px] h-[400px] pointer-events-none -translate-y-1/3" style={{ background: "radial-gradient(ellipse at 20% 0%, hsla(210, 80%, 55%, 0.08) 0%, transparent 70%)", filter: "blur(60px)" }} />
+        <div className="absolute top-0 right-0 w-[500px] h-[350px] pointer-events-none -translate-y-1/4" style={{ background: "radial-gradient(ellipse at 80% 0%, hsla(190, 80%, 50%, 0.06) 0%, transparent 70%)", filter: "blur(60px)" }} />
         <div className="max-w-6xl mx-auto">
           <BlurIn>
             <p className="text-[#0984E3] font-semibold text-sm tracking-widest uppercase mb-3">

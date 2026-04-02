@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { log } from "../logger";
 
 let _transporter: nodemailer.Transporter | null = null;
 
@@ -21,16 +22,24 @@ function getTransporter() {
   return _transporter;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendWithRetry(mailOptions: nodemailer.SendMailOptions, retries = 2) {
+  const to = Array.isArray(mailOptions.to) ? mailOptions.to.join(", ") : String(mailOptions.to);
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const transporter = getTransporter();
-      await transporter.sendMail(mailOptions);
+      const info = await transporter.sendMail(mailOptions);
+      log.info("Email sent successfully", { meta: { to, subject: String(mailOptions.subject), messageId: info.messageId, response: info.response } });
       return;
     } catch (err) {
+      log.error(`Email send failed (attempt ${attempt + 1}/${retries + 1})`, err, { meta: { to, subject: String(mailOptions.subject) } });
       if (attempt === retries) throw err;
       // Reset transporter on connection errors so next attempt gets a fresh one
       _transporter = null;
+      await sleep(1000 * (attempt + 1));
     }
   }
 }

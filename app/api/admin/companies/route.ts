@@ -23,6 +23,7 @@ export async function GET() {
       id: c.id,
       name: c.name,
       discount: Number(c.discount) || 0,
+      creditBalance: Number(c.creditBalance) || 0,
       userCount: c.users?.length || 0,
       createdAt: c.createdAt,
     }))

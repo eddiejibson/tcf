@@ -296,11 +296,10 @@ export default function AdminUsersPage() {
       ) : (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
           <div className="overflow-x-auto">
-          <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
             <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">User</p></div>
             <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
             <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
-            <div className="text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p></div>
             <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
             <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
             <div className="w-14"></div>
@@ -308,7 +307,7 @@ export default function AdminUsersPage() {
           <AnimatedList>
           {users.map((u) => (
             <AnimatedListItem key={u.id}>
-            <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_1.5fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+            <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
               <div className="min-w-0">
                 {editCompanyUserId === u.id ? (
                   <div className="flex items-center gap-2">
@@ -347,19 +346,6 @@ export default function AdminUsersPage() {
                 </button>
               </div>
               <div className="text-center"><p className="text-white/60 text-sm">{u.orderCount}</p></div>
-              <div className="flex items-center justify-end gap-2">
-                <span className={`text-sm font-medium tabular-nums ${u.creditBalance > 0 ? "text-emerald-400" : "text-white/40"}`}>
-                  {formatPrice(u.creditBalance)}
-                </span>
-                {u.role !== "ADMIN" && (
-                  <button
-                    onClick={() => setCreditUserId(creditUserId === u.id ? null : u.id)}
-                    className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-[10px] text-white/50 hover:text-white hover:bg-white/10 transition-all"
-                  >
-                    Adjust
-                  </button>
-                )}
-              </div>
               <div><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
               <div><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
               <div className="w-14 text-right">

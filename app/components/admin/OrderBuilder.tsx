@@ -464,13 +464,13 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
 
         {/* Order summary sidebar */}
         <div className="lg:w-80 flex-shrink-0">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 lg:sticky lg:top-8">
-            <h3 className="text-white font-semibold mb-4">Order Summary</h3>
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] flex flex-col">
+            <h3 className="text-white font-semibold mb-4 shrink-0">Order Summary</h3>
 
             {orderItems.length === 0 ? (
               <p className="text-white/30 text-sm">No items added yet</p>
             ) : (
-              <div className="space-y-3 mb-4">
+              <div className="space-y-3 mb-4 overflow-y-auto min-h-0 flex-1">
                 {orderItems.map((item) => {
                   const base = item.price * item.quantity;
                   const lineTotal = base + base * ((item.surcharge || 0) / 100);

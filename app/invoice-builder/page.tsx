@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react";
 
 interface ParsedItem {
   name: string;
+  latinName?: string;
   price: number;
 }
 
@@ -441,6 +442,7 @@ function InvoiceBuilderContent() {
                                   >
                                     <div className="min-w-0 flex-1">
                                       <p className="text-white/90 text-[13px] leading-snug font-medium font-semibold">{cleanName}</p>
+                                      {item.latinName && <p className="text-white/30 text-[11px] mt-0.5 italic">{item.latinName}</p>}
                                       {minQty && <p className="text-white/30 text-[11px] mt-0.5">Minimum {minQty}</p>}
                                     </div>
 

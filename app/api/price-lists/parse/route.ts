@@ -8,6 +8,7 @@ const PASSWORD = "RlQ8UG";
 
 interface ParsedItem {
   name: string;
+  latinName?: string;
   price: number;
   originalRow: Record<string, unknown>;
 }
@@ -51,8 +52,12 @@ function findPriceColumn(headers: string[]): number {
 }
 
 function findNameColumn(headers: string[]): number {
+  // Prefer "Common Name" over generic "Name" or "Scientific Name"
+  const commonIdx = headers.findIndex((h) => /common\s*name/i.test(String(h || "")));
+  if (commonIdx !== -1) return commonIdx;
+
   const namePatterns = [
-    /name/i,
+    /^name$/i,
     /item/i,
     /product/i,
     /description/i,
@@ -68,6 +73,33 @@ function findNameColumn(headers: string[]): number {
 
   // Default to first column if no match
   return 0;
+}
+
+function findLatinNameColumn(headers: string[]): number {
+  const patterns = [/scientific\s*name/i, /latin\s*name/i, /botanical/i];
+  for (const pattern of patterns) {
+    const index = headers.findIndex((h) => pattern.test(String(h || "")));
+    if (index !== -1) return index;
+  }
+  return -1;
+}
+
+function findVariantColumn(headers: string[]): number {
+  const patterns = [/variant/i, /colour/i, /color/i, /morph/i];
+  for (const pattern of patterns) {
+    const index = headers.findIndex((h) => pattern.test(String(h || "")));
+    if (index !== -1) return index;
+  }
+  return -1;
+}
+
+function findSizeColumn(headers: string[]): number {
+  const patterns = [/^size$/i];
+  for (const pattern of patterns) {
+    const index = headers.findIndex((h) => pattern.test(String(h || "")));
+    if (index !== -1) return index;
+  }
+  return -1;
 }
 
 function isPriceValue(value: unknown): boolean {
@@ -104,20 +136,21 @@ function parseExcelFile(filePath: string): ParsedItem[] {
 
   if (data.length < 2) return [];
 
-  // Find header row - look for row containing recognizable headers
+  // Find header row - look for row containing recognizable headers (scan up to 40 rows for complex sheets)
   let headerRowIndex = 0;
-  const headerPatterns = [/name/i, /price/i, /item/i, /product/i, /code/i, /description/i];
+  const headerPatterns = [/name/i, /price/i, /item/i, /product/i, /code/i, /description/i, /variant/i, /size/i, /scientific/i, /common/i];
+  let bestMatch = 0;
 
-  for (let i = 0; i < Math.min(20, data.length); i++) {
+  for (let i = 0; i < Math.min(40, data.length); i++) {
     const row = data[i];
     if (!row) continue;
 
     const rowStr = row.map((c) => String(c || "")).join(" ");
     const matchCount = headerPatterns.filter((p) => p.test(rowStr)).length;
 
-    if (matchCount >= 2) {
+    if (matchCount > bestMatch) {
+      bestMatch = matchCount;
       headerRowIndex = i;
-      break;
     }
   }
 
@@ -154,20 +187,47 @@ function parseExcelFile(filePath: string): ParsedItem[] {
 
   if (priceColIndex === -1) return [];
 
+  const latinColIndex = findLatinNameColumn(headers);
+  const variantColIndex = findVariantColumn(headers);
+  const sizeColIndex = findSizeColumn(headers);
+
   const items: ParsedItem[] = [];
 
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
 
-    const name = String(row[nameColIndex] || "").trim();
+    const rawName = String(row[nameColIndex] || "").trim();
     const priceValue = row[priceColIndex];
 
-    if (!name || name.length < 2) continue;
+    if (!rawName || rawName.length < 2) continue;
     if (!isPriceValue(priceValue)) continue;
 
     const price = parsePrice(priceValue);
     if (price <= 0) continue;
+
+    // Build display name: Common Name + Variant + Size (if available)
+    const parts = [rawName];
+    if (variantColIndex !== -1) {
+      const variant = String(row[variantColIndex] || "").trim();
+      if (variant && variant.toLowerCase() !== "undefined" && variant.toLowerCase() !== rawName.toLowerCase()) {
+        parts.push(variant);
+      }
+    }
+    if (sizeColIndex !== -1) {
+      const size = String(row[sizeColIndex] || "").trim();
+      if (size && size.toLowerCase() !== "undefined") {
+        parts.push(size);
+      }
+    }
+    const name = parts.join(" - ");
+
+    // Latin/scientific name
+    let latinName: string | undefined;
+    if (latinColIndex !== -1 && latinColIndex !== nameColIndex) {
+      const latin = String(row[latinColIndex] || "").trim();
+      if (latin && latin.length > 2) latinName = latin;
+    }
 
     const originalRow: Record<string, unknown> = {};
     headers.forEach((header, idx) => {
@@ -178,6 +238,7 @@ function parseExcelFile(filePath: string): ParsedItem[] {
 
     items.push({
       name,
+      ...(latinName ? { latinName } : {}),
       price,
       originalRow,
     });

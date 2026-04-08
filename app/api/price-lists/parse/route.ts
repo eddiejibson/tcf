@@ -52,9 +52,12 @@ function findPriceColumn(headers: string[]): number {
 }
 
 function findNameColumn(headers: string[]): number {
-  // Prefer "Common Name" over generic "Name" or "Scientific Name"
-  const commonIdx = headers.findIndex((h) => /common\s*name/i.test(String(h || "")));
-  if (commonIdx !== -1) return commonIdx;
+  // Prefer "Common Name" / "English Name" over generic "Name" or "Scientific Name"
+  const preferred = [/common\s*name/i, /english\s*name/i, /comon\s*name/i];
+  for (const pattern of preferred) {
+    const index = headers.findIndex((h) => pattern.test(String(h || "")));
+    if (index !== -1) return index;
+  }
 
   const namePatterns = [
     /^name$/i,

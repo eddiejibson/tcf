@@ -291,7 +291,7 @@ function findHeaderRow(data: unknown[][]): number {
   const headerPatterns = [/name/i, /price/i, /item/i, /product/i, /code/i, /description/i, /cost/i, /qty/i, /size/i, /species/i, /stock/i, /common/i, /scientific/i, /units/i];
   let bestRow = 0;
   let bestScore = 0;
-  for (let i = 0; i < Math.min(20, data.length); i++) {
+  for (let i = 0; i < Math.min(40, data.length); i++) {
     const row = data[i];
     if (!row) continue;
     const rowStr = row.map((c) => String(c || "")).join(" ");

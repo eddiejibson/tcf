@@ -11,6 +11,7 @@ let nextItemId = 0;
 const MAPPING_FIELDS: { key: keyof ColumnMapping; label: string }[] = [
   { key: "name", label: "Name" },
   { key: "latinName", label: "Latin Name" },
+  { key: "variant", label: "Variant" },
   { key: "price", label: "Price" },
   { key: "size", label: "Size" },
   { key: "qtyPerBox", label: "Qty Per Box" },
@@ -108,10 +109,16 @@ function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: Column
       if (v) { const s = String(v).trim(); if (s) latinName = s; }
     }
 
+    let variant: string | null = null;
+    if (mappings.variant >= 0) {
+      const v = r[mappings.variant];
+      if (v) { const s = String(v).trim(); if (s) variant = s; }
+    }
+
     const originalRow: Record<string, unknown> = {};
     hdrs.forEach((h, idx) => { if (h && r[idx] !== undefined) originalRow[h] = r[idx]; });
 
-    items.push({ name: nameVal, latinName, price, size, qtyPerBox, availableQty, originalRow, warnings: [] });
+    items.push({ name: nameVal, latinName, variant, price, size, qtyPerBox, availableQty, originalRow, warnings: [] });
   }
   return items;
 }
@@ -127,7 +134,7 @@ export default function NewShipmentPage() {
   const [freightCost, setFreightCost] = useState("");
   const [items, setItems] = useState<ItemWithId[]>([]);
   const [mappingsOpen, setMappingsOpen] = useState(false);
-  const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
   const [headers, setHeaders] = useState<string[]>([]);
   const [margin, setMargin] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -168,7 +175,7 @@ export default function NewShipmentPage() {
       setShipmentDate(data.shipmentDate || "");
       setFreightCost(data.freightCost?.toString() || "");
       setHeaders(data.headers || []);
-      setColumnMappings(data.columnMappings || { name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
+      setColumnMappings(data.columnMappings || { name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
       rawRowsRef.current = data.rawRows || [];
       applyMarginAndSet(data.items, margin);
     } catch (err) {
@@ -259,6 +266,7 @@ export default function NewShipmentPage() {
           products: validItems.map((i) => ({
             name: i.name,
             latinName: i.latinName || null,
+            variant: i.variant || null,
             price: i.price,
             size: i.size,
             qtyPerBox: i.qtyPerBox || 1,
@@ -279,6 +287,7 @@ export default function NewShipmentPage() {
     setCreating(false);
   };
 
+  const hasVariant = useMemo(() => items.some((i) => i.variant), [items]);
   const hasSize = useMemo(() => items.some((i) => i.size), [items]);
   const hasStock = useMemo(() => items.some((i) => i.availableQty !== null && i.availableQty !== undefined), [items]);
   const validCount = useMemo(() => items.filter((i) => i.name && i.price).length, [items]);
@@ -310,7 +319,7 @@ export default function NewShipmentPage() {
           </label>
           <div className="mt-6">
             <button
-              onClick={() => setParsed({ name: null, shipmentDate: null, deadline: null, freightCost: null, items: [], warnings: [], headers: [], columnMappings: { name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } })}
+              onClick={() => setParsed({ name: null, shipmentDate: null, deadline: null, freightCost: null, items: [], warnings: [], headers: [], columnMappings: { name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } })}
               className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors"
             >
               Or create manually without a file
@@ -419,6 +428,7 @@ export default function NewShipmentPage() {
             <div className="overflow-x-auto">
             <div className="min-w-[500px] px-4 md:px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Name</p></div>
+              {hasVariant && <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Variant</p></div>}
               <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
               {hasSize && <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Size</p></div>}
               <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty/Box</p></div>
@@ -428,6 +438,7 @@ export default function NewShipmentPage() {
 
             <VirtualItemList
               items={items}
+              hasVariant={hasVariant}
               hasSize={hasSize}
               hasStock={hasStock}
               onUpdate={updateItem}

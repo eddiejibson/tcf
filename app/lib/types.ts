@@ -92,6 +92,7 @@ export interface AdminShipmentDetailProduct {
   id: string;
   name: string;
   latinName: string | null;
+  variant: string | null;
   price: number;
   size: string | null;
   qtyPerBox: number;
@@ -219,6 +220,7 @@ export type DoaReportDetail = SerializedDoaReport & {
 export interface ParsedProduct {
   name: string;
   latinName?: string | null;
+  variant?: string | null;
   price: number | null;
   size: string | null;
   qtyPerBox: number | null;
@@ -230,6 +232,7 @@ export interface ParsedProduct {
 export interface ColumnMapping {
   name: number;
   latinName: number;
+  variant: number;
   price: number;
   size: number;
   qtyPerBox: number;

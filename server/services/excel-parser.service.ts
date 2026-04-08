@@ -35,6 +35,10 @@ const SIZE_PATTERNS = [
   /approx[\s_-]*size/i, /avg[\s_-]*size/i, /coral[\s_-]*size/i,
 ];
 
+const VARIANT_PATTERNS = [
+  /^variant$/i, /^colour$/i, /^color$/i, /^morph$/i, /^form$/i,
+];
+
 const QTY_PER_BOX_PATTERNS = [
   /quantity[\s_/-]*per[\s_-]*box/i, /quantity[\s_/-]*box/i,
   /qty[\s_/-]*per[\s_-]*box/i, /qty[\s_/-]*box/i,
@@ -428,7 +432,7 @@ function parseMatrixFormat(
     }
   }
 
-  return { ...meta, items, warnings, headers: headersList, columnMappings: { name: matrix.nameCol, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } };
+  return { ...meta, items, warnings, headers: headersList, columnMappings: { name: matrix.nameCol, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 } };
 }
 
 function isCategoryRow(row: unknown[], nameCol: number, priceCol: number): boolean {
@@ -465,7 +469,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     }
   }
 
-  const emptyMappings: ColumnMapping = { name: -1, latinName: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 };
+  const emptyMappings: ColumnMapping = { name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 };
 
   if (data.length < 2) {
     return { ...meta, name: meta.name || filename?.replace(/\.(xlsx?|xls)$/i, "") || null, items: [], warnings: [...warnings, "No data rows found"], headers: [], columnMappings: emptyMappings };
@@ -519,7 +523,9 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
 
   let latinNameColIndex = columnOverrides?.latinName !== undefined ? columnOverrides.latinName : matchColumn(headers, LATIN_NAME_PATTERNS, [nameColIndex, qtyPerBoxColIndex, sizeColIndex, priceColIndex].filter((c) => c !== -1));
 
-  let stockColIndex = columnOverrides?.stock !== undefined ? columnOverrides.stock : matchColumn(headers, STOCK_PATTERNS, [qtyPerBoxColIndex, nameColIndex, priceColIndex, sizeColIndex, latinNameColIndex].filter((c) => c !== -1));
+  let variantColIndex = matchColumn(headers, VARIANT_PATTERNS, [nameColIndex, priceColIndex, sizeColIndex, latinNameColIndex, qtyPerBoxColIndex].filter((c) => c !== -1));
+
+  let stockColIndex = columnOverrides?.stock !== undefined ? columnOverrides.stock : matchColumn(headers, STOCK_PATTERNS, [qtyPerBoxColIndex, nameColIndex, priceColIndex, sizeColIndex, latinNameColIndex, variantColIndex].filter((c) => c !== -1));
 
   if (priceColIndex === -1 && columnOverrides?.price === undefined) {
     for (let col = 0; col < headers.length; col++) {
@@ -552,6 +558,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
   const columnMappings: ColumnMapping = {
     name: nameColIndex,
     latinName: latinNameColIndex,
+    variant: variantColIndex,
     price: priceColIndex,
     size: sizeColIndex,
     qtyPerBox: qtyPerBoxColIndex,
@@ -575,6 +582,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     const size = sizeColIndex !== -1 ? parseSize(row[sizeColIndex]) : null;
     const availableQty = stockColIndex !== -1 ? (parseQty(row[stockColIndex]) ?? 0) : null;
     const latinName = latinNameColIndex !== -1 ? (row[latinNameColIndex] ? String(row[latinNameColIndex]).trim() || null : null) : null;
+    const variant = variantColIndex !== -1 ? (row[variantColIndex] ? String(row[variantColIndex]).trim() || null : null) : null;
 
     if (price === null && priceColIndex !== -1) continue;
     if (price === null) itemWarnings.push("Missing price");
@@ -584,7 +592,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       if (header && row[idx] !== undefined) originalRow[header] = row[idx];
     });
 
-    items.push({ name: rawName, latinName, price, size, qtyPerBox, availableQty, originalRow, warnings: itemWarnings });
+    items.push({ name: rawName, latinName, variant, price, size, qtyPerBox, availableQty, originalRow, warnings: itemWarnings });
   }
 
   const rawRows = data.slice(headerRowIndex + 1);

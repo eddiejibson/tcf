@@ -21,6 +21,9 @@ export class Product extends BaseEntityWithUpdate {
   price: number;
 
   @Column({ type: "varchar", nullable: true })
+  variant: string | null;
+
+  @Column({ type: "varchar", nullable: true })
   size: string | null;
 
   @Column({ type: "int", default: 1 })

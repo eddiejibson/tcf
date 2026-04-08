@@ -10,6 +10,7 @@ type EditItem = {
   dbId: string | null;
   name: string;
   latinName: string | null;
+  variant: string | null;
   price: number | null;
   size: string | null;
   qtyPerBox: number | null;
@@ -47,6 +48,7 @@ export default function EditShipmentPage() {
           dbId: p.id,
           name: p.name,
           latinName: p.latinName,
+          variant: p.variant,
           price: Number(p.price),
           size: p.size,
           qtyPerBox: p.qtyPerBox,
@@ -76,7 +78,7 @@ export default function EditShipmentPage() {
 
   const addItem = useCallback(() => {
     const id = nextItemId++;
-    setItems((prev) => [{ _id: id, dbId: null, name: "", latinName: null, price: null, size: null, qtyPerBox: 1, availableQty: null }, ...prev]);
+    setItems((prev) => [{ _id: id, dbId: null, name: "", latinName: null, variant: null, price: null, size: null, qtyPerBox: 1, availableQty: null }, ...prev]);
     requestAnimationFrame(() => {
       scrollContainerRef.current?.scrollTo({ top: 0 });
     });
@@ -102,6 +104,7 @@ export default function EditShipmentPage() {
             ...(i.dbId ? { id: i.dbId } : {}),
             name: i.name,
             latinName: i.latinName || null,
+            variant: i.variant || null,
             price: i.price,
             size: i.size,
             qtyPerBox: i.qtyPerBox || 1,
@@ -122,6 +125,7 @@ export default function EditShipmentPage() {
     setSaving(false);
   };
 
+  const hasVariant = useMemo(() => items.some((i) => i.variant), [items]);
   const hasSize = useMemo(() => items.some((i) => i.size), [items]);
   const hasStock = useMemo(() => items.some((i) => i.availableQty !== null && i.availableQty !== undefined), [items]);
   const validCount = useMemo(() => items.filter((i) => i.name && i.price).length, [items]);
@@ -187,6 +191,7 @@ export default function EditShipmentPage() {
           <div className="overflow-x-auto">
             <div className="min-w-[500px] px-4 md:px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Name</p></div>
+              {hasVariant && <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Variant</p></div>}
               <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
               {hasSize && <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Size</p></div>}
               <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty/Box</p></div>
@@ -196,6 +201,7 @@ export default function EditShipmentPage() {
 
             <VirtualItemList
               items={items}
+              hasVariant={hasVariant}
               hasSize={hasSize}
               hasStock={hasStock}
               onUpdate={updateItem}

@@ -221,7 +221,7 @@ export default function AdminOrderDetailPage() {
     const base = i.quantity * Number(i.unitPrice);
     return sum + base + base * ((Number(i.surcharge) || 0) / 100);
   }, 0);
-  const shipping = includeShipping ? 25 : 0;
+  const shipping = includeShipping ? 30 : 0;
   const freight = parseFloat(freightCharge) || 0;
   const vat = (subtotal + shipping + freight) * 0.2;
   const credit = Number(order?.creditApplied) || 0;
@@ -488,7 +488,7 @@ export default function AdminOrderDetailPage() {
             {isEditable ? (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
-                Shipping (£25.00)
+                Shipping (£30.00)
               </label>
             ) : (
               <span>Shipping</span>

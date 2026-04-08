@@ -14,7 +14,7 @@ import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 import { getUserDiscount, applyDiscount } from "../lib/discount";
 
-const SHIPPING_COST = 25;
+const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;
 
 export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number) {
@@ -482,7 +482,8 @@ export async function createAdminOrder(
   adminUserId: string,
   targetUserId: string,
   items: { catalogProductId: string; quantity: number; surcharge?: number }[],
-  notes?: string
+  notes?: string,
+  includeShipping?: boolean,
 ) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
@@ -513,6 +514,7 @@ export async function createAdminOrder(
     shipmentId: null,
     status: OrderStatus.ACCEPTED,
     notes: notes || null,
+    includeShipping: includeShipping || false,
   });
   const savedOrder = await orderRepo.save(order);
 
@@ -590,7 +592,8 @@ export async function createAdminDraftOrder(
   adminUserId: string,
   targetUserId: string | null,
   items: { catalogProductId: string; quantity: number; surcharge?: number }[],
-  notes?: string
+  notes?: string,
+  includeShipping?: boolean,
 ) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
@@ -617,6 +620,7 @@ export async function createAdminDraftOrder(
     shipmentId: null,
     status: OrderStatus.DRAFT,
     notes: notes || null,
+    includeShipping: includeShipping || false,
   } as Partial<Order>);
   const savedOrder = await orderRepo.save(order);
 

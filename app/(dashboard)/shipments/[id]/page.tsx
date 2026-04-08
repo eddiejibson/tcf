@@ -49,6 +49,8 @@ function SubstitutePicker({
           ? products.filter(
               (p) =>
                 p.name.toLowerCase().includes(q) ||
+                (p.latinName && p.latinName.toLowerCase().includes(q)) ||
+                (p.variant && p.variant.toLowerCase().includes(q)) ||
                 (p.size && p.size.toLowerCase().includes(q)),
             )
           : products,
@@ -202,6 +204,7 @@ export default function ShipmentDetailPage() {
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.latinName && p.latinName.toLowerCase().includes(q)) ||
+        (p.variant && p.variant.toLowerCase().includes(q)) ||
         (p.size && p.size.toLowerCase().includes(q)),
     );
   }, [sortedProducts, deferredSearch]);
@@ -555,6 +558,11 @@ export default function ShipmentDetailPage() {
                           <p className="text-white/30 text-[11px] italic mt-0.5">{product.latinName}</p>
                         )}
                         <div className="flex items-center gap-2 mt-0.5">
+                          {product.variant && (
+                            <span className="text-white/40 text-[11px]">
+                              {product.variant}
+                            </span>
+                          )}
                           {product.size && (
                             <span className="text-white/30 text-[11px]">
                               {product.size}
@@ -686,6 +694,9 @@ export default function ShipmentDetailPage() {
                           <p className="text-white/25 text-[11px] italic mt-0.5">{product.latinName}</p>
                         )}
                         <div className="flex items-center gap-1.5 mt-1">
+                          {product.variant && (
+                            <span className="text-white/40 text-[10px]">{product.variant}</span>
+                          )}
                           {discount > 0 ? (
                             <>
                               <span className="text-white/30 text-[10px] tabular-nums line-through">{formatPrice(Number(product.price))}</span>

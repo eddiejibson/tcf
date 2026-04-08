@@ -22,7 +22,7 @@ export async function getAllCatalogProducts(filters?: {
   if (filters?.categoryId) qb.andWhere("p.categoryId = :categoryId", { categoryId: filters.categoryId });
   if (filters?.activeOnly !== false) qb.andWhere("p.active = true");
   if (filters?.search) {
-    qb.andWhere("(LOWER(p.name) LIKE LOWER(:search) OR LOWER(p.latinName) LIKE LOWER(:search))", { search: `%${filters.search}%` });
+    qb.andWhere("(LOWER(p.name) LIKE LOWER(:search) OR LOWER(p.latinName) LIKE LOWER(:search) OR LOWER(category.name) LIKE LOWER(:search))", { search: `%${filters.search}%` });
   }
 
   return qb.getMany();

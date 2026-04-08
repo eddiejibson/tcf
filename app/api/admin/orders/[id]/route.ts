@@ -79,13 +79,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     // Save freight/adminNotes/boxLimits FIRST so the invoice gets the correct values
-    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined) {
+    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined) {
       const db = await getDb();
       const update: Record<string, unknown> = {};
       if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
       if (body.adminNotes !== undefined) update.adminNotes = body.adminNotes;
       if (body.maxBoxes !== undefined) update.maxBoxes = body.maxBoxes;
       if (body.minBoxes !== undefined) update.minBoxes = body.minBoxes;
+      if (body.includeShipping !== undefined) update.includeShipping = body.includeShipping;
       await db.getRepository(Order).update(id, update);
     }
 
@@ -111,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           const db2 = await getDb();
           await db2.getRepository(OrderItem).delete({ orderId: id });
           await db2.getRepository(Order).delete(id);
-          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined);
+          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping);
           if (accepted) {
             const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied);
             const resultItems = accepted.items.map((i) => ({

@@ -75,6 +75,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
   const [search, setSearch] = useState("");
   const [orderItems, setOrderItems] = useState<OrderLineItem[]>(initialItems);
   const [notes, setNotes] = useState(initialNotes);
+  const [includeShipping, setIncludeShipping] = useState(false);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -169,6 +170,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
               userId: selectedUserId || null,
               items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
               notes: notes || undefined,
+              includeShipping,
               asDraft: true,
             }),
           });
@@ -185,6 +187,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
               draftItems: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
               notes: notes || undefined,
               userId: selectedUserId || null,
+              includeShipping,
             }),
           });
         }
@@ -200,7 +203,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUserId, orderItems, notes]);
+  }, [selectedUserId, orderItems, notes, includeShipping]);
 
   const activeParent = categories.find((c) => c.id === activeParentId);
 
@@ -246,8 +249,9 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
     const base = i.price * i.quantity;
     return sum + base + base * ((i.surcharge || 0) / 100);
   }, 0);
-  const vat = subtotal * 0.2;
-  const total = subtotal + vat;
+  const shipping = includeShipping ? 30 : 0;
+  const vat = (subtotal + shipping) * 0.2;
+  const total = subtotal + shipping + vat;
 
   const handleCreate = async () => {
     if (!selectedUserId || orderItems.length === 0) return;
@@ -262,7 +266,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
         const res = await fetch(`/api/admin/orders/${draftOrderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "ACCEPTED" }),
+          body: JSON.stringify({ status: "ACCEPTED", includeShipping }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -279,6 +283,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
           userId: selectedUserId,
           items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
           notes: notes || undefined,
+          includeShipping,
         }),
       });
       if (res.ok) {
@@ -545,6 +550,13 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
                 <div className="flex justify-between text-white/60 text-sm">
                   <span>Subtotal</span>
                   <span className="tabular-nums">{formatPrice(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-white/60 text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="w-3.5 h-3.5 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
+                    Shipping
+                  </label>
+                  <span className="tabular-nums">{formatPrice(shipping)}</span>
                 </div>
                 <div className="flex justify-between text-white/60 text-sm">
                   <span>VAT (20%)</span>

@@ -252,15 +252,20 @@ export default function ShipmentDetailPage() {
       0,
     ) || 0;
 
-  const totalBoxes = shipment
-    ? Math.ceil(
-        shipment.products.reduce((sum, p) => {
-          const qty = getQty(p.id);
-          if (qty === 0) return sum;
-          return sum + qty / p.qtyPerBox;
-        }, 0),
-      )
-    : 0;
+  const boxCalc = shipment
+    ? shipment.products.reduce((acc, p) => {
+        const qty = getQty(p.id);
+        if (qty === 0) return acc;
+        if (p.qtyPerBox > 1) {
+          return { ...acc, boxes: acc.boxes + qty / p.qtyPerBox, hasUnknown: acc.hasUnknown };
+        }
+        // qtyPerBox is 1 (default/unknown) — can't estimate boxes
+        return { ...acc, hasUnknown: true };
+      }, { boxes: 0, hasUnknown: false })
+    : { boxes: 0, hasUnknown: false };
+
+  const totalBoxes = Math.ceil(boxCalc.boxes);
+  const hasUnknownBoxItems = boxCalc.hasUnknown;
 
   const estimatedFreight =
     totalBoxes > 0 && shipment ? Number(shipment.freightCost) * totalBoxes : 0;
@@ -389,14 +394,17 @@ export default function ShipmentDetailPage() {
                 {formatPrice(vat)}
               </p>
             </div>
-            {estimatedFreight > 0 && (
+            {(estimatedFreight > 0 || hasUnknownBoxItems) && cart.size > 0 && (
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">
                   Est. Freight
                 </p>
                 <p className="text-white/40 text-sm tabular-nums">
-                  ~{formatPrice(estimatedFreight)}
+                  {estimatedFreight > 0 ? `~${formatPrice(estimatedFreight)}` : "—"}
                 </p>
+                {hasUnknownBoxItems && (
+                  <p className="text-amber-400/60 text-[10px] mt-0.5">Partial — some items have unknown box qty</p>
+                )}
               </div>
             )}
             <div className="col-span-2 md:col-span-1">
@@ -858,11 +866,14 @@ export default function ShipmentDetailPage() {
                   <span className="text-white/50">VAT (20%)</span>
                   <span className="text-white/60 tabular-nums">{formatPrice(vat)}</span>
                 </div>
-                {estimatedFreight > 0 && (
+                {(estimatedFreight > 0 || hasUnknownBoxItems) && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/50">Est. Freight ({totalBoxes} boxes)</span>
-                    <span className="text-white/40 tabular-nums">~{formatPrice(estimatedFreight)}</span>
+                    <span className="text-white/50">Est. Freight{totalBoxes > 0 ? ` (${totalBoxes} boxes)` : ""}{hasUnknownBoxItems ? " *" : ""}</span>
+                    <span className="text-white/40 tabular-nums">{estimatedFreight > 0 ? `~${formatPrice(estimatedFreight)}` : "TBC"}</span>
                   </div>
+                )}
+                {hasUnknownBoxItems && (
+                  <p className="text-amber-400/50 text-[10px]">* Some items have unknown box quantity — freight is a partial estimate</p>
                 )}
                 <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
                   <span className="text-white/70 font-medium">Total</span>

@@ -2,6 +2,8 @@
 
 import { useAuth } from "@/app/lib/auth-context";
 import { applyDiscount } from "@/app/lib/discount";
+import { estimateFreight } from "@/app/lib/freight";
+import { generateShipmentSheet, parseShipmentOrderSheet } from "@/app/lib/generate-shipment-sheet";
 import type { SerializedProduct, ShipmentDetail } from "@/app/lib/types";
 import { useParams, useRouter } from "next/navigation";
 import React, {
@@ -157,6 +159,8 @@ export default function ShipmentDetailPage() {
   const [cartBarVisible, setCartBarVisible] = useState(true);
   const cartBarRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const fetchShipment = useCallback(async () => {
     const res = await fetch(`/api/shipments/${params.id}`);
@@ -252,25 +256,67 @@ export default function ShipmentDetailPage() {
       0,
     ) || 0;
 
-  const boxCalc = shipment
-    ? shipment.products.reduce((acc, p) => {
-        const qty = getQty(p.id);
-        if (qty === 0) return acc;
-        if (p.qtyPerBox > 1) {
-          return { ...acc, boxes: acc.boxes + qty / p.qtyPerBox, hasUnknown: acc.hasUnknown };
-        }
-        // qtyPerBox is 1 (default/unknown) — can't estimate boxes
-        return { ...acc, hasUnknown: true };
-      }, { boxes: 0, hasUnknown: false })
-    : { boxes: 0, hasUnknown: false };
+  const freightEst = shipment
+    ? estimateFreight(
+        shipment.products.map((p) => ({ quantity: getQty(p.id), qtyPerBox: p.qtyPerBox })),
+        Number(shipment.freightCost),
+      )
+    : { totalBoxes: 0, freight: 0, hasUnknownBoxItems: false };
 
-  const totalBoxes = Math.ceil(boxCalc.boxes);
-  const hasUnknownBoxItems = boxCalc.hasUnknown;
-
-  const estimatedFreight =
-    totalBoxes > 0 && shipment ? Number(shipment.freightCost) * totalBoxes : 0;
+  const totalBoxes = freightEst.totalBoxes;
+  const hasUnknownBoxItems = freightEst.hasUnknownBoxItems;
+  const estimatedFreight = freightEst.freight;
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
+
+  const handleExport = () => {
+    if (!shipment) return;
+    generateShipmentSheet({
+      shipmentName: shipment.name,
+      deadline: new Date(shipment.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      shipmentDate: new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      freightCostPerBox: Number(shipment.freightCost),
+      products: shipment.products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        latinName: p.latinName,
+        variant: p.variant,
+        size: p.size,
+        price: discount > 0 ? applyDiscount(Number(p.price), discount) : Number(p.price),
+        qtyPerBox: p.qtyPerBox,
+        availableQty: p.availableQty,
+      })),
+    });
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !shipment) return;
+    setImporting(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseShipmentOrderSheet(buffer);
+      if (parsed.length === 0) {
+        alert("No items with quantities found in the uploaded file.");
+        setImporting(false);
+        return;
+      }
+      // Apply parsed quantities to the cart
+      const newCart = new Map<string, number>();
+      for (const item of parsed) {
+        // Match by product ID
+        const product = shipment.products.find((p) => p.id === item.productId);
+        if (product && item.quantity > 0) {
+          newCart.set(product.id, item.quantity);
+        }
+      }
+      setCart(newCart);
+    } catch {
+      alert("Failed to parse the uploaded file.");
+    }
+    setImporting(false);
+    if (importInputRef.current) importInputRef.current.value = "";
+  };
 
   const handleSubmitClick = () => {
     if (!shipment || cart.size === 0) return;
@@ -350,20 +396,44 @@ export default function ShipmentDetailPage() {
         Back to Shipments
       </button>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">{shipment.name}</h1>
-        <div className="flex items-center gap-4 mt-2">
-          <span className="text-amber-400 text-sm font-medium">
-            Deadline:{" "}
-            {new Date(shipment.deadline).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </span>
-          <span className="text-white/40 text-sm">
-            {shipment.products.length} products
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-white">{shipment.name}</h1>
+          <div className="flex items-center gap-4 mt-2">
+            <span className="text-amber-400 text-sm font-medium">
+              Deadline:{" "}
+              {new Date(shipment.deadline).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+            <span className="text-white/40 text-sm">
+              {shipment.products.length} products
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/50 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Export Sheet
+          </button>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/50 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {importing ? (
+              <div className="w-3.5 h-3.5 border border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+            )}
+            Import Order
+          </button>
+          <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
         </div>
       </div>
 

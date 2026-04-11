@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { AdminOrderDetail, EditableOrderItem } from "@/app/lib/types";
 import { generateInvoice } from "@/app/lib/generate-invoice";
+import { estimateFreight } from "@/app/lib/freight";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -55,13 +56,14 @@ export default function AdminOrderDetailPage() {
     if (data.freightCharge != null && Number(data.freightCharge) !== 0) {
       fc = String(data.freightCharge);
     } else {
-      const shipFreight = Number(data.shipment?.freightCost ?? 0);
-      const boxes = Math.ceil((data.items || []).reduce((sum: number, item: { quantity: number; product?: { qtyPerBox?: number } }) => {
-        const qtyPerBox = item.product?.qtyPerBox || 1;
-        return sum + item.quantity / qtyPerBox;
-      }, 0));
-      const est = boxes > 0 && shipFreight > 0 ? shipFreight * boxes : 0;
-      fc = est > 0 ? est.toFixed(2) : "";
+      const est = estimateFreight(
+        (data.items || []).map((item: { quantity: number; product?: { qtyPerBox?: number } }) => ({
+          quantity: item.quantity,
+          qtyPerBox: item.product?.qtyPerBox || 1,
+        })),
+        Number(data.shipment?.freightCost ?? 0),
+      );
+      fc = est.freight > 0 ? est.freight.toFixed(2) : "";
     }
     setFreightCharge(fc);
     setMaxBoxes(data.maxBoxes != null ? String(data.maxBoxes) : "");

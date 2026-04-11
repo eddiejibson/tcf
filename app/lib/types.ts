@@ -97,6 +97,7 @@ export interface AdminShipmentDetailProduct {
   size: string | null;
   qtyPerBox: number;
   availableQty: number | null;
+  featured: boolean;
 }
 
 export interface AdminShipmentDetailOrderItem {

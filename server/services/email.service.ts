@@ -26,7 +26,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function sendWithRetry(mailOptions: nodemailer.SendMailOptions, retries = 2) {
+export async function sendWithRetry(mailOptions: nodemailer.SendMailOptions, retries = 2) {
   const to = Array.isArray(mailOptions.to) ? mailOptions.to.join(", ") : String(mailOptions.to);
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -44,7 +44,7 @@ async function sendWithRetry(mailOptions: nodemailer.SendMailOptions, retries = 
   }
 }
 
-function from() {
+export function from() {
   return process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@thecoralfarm.co.uk";
 }
 

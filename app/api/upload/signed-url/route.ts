@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
-import { getUploadUrl, uploadBuffer } from "@/server/services/storage.service";
+import { getUploadUrl, getDownloadUrl, uploadBuffer } from "@/server/services/storage.service";
 import { v4 as uuid } from "uuid";
 import { log } from "@/server/logger";
 
@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
       const key = `doa-images/${user.userId}/${uuid()}.${ext}`;
       const buffer = Buffer.from(await file.arrayBuffer());
       await uploadBuffer(key, buffer, file.type || "image/jpeg");
+      const downloadUrl = await getDownloadUrl(key);
 
-      return NextResponse.json({ key });
+      return NextResponse.json({ key, downloadUrl });
     }
 
     const body = await request.json();
@@ -31,11 +32,13 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = body.filename.split(".").pop() || "jpg";
-    const prefix = body.purpose === "catalog" ? "catalog-images" : "doa-images";
+    const prefixMap: Record<string, string> = { catalog: "catalog-images", email: "email-images" };
+    const prefix = prefixMap[body.purpose] || "doa-images";
     const key = `${prefix}/${user.userId}/${uuid()}.${ext}`;
     const url = await getUploadUrl(key, body.contentType);
+    const downloadUrl = await getDownloadUrl(key);
 
-    return NextResponse.json({ url, key });
+    return NextResponse.json({ url, key, downloadUrl });
   } catch (e) {
     log.error("Upload signed URL failed", e, { route: "/api/upload/signed-url", method: "POST" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import ProductSearch from "@/app/components/ProductSearch";
 import type {
   AdminShipmentDetail,
   AdminShipmentDetailProduct,
@@ -564,6 +565,10 @@ export default function AdminShipmentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/admin/shipments/${shipment.id}/email`} className="px-4 py-1.5 bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/30 transition-all flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+            Send Notification
+          </Link>
           <Link href={`/admin/shipments/${shipment.id}/edit`} className="px-4 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-sm font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all">
             Edit Shipment
           </Link>
@@ -587,6 +592,42 @@ export default function AdminShipmentDetailPage() {
             <p className="text-white font-semibold">{shipment.products.length}</p>
           </div>
         </div>
+      </div>
+
+      {/* Top Picks */}
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+            <h3 className="text-white font-semibold text-sm">Top Picks</h3>
+            <span className="text-white/30 text-xs">({shipment.products.filter((p) => p.featured).length} featured)</span>
+          </div>
+        </div>
+        {shipment.products.filter((p) => p.featured).length === 0 && (
+          <p className="text-white/30 text-xs mb-3">Search and add products to feature in emails and for customers.</p>
+        )}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {shipment.products.filter((p) => p.featured).map((p) => (
+            <span key={p.id} className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-medium flex items-center gap-1.5">
+              {p.name}
+              <button onClick={async () => {
+                await fetch(`/api/admin/shipments/${shipment.id}/featured`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: p.id, featured: false }) });
+                fetchShipment();
+              }} className="text-amber-400/50 hover:text-amber-400 transition-colors">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </span>
+          ))}
+        </div>
+        <ProductSearch
+          products={shipment.products.filter((p) => !p.featured)}
+          onSelect={async (p) => {
+            await fetch(`/api/admin/shipments/${shipment.id}/featured`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: p.id, featured: true }) });
+            fetchShipment();
+          }}
+          compact
+          placeholder="Search to add top picks..."
+        />
       </div>
 
       {/* Packing list flow */}

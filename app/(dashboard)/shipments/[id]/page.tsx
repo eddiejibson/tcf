@@ -185,10 +185,13 @@ export default function ShipmentDetailPage() {
 
   const sortedProducts = useMemo(() => {
     if (!shipment) return [];
+    const inCart: SerializedProduct[] = [];
     const available: SerializedProduct[] = [];
     const unavailable: SerializedProduct[] = [];
     for (const p of shipment.products) {
-      if (
+      if (cart.has(p.id) && cart.get(p.id)! > 0) {
+        inCart.push(p);
+      } else if (
         p.availableQty !== null &&
         p.availableQty !== undefined &&
         p.availableQty <= 0
@@ -198,8 +201,8 @@ export default function ShipmentDetailPage() {
         available.push(p);
       }
     }
-    return [...available, ...unavailable];
-  }, [shipment]);
+    return [...inCart, ...available, ...unavailable];
+  }, [shipment, cart]);
 
   const filteredProducts = useMemo(() => {
     if (!deferredSearch.trim()) return sortedProducts;
@@ -311,6 +314,8 @@ export default function ShipmentDetailPage() {
         }
       }
       setCart(newCart);
+      // Scroll to top so user sees their selected items
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       alert("Failed to parse the uploaded file.");
     }
@@ -547,6 +552,29 @@ export default function ShipmentDetailPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Picks */}
+      {shipment.products.some((p) => p.featured) && (
+        <div className="bg-gradient-to-r from-amber-500/5 to-transparent border border-amber-500/10 rounded-[20px] p-4 md:p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+            <h3 className="text-amber-400 text-xs font-bold uppercase tracking-wider">Our Top Picks</h3>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {shipment.products.filter((p) => p.featured).map((p) => {
+              const qty = getQty(p.id);
+              return (
+                <button key={p.id} onClick={() => { setCart(new Map(cart).set(p.id, qty + 1)); }} className="shrink-0 bg-white/5 border border-white/10 hover:border-amber-500/20 rounded-xl p-3 text-left transition-all min-w-[160px]">
+                  <p className="text-white/90 text-sm font-semibold truncate">{toTitleCase(p.name)}</p>
+                  {p.latinName && <p className="text-white/30 text-[10px] italic truncate">{p.latinName}</p>}
+                  <p className="text-[#0984E3] text-sm font-bold mt-1 tabular-nums">{formatPrice(discount > 0 ? applyDiscount(Number(p.price), discount) : Number(p.price))}</p>
+                  {qty > 0 && <p className="text-amber-400 text-[10px] font-medium mt-0.5">{qty} in order</p>}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

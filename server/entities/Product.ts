@@ -35,6 +35,9 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   surcharge: number;
 
+  @Column({ type: "boolean", default: false })
+  featured: boolean;
+
   @Column({ type: "jsonb", nullable: true })
   originalRow: Record<string, unknown>;
 }

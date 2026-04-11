@@ -48,7 +48,7 @@ function applyRow(row: ExcelJS.Row, fill: Fill, border: Border, cols: number) {
 }
 
 export async function generateShipmentSheet(data: ShipmentExportData): Promise<void> {
-  const COLS = 10;
+  const COLS = 11; // A-K, col K is hidden helper for box calc
   const wb = new ExcelJS.Workbook();
   wb.creator = "The Coral Farm";
 
@@ -67,6 +67,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
     { width: 9 },   // H: Available
     { width: 9 },   // I: Qty
     { width: 13 },  // J: Line Total
+    { width: 0, hidden: true },  // K: Helper (boxes per row)
   ];
 
   // ─── ROW 1: BRAND BAR ───
@@ -151,7 +152,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
       qtyBox !== null ? qtyBox : "—",
       avail !== null ? avail : "—",
       null,
-      { formula: `IF(I${er}="","",F${er}*I${er})` },
+      { formula: `IFERROR(IF(I${er}="","",F${er}*I${er}),"")` },
     ]);
 
     row.height = 22;
@@ -186,6 +187,9 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
     row.getCell(10).font = { size: 10, bold: true, color: { argb: ACCENT }, name: "Calibri" };
     row.getCell(10).numFmt = "£#,##0.00";
     row.getCell(10).alignment = { horizontal: "right" };
+
+    // Hidden col K: boxes for this row = IF qty filled AND qtyPerBox is number > 1, qty/qtyPerBox, else 0
+    row.getCell(11).value = { formula: `IFERROR(IF(AND(ISNUMBER(I${er}),ISNUMBER(G${er}),G${er}>1),I${er}/G${er},0),0)` } as ExcelJS.CellFormulaValue;
   });
 
   const lastDataRow = firstDataRow + data.products.length - 1;
@@ -202,10 +206,12 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
 
   const summaryStartRow = lastDataRow + 2;
 
+  const helperRange = `K${firstDataRow}:K${lastDataRow}`;
+
   const summaryDefs: { label: string; formula?: string; fmt: string; bold?: boolean; color?: string }[] = [
-    { label: "Items Ordered", formula: `SUM(${qtyRange})`, fmt: "#,##0" },
-    { label: "Subtotal", formula: `SUM(${totalRange})`, fmt: "£#,##0.00" },
-    { label: "Est. Boxes", formula: `CEILING(SUMPRODUCT((${qtyRange}<>"")*IF(${qtyBoxRange}>1,${qtyRange}/${qtyBoxRange},0)),1)`, fmt: "#,##0" },
+    { label: "Items Ordered", formula: `IFERROR(SUM(${qtyRange}),0)`, fmt: "#,##0" },
+    { label: "Subtotal", formula: `IFERROR(SUM(${totalRange}),0)`, fmt: "£#,##0.00" },
+    { label: "Est. Boxes", formula: `IFERROR(CEILING(SUM(${helperRange}),1),0)`, fmt: "#,##0" },
     { label: "Est. Freight", fmt: "£#,##0.00" },
     { label: "VAT (20%)", fmt: "£#,##0.00" },
     { label: "Grand Total", fmt: "£#,##0.00", bold: true, color: ACCENT },
@@ -244,9 +250,9 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
   const vatRowNum = summaryStartRow + 4;
   const grandRowNum = summaryStartRow + 5;
 
-  ws.getCell(freightRowNum, 10).value = { formula: `J${boxesRowNum}*B6` } as ExcelJS.CellFormulaValue;
-  ws.getCell(vatRowNum, 10).value = { formula: `(J${subtotalRowNum}+J${freightRowNum})*0.2` } as ExcelJS.CellFormulaValue;
-  ws.getCell(grandRowNum, 10).value = { formula: `J${subtotalRowNum}+J${freightRowNum}+J${vatRowNum}` } as ExcelJS.CellFormulaValue;
+  ws.getCell(freightRowNum, 10).value = { formula: `IFERROR(J${boxesRowNum}*B6,0)` } as ExcelJS.CellFormulaValue;
+  ws.getCell(vatRowNum, 10).value = { formula: `IFERROR((J${subtotalRowNum}+J${freightRowNum})*0.2,J${subtotalRowNum}*0.2)` } as ExcelJS.CellFormulaValue;
+  ws.getCell(grandRowNum, 10).value = { formula: `IFERROR(J${subtotalRowNum}+J${freightRowNum}+J${vatRowNum},J${subtotalRowNum}*1.2)` } as ExcelJS.CellFormulaValue;
 
   // ─── FOOTER ───
   const footerRow = ws.getRow(grandRowNum + 2);

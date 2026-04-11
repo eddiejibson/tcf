@@ -269,9 +269,9 @@ export default function ShipmentDetailPage() {
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!shipment) return;
-    generateShipmentSheet({
+    await generateShipmentSheet({
       shipmentName: shipment.name,
       deadline: new Date(shipment.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       shipmentDate: new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),

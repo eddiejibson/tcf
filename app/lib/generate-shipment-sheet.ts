@@ -293,7 +293,10 @@ export function parseShipmentOrderSheet(buffer: ArrayBuffer): ParsedShipmentOrde
     const row = data[i];
     if (!row) continue;
     const rowStr = row.map((c) => String(c || "")).join("|");
-    if ((/Product ID|^ID$/i.test(rowStr)) && /\bQty\b/i.test(rowStr)) {
+    const cells = row.map((c) => String(c || "").trim());
+    const hasIdCol = cells.some((c) => /^(Product ID|ID)$/i.test(c));
+    const hasQtyCol = cells.some((c) => /^Qty$/i.test(c));
+    if (hasIdCol && hasQtyCol) {
       headerRow = i;
       break;
     }

@@ -81,6 +81,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       qtyPerBox: p.qtyPerBox,
       availableQty: p.availableQty,
       featured: p.featured || false,
+      originalRow: p.originalRow || null,
     })),
     orders: shipment.orders.map((o) => {
       const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied);
@@ -188,6 +189,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       qtyPerBox: p.qtyPerBox,
       availableQty: p.availableQty,
       featured: p.featured || false,
+      originalRow: p.originalRow || null,
     })),
   });
 }

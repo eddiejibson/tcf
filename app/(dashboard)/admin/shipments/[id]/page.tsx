@@ -172,66 +172,154 @@ export default function AdminShipmentDetailPage() {
     doExportPackingList();
   };
 
-  const doExportPackingList = () => {
+  const doExportPackingList = async () => {
     if (!shipment) return;
 
-    // Build flat rows: one row per item, with order info on each row
-    const rows: (string | number)[][] = [];
-    let hasSize = false;
-    let hasBoxLimits = false;
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "The Coral Farm";
+    const ws = wb.addWorksheet("Packing List", { views: [{ showGridLines: false }] });
 
-    // Check if any item has a size, and if any order has box limits
-    for (const order of exportableOrders) {
-      if (order.maxBoxes != null || order.minBoxes != null) hasBoxLimits = true;
-      for (const item of order.items) {
-        const product = shipment.products.find((p) => p.id === item.productId);
-        if (product?.size || item.name.match(/\b(S|M|L|XL|XXL|XXXL|SM|MD|LG)\b/i)) {
-          hasSize = true;
-        }
-      }
-    }
+    const BRAND = "FF0984E3";
+    const DARK = "FF0D1117";
+    const CARD = "FF161B22";
+    const ALT = "FF1C2128";
+    const BORDER_C = "FF30363D";
+    const WHITE = "FFFFFFFF";
+    const TEXT = "FFE6EDF3";
+    const DIM = "FF8B949E";
+    const COLS = 5; // Code, Name, Variant/Size, Qty, Amount
 
-    for (const order of exportableOrders) {
-      const orderRef = `#${order.id.slice(0, 8).toUpperCase()}`;
-      const customer = order.userCompanyName || order.userEmail;
-      for (const item of order.items) {
-        const product = shipment.products.find((p) => p.id === item.productId);
-        const row: (string | number)[] = [orderRef, customer, item.name];
-        if (hasSize) row.push(product?.size || "");
-        row.push(item.quantity);
-        if (hasBoxLimits) {
-          row.push(order.minBoxes != null ? order.minBoxes : "");
-          row.push(order.maxBoxes != null ? order.maxBoxes : "");
-        }
-        rows.push(row);
-      }
-    }
-
-    const xlHeaders: string[] = ["Order", "Customer", "Name"];
-    if (hasSize) xlHeaders.push("Size");
-    xlHeaders.push("Qty");
-    if (hasBoxLimits) {
-      xlHeaders.push("Min Boxes");
-      xlHeaders.push("Max Boxes");
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet([xlHeaders, ...rows]);
-    const cols: { wch: number }[] = [
-      { wch: 12 },  // Order
-      { wch: 25 },  // Customer
-      { wch: 30 },  // Name
+    ws.columns = [
+      { width: 12 }, // Code
+      { width: 36 }, // Name
+      { width: 20 }, // Variant / Size
+      { width: 10 }, // Qty
+      { width: 10 }, // Amount
     ];
-    if (hasSize) cols.push({ wch: 10 }); // Size
-    cols.push({ wch: 8 }); // Qty
-    if (hasBoxLimits) {
-      cols.push({ wch: 12 }); // Min Boxes
-      cols.push({ wch: 12 }); // Max Boxes
-    }
-    ws["!cols"] = cols;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Packing List");
-    XLSX.writeFile(wb, `${shipment.name} - Packing List.xlsx`);
+    // Title
+    ws.mergeCells("A1:E1");
+    const r1 = ws.getRow(1);
+    r1.height = 6;
+    for (let c = 1; c <= COLS; c++) r1.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
+
+    ws.mergeCells("A2:E2");
+    const r2 = ws.getRow(2);
+    r2.height = 30;
+    r2.getCell(1).value = "  THE CORAL FARM — Packing List";
+    r2.getCell(1).font = { bold: true, size: 14, color: { argb: WHITE }, name: "Calibri" };
+    r2.getCell(1).alignment = { vertical: "middle" };
+    for (let c = 1; c <= COLS; c++) r2.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+
+    ws.mergeCells("A3:E3");
+    const r3 = ws.getRow(3);
+    r3.height = 20;
+    r3.getCell(1).value = `  ${shipment.name}`;
+    r3.getCell(1).font = { size: 10, color: { argb: BRAND }, name: "Calibri" };
+    r3.getCell(1).alignment = { vertical: "middle" };
+    for (let c = 1; c <= COLS; c++) r3.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+
+    let rowNum = 4;
+
+    for (const order of exportableOrders) {
+      const customer = order.userCompanyName || order.userEmail;
+      const orderRef = order.id.slice(0, 8).toUpperCase();
+
+      // Spacer
+      const spacer = ws.getRow(rowNum++);
+      spacer.height = 10;
+      for (let c = 1; c <= COLS; c++) spacer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+
+      // Company header
+      ws.mergeCells(rowNum, 1, rowNum, COLS);
+      const companyRow = ws.getRow(rowNum++);
+      companyRow.height = 26;
+      companyRow.getCell(1).value = `  ${customer}  (${orderRef})`;
+      companyRow.getCell(1).font = { bold: true, size: 12, color: { argb: WHITE }, name: "Calibri" };
+      companyRow.getCell(1).alignment = { vertical: "middle" };
+      for (let c = 1; c <= COLS; c++) {
+        companyRow.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: CARD } };
+        companyRow.getCell(c).border = { bottom: { style: "thin", color: { argb: BRAND } } };
+      }
+
+      // Column headers
+      const headers = ["Code", "Name", "Variant / Size", "Qty", "Amount"];
+      const hRow = ws.getRow(rowNum++);
+      hRow.height = 20;
+      headers.forEach((h, i) => {
+        const cell = hRow.getCell(i + 1);
+        cell.value = h;
+        cell.font = { bold: true, size: 9, color: { argb: DIM }, name: "Calibri" };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CARD } };
+        cell.alignment = { vertical: "middle" };
+      });
+
+      // Items
+      order.items.forEach((item, i) => {
+        const product = shipment.products.find((p) => p.id === item.productId);
+        const code = product?.originalRow?.["Code"] || product?.originalRow?.["code"] || "";
+        const variant = product?.variant || "";
+        const size = product?.size || "";
+        const variantSize = [variant, size].filter(Boolean).join(" / ");
+
+        const row = ws.getRow(rowNum++);
+        row.height = 20;
+        const bg = i % 2 === 0 ? CARD : ALT;
+
+        row.getCell(1).value = String(code);
+        row.getCell(1).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
+
+        row.getCell(2).value = item.name;
+        row.getCell(2).font = { size: 10, color: { argb: TEXT }, name: "Calibri" };
+
+        row.getCell(3).value = variantSize;
+        row.getCell(3).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
+
+        row.getCell(4).value = item.quantity;
+        row.getCell(4).font = { size: 10, bold: true, color: { argb: BRAND }, name: "Calibri" };
+        row.getCell(4).alignment = { horizontal: "center" };
+
+        row.getCell(5).value = item.quantity * (product?.qtyPerBox || 1);
+        row.getCell(5).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
+        row.getCell(5).alignment = { horizontal: "center" };
+
+        for (let c = 1; c <= COLS; c++) {
+          row.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+          row.getCell(c).border = { bottom: { style: "hair", color: { argb: BORDER_C } } };
+        }
+      });
+
+      // Box limits if any
+      if (order.minBoxes != null || order.maxBoxes != null) {
+        const boxRow = ws.getRow(rowNum++);
+        boxRow.height = 18;
+        const limits = [order.minBoxes != null ? `Min: ${order.minBoxes}` : "", order.maxBoxes != null ? `Max: ${order.maxBoxes}` : ""].filter(Boolean).join("  |  ");
+        boxRow.getCell(2).value = `Boxes: ${limits}`;
+        boxRow.getCell(2).font = { size: 9, italic: true, color: { argb: DIM }, name: "Calibri" };
+        for (let c = 1; c <= COLS; c++) boxRow.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+      }
+    }
+
+    // Footer
+    const footerSpacer = ws.getRow(rowNum++);
+    footerSpacer.height = 8;
+    for (let c = 1; c <= COLS; c++) footerSpacer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+
+    ws.mergeCells(rowNum, 1, rowNum, COLS);
+    const footer = ws.getRow(rowNum);
+    footer.getCell(1).value = "  thecoralfarm.co.uk";
+    footer.getCell(1).font = { size: 8, color: { argb: "FF484F58" }, name: "Calibri" };
+    for (let c = 1; c <= COLS; c++) footer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${shipment.name} - Packing List.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // --- Upload handler ---

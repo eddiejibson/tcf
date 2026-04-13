@@ -100,6 +100,7 @@ export interface AdminShipmentDetailProduct {
   qtyPerBox: number;
   availableQty: number | null;
   featured: boolean;
+  originalRow?: Record<string, unknown> | null;
 }
 
 export interface AdminShipmentDetailOrderItem {

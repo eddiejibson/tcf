@@ -133,6 +133,7 @@ export default function NewShipmentPage() {
   const [shipmentDate, setShipmentDate] = useState("");
   const [freightCost, setFreightCost] = useState("");
   const [items, setItems] = useState<ItemWithId[]>([]);
+  const [itemSearch, setItemSearch] = useState("");
   const [mappingsOpen, setMappingsOpen] = useState(false);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
   const [headers, setHeaders] = useState<string[]>([]);
@@ -425,6 +426,14 @@ export default function NewShipmentPage() {
               </div>
             )}
 
+            {/* Search */}
+            <div className="px-4 md:px-6 py-2 border-b border-white/10">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input type="text" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder={`Search ${items.length} products...`} className="w-full pl-9 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-xs placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50" />
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
             <div className="min-w-[500px] px-4 md:px-6 py-2 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Name</p></div>
@@ -437,7 +446,7 @@ export default function NewShipmentPage() {
             </div>
 
             <VirtualItemList
-              items={items}
+              items={itemSearch.trim() ? items.filter((i) => { const q = itemSearch.toLowerCase(); return i.name.toLowerCase().includes(q) || (i.latinName && i.latinName.toLowerCase().includes(q)) || (i.variant && i.variant.toLowerCase().includes(q)) || (i.size && i.size.toLowerCase().includes(q)); }) : items}
               hasVariant={hasVariant}
               hasSize={hasSize}
               hasStock={hasStock}

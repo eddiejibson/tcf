@@ -144,6 +144,7 @@ export default function OrderDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "confirm_bank_sent", paymentId }),
     });
+    setShowBankDetails(false);
     await fetchOrder();
     setPaymentLoading(false);
   };
@@ -286,9 +287,10 @@ export default function OrderDetailPage() {
 
   // Can select new payment: no PENDING payments (user must deal with those first). AWAITING ones are fine — those are submitted.
   const canSelectPayment = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && pendingPayments.length === 0 && !showCardForm;
-  const showBankInfo = canManagePayments && (hasPendingBank || showBankDetails);
-  const showCardPending = canManagePayments && (hasPendingCard || incompletePayments.some((p) => p.method === "CARD"));
-  const showFinancePending = canManagePayments && (hasPendingFinance || hasAwaitingFinance);
+  // Only show action forms for PENDING payments — AWAITING_CONFIRMATION ones are already submitted
+  const showBankInfo = canManagePayments && hasPendingBank;
+  const showCardPending = canManagePayments && hasPendingCard;
+  const showFinancePending = canManagePayments && hasPendingFinance;
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
 
   return (

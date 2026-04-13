@@ -150,7 +150,7 @@ export default function AdminShipmentDetailPage() {
 
   // Orders exportable for packing list (awaiting fulfillment or already accepted)
   const exportableOrders = useMemo(() =>
-    shipment?.orders.filter((o) => o.status === "AWAITING_FULFILLMENT" || o.status === "ACCEPTED") || [],
+    shipment?.orders.filter((o) => ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED", "AWAITING_PAYMENT", "PAID"].includes(o.status)) || [],
     [shipment]
   );
 
@@ -188,23 +188,33 @@ export default function AdminShipmentDetailPage() {
     const WHITE = "FFFFFFFF";
     const TEXT = "FFE6EDF3";
     const DIM = "FF8B949E";
-    const COLS = 5; // Code, Name, Variant/Size, Qty, Amount
 
-    ws.columns = [
-      { width: 12 }, // Code
-      { width: 36 }, // Name
-      { width: 20 }, // Variant / Size
-      { width: 10 }, // Qty
-      { width: 10 }, // Amount
-    ];
+    // Check if any product has a code
+    const getCode = (product: typeof shipment.products[0] | undefined) =>
+      String(product?.originalRow?.["Code"] || product?.originalRow?.["code"] || product?.originalRow?.["CODE"] || "").trim();
+    const hasCode = exportableOrders.some((o) =>
+      o.items.some((item) => {
+        const product = shipment.products.find((p) => p.id === item.productId);
+        return getCode(product).length > 0;
+      })
+    );
 
-    // Title
-    ws.mergeCells("A1:E1");
+    const COLS = hasCode ? 3 : 2;
+
+    ws.columns = hasCode
+      ? [{ width: 14 }, { width: 44 }, { width: 10 }]
+      : [{ width: 50 }, { width: 10 }];
+
+    const colRef = (n: number) => String.fromCharCode(64 + n); // 1=A, 2=B, 3=C
+
+    // Brand bar
+    ws.mergeCells(`A1:${colRef(COLS)}1`);
     const r1 = ws.getRow(1);
     r1.height = 6;
     for (let c = 1; c <= COLS; c++) r1.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
 
-    ws.mergeCells("A2:E2");
+    // Title
+    ws.mergeCells(`A2:${colRef(COLS)}2`);
     const r2 = ws.getRow(2);
     r2.height = 30;
     r2.getCell(1).value = "  THE CORAL FARM — Packing List";
@@ -212,77 +222,68 @@ export default function AdminShipmentDetailPage() {
     r2.getCell(1).alignment = { vertical: "middle" };
     for (let c = 1; c <= COLS; c++) r2.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
 
-    ws.mergeCells("A3:E3");
-    const r3 = ws.getRow(3);
-    r3.height = 20;
-    r3.getCell(1).value = `  ${shipment.name}`;
-    r3.getCell(1).font = { size: 10, color: { argb: BRAND }, name: "Calibri" };
-    r3.getCell(1).alignment = { vertical: "middle" };
-    for (let c = 1; c <= COLS; c++) r3.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
-
-    let rowNum = 4;
+    let rowNum = 3;
 
     for (const order of exportableOrders) {
       const customer = order.userCompanyName || order.userEmail;
-      const orderRef = order.id.slice(0, 8).toUpperCase();
 
       // Spacer
       const spacer = ws.getRow(rowNum++);
-      spacer.height = 10;
+      spacer.height = 14;
       for (let c = 1; c <= COLS; c++) spacer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
 
-      // Company header
+      // Company header — big, obvious, blue underline
       ws.mergeCells(rowNum, 1, rowNum, COLS);
       const companyRow = ws.getRow(rowNum++);
-      companyRow.height = 26;
-      companyRow.getCell(1).value = `  ${customer}  (${orderRef})`;
-      companyRow.getCell(1).font = { bold: true, size: 12, color: { argb: WHITE }, name: "Calibri" };
+      companyRow.height = 28;
+      companyRow.getCell(1).value = `  ${customer} (${order.id})`;
+      companyRow.getCell(1).font = { bold: true, size: 13, color: { argb: WHITE }, name: "Calibri" };
       companyRow.getCell(1).alignment = { vertical: "middle" };
       for (let c = 1; c <= COLS; c++) {
         companyRow.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: CARD } };
-        companyRow.getCell(c).border = { bottom: { style: "thin", color: { argb: BRAND } } };
+        companyRow.getCell(c).border = { bottom: { style: "medium", color: { argb: BRAND } } };
       }
 
       // Column headers
-      const headers = ["Code", "Name", "Variant / Size", "Qty", "Amount"];
+      const headers = hasCode ? ["Code", "Name", "Qty"] : ["Name", "Qty"];
       const hRow = ws.getRow(rowNum++);
-      hRow.height = 20;
+      hRow.height = 18;
       headers.forEach((h, i) => {
         const cell = hRow.getCell(i + 1);
         cell.value = h;
         cell.font = { bold: true, size: 9, color: { argb: DIM }, name: "Calibri" };
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CARD } };
-        cell.alignment = { vertical: "middle" };
+        cell.alignment = { vertical: "middle", horizontal: h === "Qty" ? "center" : "left" };
       });
 
-      // Items
+      // Items — NO prices.
       order.items.forEach((item, i) => {
         const product = shipment.products.find((p) => p.id === item.productId);
-        const code = product?.originalRow?.["Code"] || product?.originalRow?.["code"] || "";
+        const code = getCode(product);
         const variant = product?.variant || "";
         const size = product?.size || "";
-        const variantSize = [variant, size].filter(Boolean).join(" / ");
+        const extras = [variant, size].filter(Boolean).join(" / ");
+        const displayName = extras ? `${item.name} (${extras})` : item.name;
 
         const row = ws.getRow(rowNum++);
         row.height = 20;
         const bg = i % 2 === 0 ? CARD : ALT;
 
-        row.getCell(1).value = String(code);
-        row.getCell(1).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
-
-        row.getCell(2).value = item.name;
-        row.getCell(2).font = { size: 10, color: { argb: TEXT }, name: "Calibri" };
-
-        row.getCell(3).value = variantSize;
-        row.getCell(3).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
-
-        row.getCell(4).value = item.quantity;
-        row.getCell(4).font = { size: 10, bold: true, color: { argb: BRAND }, name: "Calibri" };
-        row.getCell(4).alignment = { horizontal: "center" };
-
-        row.getCell(5).value = item.quantity * (product?.qtyPerBox || 1);
-        row.getCell(5).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
-        row.getCell(5).alignment = { horizontal: "center" };
+        if (hasCode) {
+          row.getCell(1).value = code;
+          row.getCell(1).font = { size: 9, color: { argb: DIM }, name: "Calibri" };
+          row.getCell(2).value = displayName;
+          row.getCell(2).font = { size: 10, color: { argb: TEXT }, name: "Calibri" };
+          row.getCell(3).value = item.quantity;
+          row.getCell(3).font = { size: 11, bold: true, color: { argb: BRAND }, name: "Calibri" };
+          row.getCell(3).alignment = { horizontal: "center" };
+        } else {
+          row.getCell(1).value = displayName;
+          row.getCell(1).font = { size: 10, color: { argb: TEXT }, name: "Calibri" };
+          row.getCell(2).value = item.quantity;
+          row.getCell(2).font = { size: 11, bold: true, color: { argb: BRAND }, name: "Calibri" };
+          row.getCell(2).alignment = { horizontal: "center" };
+        }
 
         for (let c = 1; c <= COLS; c++) {
           row.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
@@ -290,27 +291,18 @@ export default function AdminShipmentDetailPage() {
         }
       });
 
-      // Box limits if any
-      if (order.minBoxes != null || order.maxBoxes != null) {
+      // Box limits if any (skip if 0)
+      const hasMin = order.minBoxes != null && order.minBoxes > 0;
+      const hasMax = order.maxBoxes != null && order.maxBoxes > 0;
+      if (hasMin || hasMax) {
         const boxRow = ws.getRow(rowNum++);
         boxRow.height = 18;
-        const limits = [order.minBoxes != null ? `Min: ${order.minBoxes}` : "", order.maxBoxes != null ? `Max: ${order.maxBoxes}` : ""].filter(Boolean).join("  |  ");
+        const limits = [hasMin ? `Min: ${order.minBoxes}` : "", hasMax ? `Max: ${order.maxBoxes}` : ""].filter(Boolean).join("  |  ");
         boxRow.getCell(2).value = `Boxes: ${limits}`;
         boxRow.getCell(2).font = { size: 9, italic: true, color: { argb: DIM }, name: "Calibri" };
         for (let c = 1; c <= COLS; c++) boxRow.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
       }
     }
-
-    // Footer
-    const footerSpacer = ws.getRow(rowNum++);
-    footerSpacer.height = 8;
-    for (let c = 1; c <= COLS; c++) footerSpacer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
-
-    ws.mergeCells(rowNum, 1, rowNum, COLS);
-    const footer = ws.getRow(rowNum);
-    footer.getCell(1).value = "  thecoralfarm.co.uk";
-    footer.getCell(1).font = { size: 8, color: { argb: "FF484F58" }, name: "Calibri" };
-    for (let c = 1; c <= COLS; c++) footer.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK } };
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -653,6 +645,10 @@ export default function AdminShipmentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={handleExportPackingList} disabled={exportableOrders.length === 0} className="px-4 py-1.5 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Packing List
+          </button>
           <Link href={`/admin/shipments/${shipment.id}/email`} className="px-4 py-1.5 bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/30 transition-all flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
             Send Notification

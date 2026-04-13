@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder, formatPrice } from "@/server/services/order.service";
+import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder, formatPrice, getOrderRemainingBalance } from "@/server/services/order.service";
 import { getUserDiscount } from "@/server/lib/discount";
 import { Order, OrderStatus } from "@/server/entities/Order";
 import { OrderItem } from "@/server/entities/OrderItem";
@@ -61,7 +61,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     }
   }
 
-  return NextResponse.json({ ...order, items, totals, shippingAddress, billingAddress });
+  return NextResponse.json({ ...order, items, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order), shippingAddress, billingAddress });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -197,7 +197,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
       categoryName: i.catalogProduct?.category?.name || null,
     }));
-    return NextResponse.json({ ...order, items: patchItems, totals });
+    return NextResponse.json({ ...order, items: patchItems, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order) });
   } catch (e) {
     log.error("Admin order PATCH failed", e, { route: "/api/admin/orders/[id]", method: "PATCH", meta: { orderId: id } });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrderById, setPaymentMethod, markOrderPaid, calculateOrderTotals } from "@/server/services/order.service";
+import { getOrderById, addOrderPayment, checkOrderFullyPaid, getOrderRemainingBalance } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
+import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { processCardPayment } from "@/server/services/payment.service";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -11,27 +12,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if (order.status !== OrderStatus.ACCEPTED) {
+  if (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_PAYMENT) {
     return NextResponse.json({ error: "Order must be accepted before payment" }, { status: 400 });
   }
 
-  const { sourceId } = await request.json();
+  const { sourceId, amount: rawAmount } = await request.json();
   if (!sourceId) return NextResponse.json({ error: "Missing sourceId" }, { status: 400 });
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
-  const totalPence = Math.round(totals.total * 100);
+  const remaining = getOrderRemainingBalance(order);
+  const amount = rawAmount ? Math.min(Number(rawAmount), remaining) : remaining;
+  const totalPence = Math.round(amount * 100);
 
   try {
     const result = await processCardPayment(sourceId, totalPence, id);
 
     if (result.status === "COMPLETED") {
-      await setPaymentMethod(id, PaymentMethod.CARD, result.paymentId);
-      await markOrderPaid(id, result.paymentId);
-      return NextResponse.json({ status: "PAID", paymentId: result.paymentId });
+      const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId, OrderPaymentStatus.COMPLETED);
+      await checkOrderFullyPaid(id);
+      return NextResponse.json({ status: "PAID", paymentId: payment.id });
     }
 
-    await setPaymentMethod(id, PaymentMethod.CARD, result.paymentId);
-    return NextResponse.json({ status: result.status, paymentId: result.paymentId });
+    const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId);
+    await checkOrderFullyPaid(id);
+    return NextResponse.json({ status: result.status, paymentId: payment.id });
   } catch (e) {
     log.error("Square card payment failed (pay page)", e, { meta: { orderId: id } });
     const message = e instanceof Error ? e.message : "Payment failed";

@@ -338,16 +338,36 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      {order.paymentMethod && (
+      {(order.payments?.length > 0 || order.paymentMethod) && (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6">
-          <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2">Payment</p>
-          <p className="text-white text-sm">
-            {order.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : order.paymentMethod === "FINANCE" ? "Finance (iwocaPay)" : "Card Payment"}
-            {order.paymentReference && order.paymentMethod !== "FINANCE" && <span className="text-white/40 ml-2">Ref: {order.paymentReference}</span>}
-            {order.paymentMethod === "FINANCE" && order.paymentReference && (
-              <a href={order.paymentReference} target="_blank" rel="noopener noreferrer" className="text-[#0984E3] ml-2 hover:underline">View iwocaPay link</a>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white/50 text-xs uppercase tracking-wider font-medium">Payments</p>
+            {order.remainingBalance > 0 && (
+              <span className="text-amber-400 text-xs font-medium">{formatPrice(order.remainingBalance)} remaining</span>
             )}
-          </p>
+          </div>
+          {order.payments?.length > 0 ? (
+            <div className="space-y-2">
+              {order.payments.map((p) => (
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.method === "BANK_TRANSFER" ? "bg-blue-500/20 text-blue-400" : p.method === "CARD" ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"}`}>
+                      {p.method === "BANK_TRANSFER" ? "Bank" : p.method === "CARD" ? "Card" : "Finance"}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.status === "COMPLETED" ? "bg-emerald-500/15 text-emerald-400" : p.status === "AWAITING_CONFIRMATION" ? "bg-amber-500/15 text-amber-400" : "bg-white/10 text-white/50"}`}>
+                      {p.status === "COMPLETED" ? "Paid" : p.status === "AWAITING_CONFIRMATION" ? "Awaiting" : "Pending"}
+                    </span>
+                  </div>
+                  <span className="text-white font-medium text-sm tabular-nums">{formatPrice(Number(p.amount))}</span>
+                </div>
+              ))}
+            </div>
+          ) : order.paymentMethod ? (
+            <p className="text-white text-sm">
+              {order.paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : order.paymentMethod === "FINANCE" ? "Finance" : "Card"}
+              {order.paymentReference && <span className="text-white/40 ml-2 text-xs">Ref: {order.paymentReference}</span>}
+            </p>
+          ) : null}
         </div>
       )}
 

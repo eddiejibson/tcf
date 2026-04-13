@@ -3,6 +3,7 @@ import { BaseEntityWithUpdate } from "./BaseEntity";
 import { User } from "./User";
 import { Shipment } from "./Shipment";
 import { OrderItem } from "./OrderItem";
+import { OrderPayment } from "./OrderPayment";
 import { DoaClaim } from "./DoaClaim";
 
 export enum OrderStatus {
@@ -74,8 +75,11 @@ export class Order extends BaseEntityWithUpdate {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: Relation<OrderItem[]>;
 
+  @OneToMany(() => OrderPayment, (p) => p.order, { cascade: true })
+  payments: Relation<OrderPayment[]>;
+
   @OneToMany(() => DoaClaim, (claim) => claim.order)
   doaClaims: Relation<DoaClaim[]>;
 }
 
-export type OrderType = Omit<Order, "user" | "shipment" | "items" | "doaClaims">;
+export type OrderType = Omit<Order, "user" | "shipment" | "items" | "payments" | "doaClaims">;

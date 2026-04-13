@@ -13,6 +13,7 @@ import { applyCredit, refundCredit, getCompanyIdForUser } from "./credit.service
 import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 import { getUserDiscount, applyDiscount } from "../lib/discount";
+import { OrderPayment, OrderPaymentStatus } from "../entities/OrderPayment";
 
 const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;
@@ -72,7 +73,7 @@ export async function getCompanyOrders(companyId: string) {
     .getMany();
 }
 
-export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user"]) {
+export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user", "payments"]) {
   const db = await getDb();
   return db.getRepository(Order).findOne({ where: { id }, relations });
 }
@@ -705,4 +706,65 @@ export async function updateAdminDraftOrder(
   );
 
   return getOrderById(orderId);
+}
+
+// ─── SPLIT PAYMENT HELPERS ────────────────────────────────────────────
+
+export function getOrderPaidAmount(order: { payments?: { status: string; amount: number }[] }): number {
+  if (!order.payments) return 0;
+  return order.payments
+    .filter((p) => p.status === OrderPaymentStatus.COMPLETED)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+}
+
+export function getOrderRemainingBalance(order: { items: { unitPrice: number; quantity: number; surcharge?: number }[]; includeShipping: boolean; freightCharge?: number | null; creditApplied?: number; payments?: { status: string; amount: number }[] }): number {
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+  const paid = getOrderPaidAmount(order);
+  return Math.max(0, Math.round((totals.total - paid) * 100) / 100);
+}
+
+export async function addOrderPayment(orderId: string, method: PaymentMethod, amount: number, reference?: string | null, status?: OrderPaymentStatus): Promise<OrderPayment> {
+  const db = await getDb();
+  const repo = db.getRepository(OrderPayment);
+  const payment = repo.create({
+    orderId,
+    method,
+    amount,
+    reference: reference || null,
+    status: status || OrderPaymentStatus.PENDING,
+  });
+  return repo.save(payment);
+}
+
+export async function confirmOrderPayment(paymentId: string): Promise<void> {
+  const db = await getDb();
+  await db.getRepository(OrderPayment).update(paymentId, { status: OrderPaymentStatus.COMPLETED });
+}
+
+export async function checkOrderFullyPaid(orderId: string): Promise<boolean> {
+  const order = await getOrderById(orderId);
+  if (!order) return false;
+
+  const remaining = getOrderRemainingBalance(order);
+
+  if (remaining <= 0 && order.status !== OrderStatus.PAID) {
+    await markOrderPaid(orderId, "SPLIT");
+    return true;
+  }
+
+  // If there are any payments but not fully paid, move to AWAITING_PAYMENT
+  const hasPayments = (order.payments?.length || 0) > 0;
+  if (hasPayments && order.status === OrderStatus.ACCEPTED) {
+    const db = await getDb();
+    await db.getRepository(Order).update(orderId, { status: OrderStatus.AWAITING_PAYMENT });
+  }
+
+  return false;
+}
+
+export async function deleteOrderPayment(paymentId: string): Promise<void> {
+  const db = await getDb();
+  const payment = await db.getRepository(OrderPayment).findOneByOrFail({ id: paymentId });
+  if (payment.status === OrderPaymentStatus.COMPLETED) throw new Error("Cannot delete a completed payment");
+  await db.getRepository(OrderPayment).delete(paymentId);
 }

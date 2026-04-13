@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder } from "@/server/middleware/auth";
-import { getOrderById, updateOrderItems, submitOrder, calculateOrderTotals } from "@/server/services/order.service";
+import { getOrderById, updateOrderItems, submitOrder, calculateOrderTotals, getOrderRemainingBalance } from "@/server/services/order.service";
 import { getDb } from "@/server/db/data-source";
 import { Order } from "@/server/entities/Order";
 import { isUuid } from "@/server/utils";
@@ -23,7 +23,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
   }));
-  return NextResponse.json({ ...order, items, totals });
+  return NextResponse.json({ ...order, items, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order) });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -65,5 +65,5 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
   }));
-  return NextResponse.json({ ...updated, items: updatedItems, totals });
+  return NextResponse.json({ ...updated, items: updatedItems, payments: updated.payments || [], totals, remainingBalance: getOrderRemainingBalance(updated) });
 }

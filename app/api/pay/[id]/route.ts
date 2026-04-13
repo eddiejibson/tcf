@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrderById, calculateOrderTotals } from "@/server/services/order.service";
+import { getOrderById, calculateOrderTotals, getOrderRemainingBalance } from "@/server/services/order.service";
 import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +34,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       unitPrice: Number(i.unitPrice),
       surcharge: Number(i.surcharge) || 0,
     })),
+    payments: (order.payments || []).map((p) => ({
+      id: p.id,
+      method: p.method,
+      amount: Number(p.amount),
+      reference: p.reference,
+      status: p.status,
+      createdAt: p.createdAt,
+    })),
     totals,
+    remainingBalance: getOrderRemainingBalance(order),
   });
 }

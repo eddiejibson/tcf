@@ -42,6 +42,7 @@ interface PayOrder {
     unitPrice: number;
     surcharge: number;
   }[];
+  payments: { id: string; method: string; amount: number; status: string; createdAt: string }[];
   totals: {
     subtotal: number;
     vat: number;
@@ -50,6 +51,7 @@ interface PayOrder {
     credit: number;
     total: number;
   };
+  remainingBalance: number;
 }
 
 export default function PublicPayPage() {
@@ -62,6 +64,8 @@ export default function PublicPayPage() {
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [showCardForm, setShowCardForm] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitAmount, setSplitAmount] = useState("");
   const verifiedRef = useRef(false);
 
   const fetchOrder = useCallback(async () => {
@@ -90,15 +94,18 @@ export default function PublicPayPage() {
       .finally(() => setVerifying(false));
   }, [searchParams, params.id, fetchOrder]);
 
+  const getPaymentAmount = () => splitMode && splitAmount ? parseFloat(splitAmount) : undefined;
+
   const handleBankTransfer = async () => {
     setPaymentLoading(true);
     const res = await fetch(`/api/pay/${params.id}/payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "BANK_TRANSFER" }),
+      body: JSON.stringify({ method: "BANK_TRANSFER", amount: getPaymentAmount() }),
     });
     if (res.ok) {
       setShowBankDetails(true);
+      setSplitAmount("");
       await fetchOrder();
     }
     setPaymentLoading(false);
@@ -111,7 +118,7 @@ export default function PublicPayPage() {
     const res = await fetch(`/api/pay/${params.id}/payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "FINANCE" }),
+      body: JSON.stringify({ method: "FINANCE", amount: getPaymentAmount() }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -171,9 +178,9 @@ export default function PublicPayPage() {
     </div>
   );
 
-  const canSelectPayment = order.status === "ACCEPTED" && !order.paymentMethod && !showCardForm;
-  const showBankInfo = order.status === "ACCEPTED" && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
-  const showCardPending = order.status === "ACCEPTED" && order.paymentMethod === "CARD";
+  const canSelectPayment = (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && !showCardForm;
+  const showBankInfo = (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
+  const showCardPending = (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.paymentMethod === "CARD";
   const showFinancePending = order.status === "ACCEPTED" && order.paymentMethod === "FINANCE";
   const isPaid = order.status === "PAID";
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
@@ -305,11 +312,61 @@ export default function PublicPayPage() {
           </div>
         </div>
 
+        {/* Existing payments */}
+        {order.payments?.length > 0 && (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">Payments</h3>
+              {order.remainingBalance > 0 && <span className="text-amber-400 text-sm font-medium">{formatPrice(order.remainingBalance)} remaining</span>}
+            </div>
+            <div className="space-y-2">
+              {order.payments.map((p) => (
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.method === "BANK_TRANSFER" ? "bg-blue-500/20 text-blue-400" : p.method === "CARD" ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"}`}>
+                      {p.method === "BANK_TRANSFER" ? "Bank" : p.method === "CARD" ? "Card" : "Finance"}
+                    </span>
+                    <span className={`text-[10px] font-medium ${p.status === "COMPLETED" ? "text-emerald-400" : "text-amber-400"}`}>
+                      {p.status === "COMPLETED" ? "Paid" : "Pending"}
+                    </span>
+                  </div>
+                  <span className="text-white font-medium text-sm tabular-nums">{formatPrice(Number(p.amount))}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Payment method selection */}
         {canSelectPayment && (
           <div className="mb-6">
-            <h3 className="text-white font-semibold text-lg mb-1">Payment</h3>
-            <p className="text-white/50 text-sm mb-5">Choose how you would like to pay</p>
+            <h3 className="text-white font-semibold text-lg mb-1">
+              {order.payments?.length > 0 ? "Add Another Payment" : "Payment"}
+            </h3>
+            <p className="text-white/50 text-sm mb-4">
+              {order.payments?.length > 0
+                ? `${formatPrice(order.remainingBalance)} remaining`
+                : "Choose how you would like to pay"}
+            </p>
+
+            {!order.payments?.length && (
+              <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                <input type="checkbox" checked={splitMode} onChange={(e) => { setSplitMode(e.target.checked); setSplitAmount(""); }} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
+                <span className="text-white/50 text-sm">Split payment across multiple methods</span>
+              </label>
+            )}
+
+            {(splitMode || (order.payments?.length || 0) > 0) && (
+              <div className="mb-4 bg-white/5 border border-white/10 rounded-xl p-4">
+                <label className="text-white/40 text-[10px] uppercase tracking-wider font-medium block mb-2">Amount for this payment</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/40 text-sm">£</span>
+                  <input type="number" step="0.01" min="0.01" max={order.remainingBalance} value={splitAmount} onChange={(e) => setSplitAmount(e.target.value)} placeholder={order.remainingBalance.toFixed(2)} className="flex-1 px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm tabular-nums placeholder-white/20 focus:outline-none focus:border-[#0984E3]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                  <button onClick={() => setSplitAmount(order.remainingBalance.toFixed(2))} className="px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-white text-xs font-medium transition-colors">Full</button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <button onClick={handleBankTransfer} disabled={paymentLoading} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.08] hover:border-white/20 transition-all text-left flex items-center gap-5">
                 <div className="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">

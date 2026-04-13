@@ -9,6 +9,7 @@ import type { DoaReportType } from "@/server/entities/DoaReport";
 import type { CategoryType } from "@/server/entities/Category";
 import type { CatalogProductRecord } from "@/server/entities/CatalogProduct";
 import type { ApplicationType } from "@/server/entities/Application";
+import type { OrderPaymentType } from "@/server/entities/OrderPayment";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K];
@@ -23,6 +24,7 @@ export type SerializedDoaClaim = Serialized<DoaClaimType>;
 export type SerializedDoaItem = Serialized<DoaItemType>;
 export type SerializedDoaReport = Serialized<DoaReportType>;
 export type SerializedCategory = Serialized<CategoryType>;
+export type SerializedOrderPayment = Serialized<OrderPaymentType>;
 export type SerializedCatalogProduct = Serialized<CatalogProductRecord>;
 export type SerializedApplication = Serialized<ApplicationType>;
 
@@ -166,7 +168,9 @@ export type AdminOrderDetail = SerializedOrder & {
   user: { email: string; companyName: string | null } | null;
   shipment: { name: string; freightCost: number } | null;
   items: OrderItemWithMeta[];
+  payments: SerializedOrderPayment[];
   totals: OrderTotals;
+  remainingBalance: number;
   shippingAddress?: AddressSummary | null;
   billingAddress?: AddressSummary | null;
 };
@@ -188,7 +192,9 @@ export type UserOrderListItem = Pick<SerializedOrder, "id" | "status" | "created
 export type UserOrderDetail = SerializedOrder & {
   shipment: { name: string; freightCost: number } | null;
   items: OrderItemWithMeta[];
+  payments: SerializedOrderPayment[];
   totals: OrderTotals;
+  remainingBalance: number;
 };
 
 export type DoaItemWithUrl = SerializedDoaItem & {

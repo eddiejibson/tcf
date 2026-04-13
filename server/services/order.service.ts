@@ -13,7 +13,7 @@ import { applyCredit, refundCredit, getCompanyIdForUser } from "./credit.service
 import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 import { getUserDiscount, applyDiscount } from "../lib/discount";
-import { OrderPayment, OrderPaymentStatus } from "../entities/OrderPayment";
+import { OrderPayment, OrderPaymentStatus, OrderPaymentMethod } from "../entities/OrderPayment";
 
 const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;

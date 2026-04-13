@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 
 export enum OrderPaymentStatus {
@@ -7,7 +7,6 @@ export enum OrderPaymentStatus {
   COMPLETED = "COMPLETED",
 }
 
-// Duplicated here to avoid circular import with Order
 export enum OrderPaymentMethod {
   BANK_TRANSFER = "BANK_TRANSFER",
   CARD = "CARD",
@@ -21,7 +20,7 @@ export class OrderPayment extends BaseEntity {
 
   @ManyToOne("Order", "payments")
   @JoinColumn({ name: "orderId" })
-  order: Relation<unknown>;
+  order: unknown;
 
   @Column({ type: "enum", enum: OrderPaymentMethod, enumName: "orders_paymentmethod_enum" })
   method: OrderPaymentMethod;

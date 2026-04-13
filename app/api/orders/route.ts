@@ -54,13 +54,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "You don't have permission to create orders" }, { status: 403 });
   }
 
-  const order = await createOrder(user.userId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({
-    productId: i.productId,
-    name: i.name,
-    quantity: i.quantity,
-    unitPrice: i.unitPrice,
-    substituteProductId: i.substituteProductId || null,
-    substituteName: i.substituteName || null,
-  })));
-  return NextResponse.json(order);
+  try {
+    const order = await createOrder(user.userId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({
+      productId: i.productId,
+      name: i.name,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      substituteProductId: i.substituteProductId || null,
+      substituteName: i.substituteName || null,
+    })));
+    return NextResponse.json(order);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to create order" }, { status: 400 });
+  }
 }

@@ -148,6 +148,7 @@ export default function ShipmentDetailPage() {
     Map<string, { productId: string; name: string }>
   >(new Map());
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [useCredit, setUseCredit] = useState(false);
   const [pickerForProduct, setPickerForProduct] = useState<string | null>(null);
   const [showTerms, setShowTerms] = useState(false);
@@ -296,6 +297,7 @@ export default function ShipmentDetailPage() {
     const file = e.target.files?.[0];
     if (!file || !shipment) return;
     setImporting(true);
+    setSubmitError("");
     try {
       const buffer = await file.arrayBuffer();
       const parsed = parseShipmentOrderSheet(buffer);
@@ -304,17 +306,29 @@ export default function ShipmentDetailPage() {
         setImporting(false);
         return;
       }
-      // Apply parsed quantities to the cart
       const newCart = new Map<string, number>();
+      const warnings: string[] = [];
       for (const item of parsed) {
-        // Match by product ID
         const product = shipment.products.find((p) => p.id === item.productId);
         if (product && item.quantity > 0) {
-          newCart.set(product.id, item.quantity);
+          const avail = product.availableQty;
+          if (avail !== null && avail !== undefined && item.quantity > avail) {
+            const capped = Math.max(0, avail);
+            if (capped > 0) {
+              warnings.push(`${product.name}: requested ${item.quantity}, only ${avail} available — set to ${capped}`);
+              newCart.set(product.id, capped);
+            } else {
+              warnings.push(`${product.name}: requested ${item.quantity}, but unavailable — skipped`);
+            }
+          } else {
+            newCart.set(product.id, item.quantity);
+          }
         }
       }
       setCart(newCart);
-      // Scroll to top so user sees their selected items
+      if (warnings.length > 0) {
+        setSubmitError("Some quantities were adjusted:\n" + warnings.join("\n"));
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       alert("Failed to parse the uploaded file.");
@@ -332,6 +346,7 @@ export default function ShipmentDetailPage() {
     if (!shipment || cart.size === 0 || !termsAccepted) return;
     setShowTerms(false);
     setSubmitting(true);
+    setSubmitError("");
 
     const items = shipment.products
       .filter((p) => getQty(p.id) > 0)
@@ -353,20 +368,37 @@ export default function ShipmentDetailPage() {
       body: JSON.stringify({ shipmentId: shipment.id, items }),
     });
 
-    if (res.ok) {
-      const order = await res.json();
-      await fetch(`/api/orders/${order.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "submit",
-          useCredit,
-          maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
-          minBoxes: minBoxes ? parseInt(minBoxes) : null,
-        }),
-      });
-      router.push("/orders");
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const errMsg = data?.error || "Failed to create order";
+      setSubmitError(errMsg);
+      setSubmitting(false);
+
+      // Try to scroll to the problematic product by matching name from error
+      const match = errMsg.match(/Insufficient stock for (.+?):/);
+      if (match && shipment) {
+        const name = match[1];
+        const product = shipment.products.find((p) => p.name === name);
+        if (product) {
+          const el = document.getElementById(`product-${product.id}`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+      return;
     }
+
+    const order = await res.json();
+    await fetch(`/api/orders/${order.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "submit",
+        useCredit,
+        maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
+        minBoxes: minBoxes ? parseInt(minBoxes) : null,
+      }),
+    });
+    router.push("/orders");
     setSubmitting(false);
   };
 
@@ -441,6 +473,26 @@ export default function ShipmentDetailPage() {
           <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
         </div>
       </div>
+
+      {submitError && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-amber-400 text-sm font-medium mb-1">{submitError.split("\n")[0]}</p>
+              {submitError.split("\n").length > 1 && (
+                <ul className="space-y-0.5">
+                  {submitError.split("\n").slice(1).map((w, i) => (
+                    <li key={i} className="text-amber-400/70 text-xs">• {w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button onClick={() => setSubmitError("")} className="text-amber-400/50 hover:text-amber-400 shrink-0 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {cart.size > 0 && (
         <div

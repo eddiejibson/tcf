@@ -491,7 +491,7 @@ export default function OrderDetailPage() {
           {/* Split payments toggle */}
           {!order.payments?.length && (
             <label className="flex items-center gap-2 mb-4 cursor-pointer">
-              <input type="checkbox" checked={splitMode} onChange={(e) => { setSplitMode(e.target.checked); setSplitAmount(""); }} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
+              <input type="checkbox" checked={splitMode} onChange={(e) => { setSplitMode(e.target.checked); setSplitAmount(e.target.checked && order ? order.remainingBalance.toFixed(2) : ""); }} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
               <span className="text-white/50 text-sm">Split payment across multiple methods</span>
             </label>
           )}

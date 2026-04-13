@@ -274,10 +274,16 @@ export default function OrderDetailPage() {
   const canViewDoa = user ? userHasPermission(user, Permission.VIEW_DOA) : false;
   const canCreateDoa = user ? userHasPermission(user, Permission.CREATE_DOA) : false;
 
-  const canSelectPayment = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && !showCardForm;
-  const showBankInfo = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && (order.paymentMethod === "BANK_TRANSFER" || showBankDetails);
-  const showCardPending = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.paymentMethod === "CARD";
-  const showFinancePending = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.paymentMethod === "FINANCE";
+  const pendingPayments = (order.payments || []).filter((p) => p.status !== "COMPLETED");
+  const hasPendingBank = pendingPayments.some((p) => p.method === "BANK_TRANSFER");
+  const hasPendingCard = pendingPayments.some((p) => p.method === "CARD");
+  const hasPendingFinance = pendingPayments.some((p) => p.method === "FINANCE");
+  const hasPending = pendingPayments.length > 0;
+
+  const canSelectPayment = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && !hasPending && !showCardForm;
+  const showBankInfo = canManagePayments && (hasPendingBank || showBankDetails);
+  const showCardPending = canManagePayments && hasPendingCard;
+  const showFinancePending = canManagePayments && hasPendingFinance;
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
 
   return (
@@ -587,81 +593,108 @@ export default function OrderDetailPage() {
         />
       )}
 
-      {showBankInfo && (
-        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold text-lg">Bank Transfer Details</h3>
-            <button onClick={handleChangeMethod} disabled={paymentLoading} className="text-white/40 hover:text-white text-xs font-medium transition-colors">
-              Change method
-            </button>
-          </div>
-          <p className="text-white/50 text-sm mb-4">Please use your order reference <span className="text-white font-medium">#{order.id.slice(0, 8).toUpperCase()}</span> when making the transfer</p>
-          <div className="space-y-3">
-            {[
-              ["Account Holder", BANK_DETAILS.accountHolder],
-              ["Sort Code", BANK_DETAILS.sortCode],
-              ["Account Number", BANK_DETAILS.accountNumber],
-              ["VAT Number", BANK_DETAILS.vatNumber],
-              ["Amount", formatPrice(order.totals.total)],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between py-2 border-b border-white/5">
-                <span className="text-white/50 text-sm">{label}</span>
-                <span className="text-white font-medium text-sm font-mono">{value}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={handleConfirmBankSent}
-            disabled={paymentLoading}
-            className="mt-6 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all"
-          >
-            {paymentLoading ? "Confirming..." : "I've Sent the Transfer"}
-          </button>
-        </div>
-      )}
-
-      {showCardPending && (
-        <div className="mt-6 bg-blue-500/10 border border-blue-500/20 rounded-[16px] p-4 flex items-center justify-between">
-          <p className="text-blue-400 text-sm font-medium">Card payment initiated. Awaiting confirmation.</p>
-          <button onClick={handleChangeMethod} disabled={paymentLoading} className="text-blue-400/60 hover:text-blue-400 text-xs font-medium transition-colors">
-            Change method
-          </button>
-        </div>
-      )}
-
-      {showFinancePending && (
-        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold text-lg">Finance via iwocaPay</h3>
-            <button onClick={handleChangeMethod} disabled={paymentLoading} className="text-white/40 hover:text-white text-xs font-medium transition-colors">
-              Change method
-            </button>
-          </div>
-          <p className="text-white/50 text-sm mb-4">
-            Spread the cost of your order with iwocaPay. Pay in flexible instalments with no impact on your personal credit score.
-          </p>
-          {order.paymentReference && (
-            <a
-              href={order.paymentReference}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 font-medium rounded-xl text-sm transition-all"
+      {showBankInfo && (() => {
+        const bankPayment = pendingPayments.find((p) => p.method === "BANK_TRANSFER");
+        const paymentAmount = bankPayment ? Number(bankPayment.amount) : order.remainingBalance;
+        return (
+          <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold text-lg">Bank Transfer Details</h3>
+              {bankPayment && (
+                <button onClick={async () => {
+                  setPaymentLoading(true);
+                  await fetch(`/api/orders/${params.id}/payment?paymentId=${bankPayment.id}`, { method: "DELETE" });
+                  setShowBankDetails(false);
+                  await fetchOrder();
+                  setPaymentLoading(false);
+                }} disabled={paymentLoading} className="text-white/40 hover:text-white text-xs font-medium transition-colors">
+                  Cancel
+                </button>
+              )}
+            </div>
+            <p className="text-white/50 text-sm mb-4">Please use your order reference <span className="text-white font-medium">#{order.id.slice(0, 8).toUpperCase()}</span> when making the transfer</p>
+            <div className="space-y-3">
+              {[
+                ["Account Holder", BANK_DETAILS.accountHolder],
+                ["Sort Code", BANK_DETAILS.sortCode],
+                ["Account Number", BANK_DETAILS.accountNumber],
+                ["VAT Number", BANK_DETAILS.vatNumber],
+                ["Amount", formatPrice(paymentAmount)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between py-2 border-b border-white/5">
+                  <span className="text-white/50 text-sm">{label}</span>
+                  <span className="text-white font-medium text-sm font-mono">{value}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                if (bankPayment) {
+                  handleConfirmBankSent();
+                }
+              }}
+              disabled={paymentLoading}
+              className="mt-6 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-              Complete Finance Application
-            </a>
-          )}
-          <button
-            onClick={handleConfirmBankSent}
-            disabled={paymentLoading}
-            className="mt-4 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all"
-          >
-            {paymentLoading ? "Confirming..." : "I've Completed the Finance Application"}
-          </button>
-        </div>
-      )}
+              {paymentLoading ? "Confirming..." : "I've Sent the Transfer"}
+            </button>
+          </div>
+        );
+      })()}
+
+      {showCardPending && (() => {
+        const cardPayment = pendingPayments.find((p) => p.method === "CARD");
+        return (
+          <div className="mt-6 bg-purple-500/10 border border-purple-500/20 rounded-[16px] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-purple-400 text-sm font-medium">Card payment of {cardPayment ? formatPrice(Number(cardPayment.amount)) : ""} initiated. Awaiting confirmation.</p>
+              {cardPayment && (
+                <button onClick={async () => {
+                  setPaymentLoading(true);
+                  await fetch(`/api/orders/${params.id}/payment?paymentId=${cardPayment.id}`, { method: "DELETE" });
+                  await fetchOrder();
+                  setPaymentLoading(false);
+                }} disabled={paymentLoading} className="text-purple-400/60 hover:text-purple-400 text-xs font-medium transition-colors ml-3">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {showFinancePending && (() => {
+        const finPayment = pendingPayments.find((p) => p.method === "FINANCE");
+        return (
+          <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold text-lg">Finance via iwocaPay</h3>
+              {finPayment && (
+                <button onClick={async () => {
+                  setPaymentLoading(true);
+                  await fetch(`/api/orders/${params.id}/payment?paymentId=${finPayment.id}`, { method: "DELETE" });
+                  await fetchOrder();
+                  setPaymentLoading(false);
+                }} disabled={paymentLoading} className="text-white/40 hover:text-white text-xs font-medium transition-colors">
+                  Cancel
+                </button>
+              )}
+            </div>
+            <p className="text-white/50 text-sm mb-4">
+              Amount: <span className="text-white font-medium">{finPayment ? formatPrice(Number(finPayment.amount)) : ""}</span>
+            </p>
+            {finPayment?.reference && (
+              <a href={finPayment.reference} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 font-medium rounded-xl text-sm transition-all">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                Complete Finance Application
+              </a>
+            )}
+            <button onClick={handleConfirmBankSent} disabled={paymentLoading} className="mt-4 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all">
+              {paymentLoading ? "Confirming..." : "I've Completed the Finance Application"}
+            </button>
+          </div>
+        );
+      })()}
 
       {canViewPayments && isAwaitingPayment && (
         <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[16px] p-4">

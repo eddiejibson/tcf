@@ -358,7 +358,22 @@ export default function AdminOrderDetailPage() {
                       {p.status === "COMPLETED" ? "Paid" : p.status === "AWAITING_CONFIRMATION" ? "Awaiting" : "Pending"}
                     </span>
                   </div>
-                  <span className="text-white font-medium text-sm tabular-nums">{formatPrice(Number(p.amount))}</span>
+                  <div className="flex items-center gap-3">
+                    {p.status !== "COMPLETED" && (
+                      <button
+                        onClick={async () => {
+                          setSaving(true);
+                          await patchOrder({ confirmPaymentId: p.id });
+                          setSaving(false);
+                        }}
+                        disabled={saving}
+                        className="px-2 py-0.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-[10px] font-medium rounded transition-all"
+                      >
+                        Confirm Received
+                      </button>
+                    )}
+                    <span className="text-white font-medium text-sm tabular-nums">{formatPrice(Number(p.amount))}</span>
+                  </div>
                 </div>
               ))}
             </div>

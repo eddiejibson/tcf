@@ -139,6 +139,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
+    if (body.confirmPaymentId) {
+      const { confirmOrderPayment, checkOrderFullyPaid } = await import("@/server/services/order.service");
+      await confirmOrderPayment(body.confirmPaymentId);
+      await checkOrderFullyPaid(id);
+    }
+
     if (body.markPaid) {
       await markOrderPaid(id, body.paymentReference);
     }

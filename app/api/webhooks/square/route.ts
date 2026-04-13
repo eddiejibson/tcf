@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getDb } from "@/server/db/data-source";
 import { Order, OrderStatus, PaymentMethod } from "@/server/entities/Order";
+import { OrderPayment, OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { User, UserRole } from "@/server/entities/User";
 import { log } from "@/server/logger";
 import { sendOrderPaidNotification } from "@/server/services/email.service";
-import { calculateOrderTotals, formatPrice, getOrderById } from "@/server/services/order.service";
+import { calculateOrderTotals, formatPrice, getOrderById, confirmOrderPayment, checkOrderFullyPaid } from "@/server/services/order.service";
 
 const OK = NextResponse.json({ ok: true });
 
@@ -18,15 +19,19 @@ function verifySignature(body: string, signature: string, url: string): boolean 
   return hmac === signature;
 }
 
-async function findOrder(paymentId: string, referenceId?: string): Promise<Order | null> {
+async function findOrderPayment(paymentId: string): Promise<OrderPayment | null> {
+  const db = await getDb();
+  // Find by OrderPayment reference (the Square payment link ID)
+  return db.getRepository(OrderPayment).findOne({ where: { reference: paymentId } });
+}
+
+async function findOrderLegacy(paymentId: string, referenceId?: string): Promise<Order | null> {
   const db = await getDb();
   const repo = db.getRepository(Order);
-
   if (referenceId) {
     const order = await repo.findOne({ where: { id: referenceId } });
     if (order) return order;
   }
-
   return repo.findOne({ where: { paymentReference: paymentId } });
 }
 
@@ -34,7 +39,24 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
   const paymentId = payment.id as string;
   const referenceId = payment.reference_id as string | undefined;
 
-  const order = await findOrder(paymentId, referenceId);
+  // First try to match against an OrderPayment record (split payments)
+  const orderPayment = await findOrderPayment(paymentId);
+  if (orderPayment) {
+    if (orderPayment.status === OrderPaymentStatus.COMPLETED) return;
+
+    await confirmOrderPayment(orderPayment.id);
+    const fullyPaid = await checkOrderFullyPaid(orderPayment.orderId);
+
+    log.info("Square webhook: order payment completed", { route: "/api/webhooks/square", meta: { orderId: orderPayment.orderId, paymentId, fullyPaid } });
+
+    if (fullyPaid) {
+      await sendPaidNotification(orderPayment.orderId);
+    }
+    return;
+  }
+
+  // Legacy fallback — match on Order.paymentReference
+  const order = await findOrderLegacy(paymentId, referenceId);
   if (!order) {
     log.info("Square webhook: no matching order for payment", { route: "/api/webhooks/square", meta: { paymentId, referenceId } });
     return;
@@ -48,11 +70,15 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
   order.paymentReference = paymentId;
   await db.getRepository(Order).save(order);
 
-  log.info("Square webhook: order marked as paid", { route: "/api/webhooks/square", meta: { orderId: order.id, paymentId } });
+  log.info("Square webhook: order marked as paid (legacy)", { route: "/api/webhooks/square", meta: { orderId: order.id, paymentId } });
 
-  // Notify admins
+  await sendPaidNotification(order.id);
+}
+
+async function sendPaidNotification(orderId: string) {
   try {
-    const fullOrder = await getOrderById(order.id);
+    const db = await getDb();
+    const fullOrder = await getOrderById(orderId);
     if (fullOrder) {
       const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, fullOrder.freightCharge, fullOrder.creditApplied);
       const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
@@ -67,7 +93,7 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
       );
     }
   } catch (e) {
-    log.error("Square webhook: failed to send paid notification", e, { route: "/api/webhooks/square", meta: { orderId: order.id } });
+    log.error("Square webhook: failed to send paid notification", e, { route: "/api/webhooks/square", meta: { orderId } });
   }
 }
 
@@ -75,10 +101,14 @@ async function handlePaymentFailed(payment: Record<string, unknown>) {
   const paymentId = payment.id as string;
   const referenceId = payment.reference_id as string | undefined;
 
-  const order = await findOrder(paymentId, referenceId);
-  if (!order) return;
+  const orderPayment = await findOrderPayment(paymentId);
+  if (orderPayment) {
+    log.warn("Square webhook: payment failed for order payment", { route: "/api/webhooks/square", meta: { orderPaymentId: orderPayment.id, paymentId } });
+    return;
+  }
 
-  // Don't revert if already paid
+  const order = await findOrderLegacy(paymentId, referenceId);
+  if (!order) return;
   if (order.status === OrderStatus.PAID) return;
 
   log.warn("Square webhook: payment failed", { route: "/api/webhooks/square", meta: { orderId: order.id, paymentId } });
@@ -122,53 +152,29 @@ export async function POST(request: NextRequest) {
     log.warn("Square webhook: no x-square-hmacsha256-signature header present, rejecting", { route: R });
     return NextResponse.json({ error: "Missing signature" }, { status: 403 });
   } else if (!verifySignature(body, signature, notificationUrl)) {
-    // Retry with the incoming request URL in case the configured base URL doesn't match
     if (verifySignature(body, signature, requestUrl)) {
-      log.warn("Square webhook: signature failed with configured URL but matched request URL — update SQUARE_WEBHOOK_URL or MAGIC_LINK_BASE_URL", { route: R, meta: {
-        configuredUrl: notificationUrl,
-        requestUrl,
-      } });
+      log.warn("Square webhook: signature failed with configured URL but matched request URL", { route: R });
     } else {
-      log.error("Square webhook: signature verification failed", new Error("Invalid HMAC signature"), { route: R, meta: {
-        reason: "HMAC mismatch on both configured and request URLs",
-        configuredUrl: notificationUrl,
-        requestUrl,
-        signatureReceived: signature.slice(0, 10) + "...",
-        bodyPreview: body.slice(0, 200),
-      } });
+      log.error("Square webhook: signature verification failed", new Error("Invalid HMAC signature"), { route: R });
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
-  } else {
-    log.info("Square webhook: signature verified OK", { route: R });
   }
 
   let event: Record<string, unknown>;
   try {
     event = JSON.parse(body);
   } catch {
-    log.warn("Square webhook: invalid JSON body", { route: R, meta: { bodyPreview: body.slice(0, 200) } });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const eventType = event.type as string | undefined;
-  log.info("Square webhook: processing event", { route: R, meta: { eventType, eventId: event.event_id as string | undefined } });
-
   const data = (event.data as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
 
   try {
     switch (eventType) {
       case "payment.updated": {
         const payment = data?.payment as Record<string, unknown> | undefined;
-        if (!payment) {
-          log.warn("Square webhook: payment.updated event has no payment data", { route: R, meta: { dataKeys: data ? Object.keys(data) : [] } });
-          break;
-        }
-
-        log.info("Square webhook: payment status", { route: R, meta: {
-          paymentId: payment.id,
-          status: payment.status,
-          referenceId: payment.reference_id,
-        } });
+        if (!payment) break;
 
         if (payment.status === "COMPLETED") {
           await handlePaymentCompleted(payment);
@@ -186,7 +192,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        log.info("Square webhook: unhandled event type, ignoring", { route: R, meta: { eventType } });
         break;
     }
   } catch (e) {

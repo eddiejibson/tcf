@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Verify a specific card payment
   if (action === "verify_card" && paymentId) {
     const payment = order.payments?.find((p) => p.id === paymentId);
-    if (!payment || payment.method !== PaymentMethod.CARD || !payment.reference) {
+    if (!payment || String(payment.method) !== "CARD" || !payment.reference) {
       return NextResponse.json({ error: "No card payment to verify" }, { status: 400 });
     }
     const paid = await isPaymentLinkPaid(payment.reference);
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const paid = await isPaymentLinkPaid(order.paymentReference);
     if (paid) {
       // Find the pending CARD payment and complete it
-      const cardPayment = order.payments?.find((p) => p.method === PaymentMethod.CARD && p.status !== OrderPaymentStatus.COMPLETED);
+      const cardPayment = order.payments?.find((p) => String(p.method) === "CARD" && p.status !== OrderPaymentStatus.COMPLETED);
       if (cardPayment) {
         await confirmOrderPayment(cardPayment.id);
         await checkOrderFullyPaid(id);

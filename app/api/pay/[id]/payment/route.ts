@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (order.paymentMethod === PaymentMethod.CARD && order.paymentReference) {
       const paid = await isPaymentLinkPaid(order.paymentReference);
       if (paid) {
-        const cardPayment = order.payments?.find((p) => p.method === PaymentMethod.CARD && p.status !== OrderPaymentStatus.COMPLETED);
+        const cardPayment = order.payments?.find((p) => String(p.method) === "CARD" && p.status !== OrderPaymentStatus.COMPLETED);
         if (cardPayment) { await confirmOrderPayment(cardPayment.id); await checkOrderFullyPaid(id); }
       }
     }

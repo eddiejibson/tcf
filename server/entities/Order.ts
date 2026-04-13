@@ -76,7 +76,7 @@ export class Order extends BaseEntityWithUpdate {
   items: Relation<OrderItem[]>;
 
   @OneToMany("OrderPayment", "order", { cascade: true })
-  payments: Relation<unknown[]>;
+  payments: Relation<{ id: string; orderId: string; method: string; amount: number; reference: string | null; status: string; createdAt: Date }[]>;
 
   @OneToMany(() => DoaClaim, (claim) => claim.order)
   doaClaims: Relation<DoaClaim[]>;

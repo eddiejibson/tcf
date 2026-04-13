@@ -98,6 +98,7 @@ export default function AdminOrderDetailPage() {
     const updated = [...items];
     if (field === "quantity") updated[index] = { ...updated[index], quantity: Number(value) || 0 };
     else if (field === "unitPrice") updated[index] = { ...updated[index], unitPrice: Number(value) || 0 };
+    else if (field === "surcharge") updated[index] = { ...updated[index], surcharge: Number(value) || 0 };
     else if (field === "name") updated[index] = { ...updated[index], name: String(value) };
     setItems(updated);
   };
@@ -137,7 +138,7 @@ export default function AdminOrderDetailPage() {
     setSaving(true);
     try {
       await patchOrder({
-        items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+        items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, surcharge: i.surcharge || 0 })),
         includeShipping,
         freightCharge: freightCharge ? parseFloat(freightCharge) : null,
         adminNotes: adminNotes || null,
@@ -231,7 +232,7 @@ export default function AdminOrderDetailPage() {
   const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED"].includes(order.status);
 
   const currentSnapshot = JSON.stringify({
-    items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+    items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
     includeShipping,
     freightCharge,
     adminNotes,
@@ -418,7 +419,9 @@ export default function AdminOrderDetailPage() {
               )}
             </div>
             <div className="w-16 text-center">
-              {Number(item.surcharge) > 0 ? (
+              {isEditable ? (
+                <input type="number" step="0.1" min="0" value={item.surcharge || ""} onChange={(e) => updateItem(index, "surcharge", e.target.value)} placeholder="0" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-amber-400/70 text-xs text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              ) : Number(item.surcharge) > 0 ? (
                 <span className="text-amber-400/70 text-xs tabular-nums">{Number(item.surcharge)}%</span>
               ) : (
                 <span className="text-white/20 text-xs">—</span>

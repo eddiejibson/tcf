@@ -316,7 +316,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
 
 export async function updateAcceptedOrderItems(
   orderId: string,
-  newItems: { productId?: string | null; name: string; quantity: number; unitPrice: number }[],
+  newItems: { productId?: string | null; name: string; quantity: number; unitPrice: number; surcharge?: number }[],
   includeShipping?: boolean
 ) {
   const db = await getDb();
@@ -368,6 +368,7 @@ export async function updateAcceptedOrderItems(
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        surcharge: item.surcharge ?? 0,
       })
     )
   );

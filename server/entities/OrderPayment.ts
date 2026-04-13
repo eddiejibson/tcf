@@ -1,5 +1,6 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import type { Order } from "./Order";
 
 export enum OrderPaymentStatus {
   PENDING = "PENDING",
@@ -20,7 +21,7 @@ export class OrderPayment extends BaseEntity {
 
   @ManyToOne("Order", "payments")
   @JoinColumn({ name: "orderId" })
-  order: unknown;
+  order: Relation<Order>;
 
   @Column({ type: "enum", enum: OrderPaymentMethod, enumName: "orders_paymentmethod_enum" })
   method: OrderPaymentMethod;

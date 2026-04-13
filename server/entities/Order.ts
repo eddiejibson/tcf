@@ -3,7 +3,7 @@ import { BaseEntityWithUpdate } from "./BaseEntity";
 import { User } from "./User";
 import { Shipment } from "./Shipment";
 import { OrderItem } from "./OrderItem";
-// OrderPayment imported via string reference to avoid circular dependency
+import type { OrderPayment } from "./OrderPayment";
 import { DoaClaim } from "./DoaClaim";
 
 export enum OrderStatus {
@@ -75,8 +75,8 @@ export class Order extends BaseEntityWithUpdate {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: Relation<OrderItem[]>;
 
-  @OneToMany("OrderPayment", "order", { cascade: true })
-  payments: Relation<{ id: string; orderId: string; method: string; amount: number; reference: string | null; status: string; createdAt: Date }[]>;
+  @OneToMany(() => require("./OrderPayment").OrderPayment, "order", { cascade: true })
+  payments: Relation<OrderPayment[]>;
 
   @OneToMany(() => DoaClaim, (claim) => claim.order)
   doaClaims: Relation<DoaClaim[]>;

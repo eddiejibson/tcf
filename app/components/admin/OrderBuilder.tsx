@@ -76,6 +76,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
   const [orderItems, setOrderItems] = useState<OrderLineItem[]>(initialItems);
   const [notes, setNotes] = useState(initialNotes);
   const [includeShipping, setIncludeShipping] = useState(false);
+  const [sendEmail, setSendEmail] = useState(true);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -266,7 +267,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
         const res = await fetch(`/api/admin/orders/${draftOrderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "ACCEPTED", includeShipping }),
+          body: JSON.stringify({ status: "ACCEPTED", includeShipping, skipEmail: !sendEmail }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -284,6 +285,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
           items: orderItems.map((i) => ({ catalogProductId: i.catalogProductId, quantity: i.quantity, surcharge: i.surcharge || 0 })),
           notes: notes || undefined,
           includeShipping,
+          skipEmail: !sendEmail,
         }),
       });
       if (res.ok) {
@@ -580,10 +582,15 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
               />
             </div>
 
+            <label className="flex items-center gap-2 mt-4 cursor-pointer">
+              <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
+              <span className="text-white/50 text-sm">Send invoice email on accept</span>
+            </label>
+
             <button
               onClick={handleCreate}
               disabled={creating || !selectedUserId || orderItems.length === 0}
-              className="w-full mt-4 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white font-medium rounded-xl transition-all"
+              className="w-full mt-3 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white font-medium rounded-xl transition-all"
             >
               {creating ? submittingLabel : submitLabel}
             </button>

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { userId, items, notes, asDraft, includeShipping } = body;
+  const { userId, items, notes, asDraft, includeShipping, skipEmail } = body;
 
   if (!asDraft && !userId) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   try {
     const order = asDraft
       ? await createAdminDraftOrder(admin.userId, userId || null, mappedItems, notes, includeShipping)
-      : await createAdminOrder(admin.userId, userId, mappedItems, notes, includeShipping);
+      : await createAdminOrder(admin.userId, userId, mappedItems, notes, includeShipping, skipEmail);
     if (!order) return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);

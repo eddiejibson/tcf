@@ -112,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           const db2 = await getDb();
           await db2.getRepository(OrderItem).delete({ orderId: id });
           await db2.getRepository(Order).delete(id);
-          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping);
+          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
           if (accepted) {
             const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied);
             const resultItems = accepted.items.map((i) => ({

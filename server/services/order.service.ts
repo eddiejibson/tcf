@@ -484,6 +484,7 @@ export async function createAdminOrder(
   items: { catalogProductId: string; quantity: number; surcharge?: number }[],
   notes?: string,
   includeShipping?: boolean,
+  skipEmail?: boolean,
 ) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
@@ -540,10 +541,11 @@ export async function createAdminOrder(
     }
   }
 
-  // Send email to customer with invoice PDF (awaited so serverless doesn't kill the connection)
   const fullOrder = await getOrderById(savedOrder.id);
-  if (fullOrder) {
-    const totals = calculateOrderTotals(fullOrder.items, false, null, 0);
+
+  // Send email to customer with invoice PDF unless skipped
+  if (fullOrder && !skipEmail) {
+    const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, null, 0);
     const orderRef = fullOrder.id.slice(0, 8).toUpperCase();
     const invoiceData: InvoiceData = {
       orderRef,
@@ -566,7 +568,7 @@ export async function createAdminOrder(
       freight: totals.freight,
       credit: totals.credit,
       total: totals.total,
-      includeShipping: false,
+      includeShipping: fullOrder.includeShipping,
       paymentMethod: null,
       paymentReference: null,
       discountPercent: discountPct,

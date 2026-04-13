@@ -1,6 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { Order, PaymentMethod } from "./Order";
 
 export enum OrderPaymentStatus {
   PENDING = "PENDING",
@@ -8,17 +7,24 @@ export enum OrderPaymentStatus {
   COMPLETED = "COMPLETED",
 }
 
+// Duplicated here to avoid circular import with Order
+export enum OrderPaymentMethod {
+  BANK_TRANSFER = "BANK_TRANSFER",
+  CARD = "CARD",
+  FINANCE = "FINANCE",
+}
+
 @Entity("order_payments")
 export class OrderPayment extends BaseEntity {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne(() => Order, (order) => order.payments)
+  @ManyToOne("Order", "payments")
   @JoinColumn({ name: "orderId" })
-  order: Relation<Order>;
+  order: Relation<unknown>;
 
-  @Column({ type: "enum", enum: PaymentMethod, enumName: "orders_paymentmethod_enum" })
-  method: PaymentMethod;
+  @Column({ type: "enum", enum: OrderPaymentMethod, enumName: "orders_paymentmethod_enum" })
+  method: OrderPaymentMethod;
 
   @Column({ type: "decimal", precision: 10, scale: 2 })
   amount: number;

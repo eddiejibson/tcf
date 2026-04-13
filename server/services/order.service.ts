@@ -736,6 +736,11 @@ export async function addOrderPayment(orderId: string, method: PaymentMethod, am
   return repo.save(payment);
 }
 
+export async function markPaymentAwaitingConfirmation(paymentId: string): Promise<void> {
+  const db = await getDb();
+  await db.getRepository(OrderPayment).update(paymentId, { status: OrderPaymentStatus.AWAITING_CONFIRMATION });
+}
+
 export async function confirmOrderPayment(paymentId: string): Promise<void> {
   const db = await getDb();
   await db.getRepository(OrderPayment).update(paymentId, { status: OrderPaymentStatus.COMPLETED });

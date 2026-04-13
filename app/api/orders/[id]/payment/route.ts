@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
-import { getOrderById, addOrderPayment, confirmOrderPayment, checkOrderFullyPaid, deleteOrderPayment, getOrderRemainingBalance, setPaymentMethod, confirmBankTransferSent } from "@/server/services/order.service";
+import { getOrderById, addOrderPayment, confirmOrderPayment, markPaymentAwaitingConfirmation, checkOrderFullyPaid, deleteOrderPayment, getOrderRemainingBalance, setPaymentMethod, confirmBankTransferSent } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { createPaymentLink, isPaymentLinkPaid, BANK_DETAILS } from "@/server/services/payment.service";
@@ -67,12 +67,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ status: order.status });
   }
 
-  // Confirm bank sent for a specific payment
+  // User says "I've sent it" — move to AWAITING_CONFIRMATION (admin must confirm)
   if (action === "confirm_bank_sent") {
     if (paymentId) {
       const payment = order.payments?.find((p) => p.id === paymentId);
       if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-      await confirmOrderPayment(paymentId);
+      await markPaymentAwaitingConfirmation(paymentId);
       await checkOrderFullyPaid(id);
       return NextResponse.json({ status: "AWAITING_PAYMENT" });
     }

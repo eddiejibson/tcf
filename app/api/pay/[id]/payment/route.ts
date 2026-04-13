@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrderById, addOrderPayment, confirmOrderPayment, checkOrderFullyPaid, getOrderRemainingBalance, setPaymentMethod, confirmBankTransferSent } from "@/server/services/order.service";
+import { getOrderById, addOrderPayment, confirmOrderPayment, markPaymentAwaitingConfirmation, checkOrderFullyPaid, getOrderRemainingBalance, setPaymentMethod, confirmBankTransferSent } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { createPaymentLink, isPaymentLinkPaid, BANK_DETAILS } from "@/server/services/payment.service";
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (action === "confirm_bank_sent") {
     if (paymentId) {
-      await confirmOrderPayment(paymentId);
+      await markPaymentAwaitingConfirmation(paymentId);
       await checkOrderFullyPaid(id);
     } else {
       await confirmBankTransferSent(id);

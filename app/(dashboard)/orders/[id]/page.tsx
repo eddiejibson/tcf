@@ -137,12 +137,12 @@ export default function OrderDetailPage() {
     setPaymentLoading(false);
   };
 
-  const handleConfirmBankSent = async () => {
+  const handleConfirmBankSent = async (paymentId?: string) => {
     setPaymentLoading(true);
     await fetch(`/api/orders/${params.id}/payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "confirm_bank_sent" }),
+      body: JSON.stringify({ action: "confirm_bank_sent", paymentId }),
     });
     await fetchOrder();
     setPaymentLoading(false);
@@ -274,16 +274,21 @@ export default function OrderDetailPage() {
   const canViewDoa = user ? userHasPermission(user, Permission.VIEW_DOA) : false;
   const canCreateDoa = user ? userHasPermission(user, Permission.CREATE_DOA) : false;
 
-  const pendingPayments = (order.payments || []).filter((p) => p.status !== "COMPLETED");
+  const incompletePayments = (order.payments || []).filter((p) => p.status !== "COMPLETED");
+  const awaitingPayments = (order.payments || []).filter((p) => p.status === "AWAITING_CONFIRMATION");
+  const pendingPayments = (order.payments || []).filter((p) => p.status === "PENDING");
+
   const hasPendingBank = pendingPayments.some((p) => p.method === "BANK_TRANSFER");
   const hasPendingCard = pendingPayments.some((p) => p.method === "CARD");
   const hasPendingFinance = pendingPayments.some((p) => p.method === "FINANCE");
-  const hasPending = pendingPayments.length > 0;
+  const hasAwaitingBank = awaitingPayments.some((p) => p.method === "BANK_TRANSFER");
+  const hasAwaitingFinance = awaitingPayments.some((p) => p.method === "FINANCE");
 
-  const canSelectPayment = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && !hasPending && !showCardForm;
+  // Can select new payment: no PENDING payments (user must deal with those first). AWAITING ones are fine — those are submitted.
+  const canSelectPayment = canManagePayments && (order.status === "ACCEPTED" || order.status === "AWAITING_PAYMENT") && order.remainingBalance > 0 && pendingPayments.length === 0 && !showCardForm;
   const showBankInfo = canManagePayments && (hasPendingBank || showBankDetails);
-  const showCardPending = canManagePayments && hasPendingCard;
-  const showFinancePending = canManagePayments && hasPendingFinance;
+  const showCardPending = canManagePayments && (hasPendingCard || incompletePayments.some((p) => p.method === "CARD"));
+  const showFinancePending = canManagePayments && (hasPendingFinance || hasAwaitingFinance);
   const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
 
   return (
@@ -630,7 +635,7 @@ export default function OrderDetailPage() {
             <button
               onClick={() => {
                 if (bankPayment) {
-                  handleConfirmBankSent();
+                  handleConfirmBankSent(bankPayment.id);
                 }
               }}
               disabled={paymentLoading}
@@ -689,22 +694,23 @@ export default function OrderDetailPage() {
                 Complete Finance Application
               </a>
             )}
-            <button onClick={handleConfirmBankSent} disabled={paymentLoading} className="mt-4 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all">
+            <button onClick={() => finPayment && handleConfirmBankSent(finPayment.id)} disabled={paymentLoading} className="mt-4 w-full py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white font-medium rounded-xl transition-all">
               {paymentLoading ? "Confirming..." : "I've Completed the Finance Application"}
             </button>
           </div>
         );
       })()}
 
-      {canViewPayments && isAwaitingPayment && (
-        <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[16px] p-4">
-          <p className="text-yellow-400 text-sm font-medium">
-            {order.paymentMethod === "BANK_TRANSFER"
-              ? "Bank transfer marked as sent. Awaiting confirmation from The Coral Farm."
-              : order.paymentMethod === "FINANCE"
-              ? "Finance application submitted. Awaiting confirmation from The Coral Farm."
-              : "Payment awaiting confirmation."}
-          </p>
+      {canViewPayments && awaitingPayments.length > 0 && (
+        <div className="mt-6 space-y-2">
+          {awaitingPayments.map((p) => (
+            <div key={p.id} className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4">
+              <p className="text-amber-400 text-sm font-medium">
+                {p.method === "BANK_TRANSFER" ? `Bank transfer of ${formatPrice(Number(p.amount))} marked as sent.` : p.method === "FINANCE" ? `Finance application for ${formatPrice(Number(p.amount))} submitted.` : `Payment of ${formatPrice(Number(p.amount))} pending.`}
+                {" "}Awaiting confirmation from The Coral Farm.
+              </p>
+            </div>
+          ))}
         </div>
       )}
 

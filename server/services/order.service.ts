@@ -728,7 +728,7 @@ export async function addOrderPayment(orderId: string, method: PaymentMethod, am
   const repo = db.getRepository(OrderPayment);
   const payment = repo.create({
     orderId,
-    method,
+    method: method as unknown as OrderPaymentMethod,
     amount,
     reference: reference || null,
     status: status || OrderPaymentStatus.PENDING,

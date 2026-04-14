@@ -320,23 +320,20 @@ export default function ShipmentDetailPage() {
       for (const item of parsed) {
         const product = shipment.products.find((p) => p.id === item.productId);
         if (product && item.quantity > 0) {
+          newCart.set(product.id, item.quantity);
           const avail = product.availableQty;
           if (avail !== null && avail !== undefined && item.quantity > avail) {
-            const capped = Math.max(0, avail);
-            if (capped > 0) {
-              warnings.push(`${product.name}: requested ${item.quantity}, only ${avail} available — set to ${capped}`);
-              newCart.set(product.id, capped);
+            if (avail <= 0) {
+              warnings.push(`${product.name}: requested ${item.quantity}, currently unavailable — may need to adjust`);
             } else {
-              warnings.push(`${product.name}: requested ${item.quantity}, but unavailable — skipped`);
+              warnings.push(`${product.name}: requested ${item.quantity}, only ${avail} available — quantity may be reduced`);
             }
-          } else {
-            newCart.set(product.id, item.quantity);
           }
         }
       }
       setCart(newCart);
       if (warnings.length > 0) {
-        setSubmitError("Some quantities were adjusted:\n" + warnings.join("\n"));
+        setSubmitError("Stock warnings:\n" + warnings.join("\n"));
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {

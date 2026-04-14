@@ -87,12 +87,8 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
   const orderRepo = db.getRepository(Order);
   const productRepo = db.getRepository(Product);
 
-  for (const item of items) {
-    const product = await productRepo.findOneBy({ id: item.productId });
-    if (product && product.availableQty !== null && product.availableQty < item.quantity) {
-      throw new Error(`Insufficient stock for ${product.name}: ${product.availableQty} available`);
-    }
-  }
+  // Stock is checked as a warning only — orders are still created as drafts
+  // Admin will adjust quantities if needed before accepting
 
   const discountPct = await getUserDiscount(userId);
 

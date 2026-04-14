@@ -4,8 +4,9 @@ import { useAuth } from "@/app/lib/auth-context";
 import { applyDiscount } from "@/app/lib/discount";
 import { estimateFreight } from "@/app/lib/freight";
 import { generateShipmentSheet, parseShipmentOrderSheet } from "@/app/lib/generate-shipment-sheet";
-import type { SerializedProduct, ShipmentDetail } from "@/app/lib/types";
-import { useParams, useRouter } from "next/navigation";
+import type { SerializedProduct, ShipmentDetail, UserListItem } from "@/app/lib/types";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import CustomerPicker from "@/app/components/CustomerPicker";
 import React, {
   useCallback,
   useDeferredValue,
@@ -139,10 +140,15 @@ function SubstitutePicker({
 export default function ShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const discount = user?.companyDiscount || 0;
+  const isAdmin = user?.role === "ADMIN";
+  const adminMode = isAdmin && searchParams.get("admin") === "true";
+  const discount = adminMode ? 0 : (user?.companyDiscount || 0);
   const [shipment, setShipment] = useState<ShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminUsers, setAdminUsers] = useState<UserListItem[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [cart, setCart] = useState<Map<string, number>>(new Map());
   const [substitutes, setSubstitutes] = useState<
     Map<string, { productId: string; name: string }>
@@ -171,7 +177,10 @@ export default function ShipmentDetailPage() {
 
   useEffect(() => {
     fetchShipment();
-  }, [fetchShipment]);
+    if (adminMode) {
+      fetch("/api/admin/users?role=USER&limit=100").then((r) => r.ok ? r.json() : { users: [] }).then((d) => setAdminUsers(d.users || []));
+    }
+  }, [fetchShipment, adminMode]);
 
   useEffect(() => {
     const el = cartBarRef.current;
@@ -339,6 +348,11 @@ export default function ShipmentDetailPage() {
 
   const handleSubmitClick = () => {
     if (!shipment || cart.size === 0) return;
+    if (adminMode && !selectedUserId) {
+      setSubmitError("Please select a customer first");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setShowTerms(true);
   };
 
@@ -365,7 +379,7 @@ export default function ShipmentDetailPage() {
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shipmentId: shipment.id, items }),
+      body: JSON.stringify({ shipmentId: shipment.id, items, forUserId: adminMode ? selectedUserId : undefined }),
     });
 
     if (!res.ok) {
@@ -398,7 +412,7 @@ export default function ShipmentDetailPage() {
         minBoxes: minBoxes ? parseInt(minBoxes) : null,
       }),
     });
-    router.push("/orders");
+    router.push(adminMode ? "/admin/orders" : "/orders");
     setSubmitting(false);
   };
 
@@ -432,6 +446,17 @@ export default function ShipmentDetailPage() {
         </svg>
         Back to Shipments
       </button>
+
+      {/* Admin mode: customer picker */}
+      {adminMode && (
+        <div className="bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-[20px] p-4 mb-6 overflow-visible relative z-10">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="px-2 py-0.5 bg-[#0984E3]/20 text-[#0984E3] text-[10px] font-medium rounded">ADMIN</span>
+            <p className="text-white/60 text-sm">Creating order on behalf of a customer</p>
+          </div>
+          <CustomerPicker users={adminUsers} value={selectedUserId} onChange={setSelectedUserId} placeholder="Select customer..." />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-8">
         <div>

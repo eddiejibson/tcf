@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, hasPermission } from "@/server/middleware/auth";
-import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals } from "@/server/services/order.service";
+import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals, getOrderById } from "@/server/services/order.service";
+import { sendOrderCreatedForUser } from "@/server/services/email.service";
 import { Permission } from "@/server/lib/permissions";
+import { log } from "@/server/logger";
 
 export async function GET() {
   const user = await requireAuth();
@@ -32,10 +34,13 @@ export async function POST(request: NextRequest) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { shipmentId, items } = await request.json();
+  const { shipmentId, items, forUserId } = await request.json();
   if (!items?.length) {
     return NextResponse.json({ error: "Items are required" }, { status: 400 });
   }
+
+  // Admin can create orders on behalf of another user
+  const effectiveUserId = (forUserId && user.role === "ADMIN") ? forUserId : user.userId;
 
   if (!shipmentId) {
     // Catalog order — require CREATE_CATALOG_ORDER
@@ -55,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const order = await createOrder(user.userId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({
+    const order = await createOrder(effectiveUserId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({
       productId: i.productId,
       name: i.name,
       quantity: i.quantity,
@@ -63,6 +68,18 @@ export async function POST(request: NextRequest) {
       substituteProductId: i.substituteProductId || null,
       substituteName: i.substituteName || null,
     })));
+
+    // Send email to customer when admin creates order on their behalf
+    if (forUserId && user.role === "ADMIN" && order) {
+      const fullOrder = await getOrderById(order.id);
+      if (fullOrder?.user) {
+        const orderRef = order.id.slice(0, 8).toUpperCase();
+        const shipmentName = fullOrder.shipment?.name || "Shipment";
+        sendOrderCreatedForUser(fullOrder.user.email, orderRef, shipmentName, order.id)
+          .catch((e) => log.error("Failed to send order created for user email", e, { meta: { orderId: order.id } }));
+      }
+    }
+
     return NextResponse.json(order);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to create order" }, { status: 400 });

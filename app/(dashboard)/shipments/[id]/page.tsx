@@ -449,11 +449,8 @@ export default function ShipmentDetailPage() {
 
       {/* Admin mode: customer picker */}
       {adminMode && (
-        <div className="bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-[20px] p-4 mb-6 overflow-visible relative z-10">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="px-2 py-0.5 bg-[#0984E3]/20 text-[#0984E3] text-[10px] font-medium rounded">ADMIN</span>
-            <p className="text-white/60 text-sm">Creating order on behalf of a customer</p>
-          </div>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6 overflow-visible relative z-10">
+          <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Customer</label>
           <CustomerPicker users={adminUsers} value={selectedUserId} onChange={setSelectedUserId} placeholder="Select customer..." />
         </div>
       )}

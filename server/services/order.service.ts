@@ -73,9 +73,13 @@ export async function getCompanyOrders(companyId: string) {
     .getMany();
 }
 
-export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user", "payments"]) {
+export async function getOrderById(id: string, relations = ["items", "items.product", "items.catalogProduct", "items.catalogProduct.category", "shipment", "user"]) {
   const db = await getDb();
-  return db.getRepository(Order).findOne({ where: { id }, relations });
+  const order = await db.getRepository(Order).findOne({ where: { id }, relations });
+  if (order) {
+    order.payments = await db.getRepository(OrderPayment).find({ where: { orderId: id }, order: { createdAt: "ASC" } });
+  }
+  return order;
 }
 
 export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null }[]) {

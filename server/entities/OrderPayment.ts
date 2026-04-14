@@ -1,6 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { Order } from "./Order";
 
 export enum OrderPaymentStatus {
   PENDING = "PENDING",
@@ -19,10 +18,6 @@ export class OrderPayment extends BaseEntity {
   @Column({ type: "uuid" })
   orderId: string;
 
-  @ManyToOne(() => Order, (order) => order.payments)
-  @JoinColumn({ name: "orderId" })
-  order: Relation<Order>;
-
   @Column({ type: "enum", enum: OrderPaymentMethod, enumName: "orders_paymentmethod_enum" })
   method: OrderPaymentMethod;
 
@@ -36,4 +31,4 @@ export class OrderPayment extends BaseEntity {
   status: OrderPaymentStatus;
 }
 
-export type OrderPaymentType = Omit<OrderPayment, "order">;
+export type OrderPaymentType = OrderPayment;

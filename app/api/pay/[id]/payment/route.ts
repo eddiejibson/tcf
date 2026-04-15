@@ -13,7 +13,7 @@ function generateIwocaPayUrl(orderId: string, total: number, companyName?: strin
     .replace(/^-|-$/g, "");
   const ref = `${slug}-order-${orderId.slice(0, 8)}`;
   const amount = total.toFixed(2);
-  return `https://iwocapay.me/the-coral-farm-ltd?amount=${amount}&reference=${encodeURIComponent(ref)}`;
+  return `https://iwocapay.me/the-coral-farm-ltd?amount=${amount}&reference=${encodeURIComponent(ref)}&fees_paid_by=buyer`;
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

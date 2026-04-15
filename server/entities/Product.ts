@@ -26,8 +26,8 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "varchar", nullable: true })
   size: string | null;
 
-  @Column({ type: "int", default: 1 })
-  qtyPerBox: number;
+  @Column({ type: "int", nullable: true })
+  qtyPerBox: number | null;
 
   @Column({ type: "int", nullable: true })
   availableQty: number | null;

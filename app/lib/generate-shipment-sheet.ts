@@ -12,7 +12,7 @@ export interface ShipmentExportData {
     variant: string | null;
     size: string | null;
     price: number;
-    qtyPerBox: number;
+    qtyPerBox: number | null;
     availableQty: number | null;
   }[];
 }
@@ -139,7 +139,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
   const firstDataRow = 9;
   data.products.forEach((p, i) => {
     const er = firstDataRow + i;
-    const qtyBox = p.qtyPerBox > 1 ? p.qtyPerBox : null;
+    const qtyBox = p.qtyPerBox && p.qtyPerBox > 1 ? p.qtyPerBox : null;
     const avail = p.availableQty !== null && p.availableQty !== undefined ? p.availableQty : null;
 
     const row = ws.addRow([

@@ -745,7 +745,7 @@ export default function ShipmentDetailPage() {
                               {product.size}
                             </span>
                           )}
-                          {product.qtyPerBox > 1 && (
+                          {product.qtyPerBox && product.qtyPerBox > 1 && (
                             <span className="text-white/30 text-[11px]">
                               {product.qtyPerBox} per box
                             </span>
@@ -892,7 +892,7 @@ export default function ShipmentDetailPage() {
                               </span>
                             </>
                           )}
-                          {product.qtyPerBox > 1 && (
+                          {product.qtyPerBox && product.qtyPerBox > 1 && (
                             <>
                               <span className="text-white/15">·</span>
                               <span className="text-white/30 text-xs">

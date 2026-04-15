@@ -1,9 +1,9 @@
 /**
  * Estimate freight from items with known box quantities.
- * Items with qtyPerBox <= 1 (the default/unknown) are excluded.
+ * Items with null/undefined/0 qtyPerBox are excluded (unknown).
  */
 export function estimateFreight(
-  items: { quantity: number; qtyPerBox: number }[],
+  items: { quantity: number; qtyPerBox: number | null | undefined }[],
   freightCostPerBox: number,
 ): { totalBoxes: number; freight: number; hasUnknownBoxItems: boolean } {
   let boxes = 0;
@@ -11,7 +11,7 @@ export function estimateFreight(
 
   for (const item of items) {
     if (item.quantity === 0) continue;
-    if (item.qtyPerBox > 1) {
+    if (item.qtyPerBox && item.qtyPerBox > 1) {
       boxes += item.quantity / item.qtyPerBox;
     } else {
       hasUnknownBoxItems = true;

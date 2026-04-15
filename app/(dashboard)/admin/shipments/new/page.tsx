@@ -241,7 +241,7 @@ export default function NewShipmentPage() {
 
   const addItem = useCallback(() => {
     const id = nextItemId++;
-    setItems((prev) => [{ name: "", latinName: null, price: null, size: null, qtyPerBox: 1, availableQty: null, warnings: [], _id: id }, ...prev]);
+    setItems((prev) => [{ name: "", latinName: null, price: null, size: null, qtyPerBox: null, availableQty: null, warnings: [], _id: id }, ...prev]);
     basePricesRef.current.set(id, null);
     requestAnimationFrame(() => {
       scrollContainerRef.current?.scrollTo({ top: 0 });
@@ -270,7 +270,7 @@ export default function NewShipmentPage() {
             variant: i.variant || null,
             price: i.price,
             size: i.size,
-            qtyPerBox: i.qtyPerBox || 1,
+            qtyPerBox: i.qtyPerBox || null,
             availableQty: i.availableQty,
           })),
         }),

@@ -97,7 +97,7 @@ export interface AdminShipmentDetailProduct {
   variant: string | null;
   price: number;
   size: string | null;
-  qtyPerBox: number;
+  qtyPerBox: number | null;
   availableQty: number | null;
   featured: boolean;
   originalRow?: Record<string, unknown> | null;

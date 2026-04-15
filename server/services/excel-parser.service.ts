@@ -543,16 +543,34 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
 
   if (priceColIndex === -1) warnings.push("Could not detect price column");
 
+  // Detect whether stock column uses text markers (x, xx, xxx) or numeric values
+  let stockIsTextMarker = false;
   if (stockColIndex !== -1 && columnOverrides?.stock === undefined) {
     let filled = 0;
+    let textMarkers = 0;
     let total = 0;
-    for (let row = headerRowIndex + 1; row < Math.min(headerRowIndex + 30, data.length); row++) {
+    for (let row = headerRowIndex + 1; row < Math.min(headerRowIndex + 50, data.length); row++) {
       const val = data[row]?.[stockColIndex];
       total++;
-      if (val !== undefined && val !== null && val !== "" && parseQty(val) !== null) filled++;
+      if (val !== undefined && val !== null && val !== "") {
+        filled++;
+        if (typeof val === "string" && /^x+$/i.test(val.trim())) textMarkers++;
+      }
     }
-    const hasStockData = total > 0 && filled / total > 0.3;
-    if (!hasStockData) stockColIndex = -1;
+    if (textMarkers > 3) {
+      // Text-marker stock column (x/xx/xxx = in stock, empty = out of stock)
+      stockIsTextMarker = true;
+    } else {
+      const numericFilled = filled > 0 ? (() => {
+        let n = 0;
+        for (let row = headerRowIndex + 1; row < Math.min(headerRowIndex + 30, data.length); row++) {
+          if (parseQty(data[row]?.[stockColIndex]) !== null) n++;
+        }
+        return n;
+      })() : 0;
+      const hasStockData = total > 0 && numericFilled / total > 0.3;
+      if (!hasStockData) stockColIndex = -1;
+    }
   }
 
   const columnMappings: ColumnMapping = {
@@ -580,7 +598,20 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     const price = priceColIndex !== -1 ? parsePrice(row[priceColIndex]) : null;
     const qtyPerBox = qtyPerBoxColIndex !== -1 ? parseQty(row[qtyPerBoxColIndex]) : null;
     const size = sizeColIndex !== -1 ? parseSize(row[sizeColIndex]) : null;
-    const availableQty = stockColIndex !== -1 ? (parseQty(row[stockColIndex]) ?? 0) : null;
+    let availableQty: number | null = null;
+    if (stockColIndex !== -1) {
+      if (stockIsTextMarker) {
+        // Text markers: any non-empty value = in stock, empty = out of stock (0)
+        const val = row[stockColIndex];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          availableQty = null; // in stock but unknown quantity
+        } else {
+          availableQty = 0; // out of stock
+        }
+      } else {
+        availableQty = parseQty(row[stockColIndex]);
+      }
+    }
     const latinName = latinNameColIndex !== -1 ? (row[latinNameColIndex] ? String(row[latinNameColIndex]).trim() || null : null) : null;
     const variant = variantColIndex !== -1 ? (row[variantColIndex] ? String(row[variantColIndex]).trim() || null : null) : null;
 

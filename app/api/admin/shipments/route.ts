@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       variant: p.variant || null,
       price: p.price,
       size: p.size || null,
-      qtyPerBox: p.qtyPerBox || 1,
+      qtyPerBox: p.qtyPerBox || null,
       availableQty: p.availableQty ?? null,
     })),
   });

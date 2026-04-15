@@ -79,7 +79,7 @@ export default function EditShipmentPage() {
 
   const addItem = useCallback(() => {
     const id = nextItemId++;
-    setItems((prev) => [{ _id: id, dbId: null, name: "", latinName: null, variant: null, price: null, size: null, qtyPerBox: 1, availableQty: null }, ...prev]);
+    setItems((prev) => [{ _id: id, dbId: null, name: "", latinName: null, variant: null, price: null, size: null, qtyPerBox: null, availableQty: null }, ...prev]);
     requestAnimationFrame(() => {
       scrollContainerRef.current?.scrollTo({ top: 0 });
     });
@@ -108,7 +108,7 @@ export default function EditShipmentPage() {
             variant: i.variant || null,
             price: i.price,
             size: i.size,
-            qtyPerBox: i.qtyPerBox || 1,
+            qtyPerBox: i.qtyPerBox || null,
             availableQty: i.availableQty,
           })),
         }),

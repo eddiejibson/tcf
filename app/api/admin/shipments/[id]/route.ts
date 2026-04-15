@@ -154,7 +154,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             variant: p.variant ?? null,
             price: p.price,
             size: p.size ?? null,
-            qtyPerBox: p.qtyPerBox ?? 1,
+            qtyPerBox: p.qtyPerBox || null,
             availableQty: p.availableQty ?? null,
           });
         } else {
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             variant: p.variant ?? null,
             price: p.price,
             size: p.size ?? null,
-            qtyPerBox: p.qtyPerBox ?? 1,
+            qtyPerBox: p.qtyPerBox || null,
             availableQty: p.availableQty ?? null,
           });
           await manager.save(Product, newProduct);

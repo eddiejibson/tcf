@@ -2653,8 +2653,8 @@ export default function AdminShipmentDetailPage() {
               </p>
               <p className="text-amber-400/70 text-xs mt-0.5">
                 {sendEmails
-                  ? "Applying will update existing orders (sends accept/changes email) and create new orders silently."
-                  : "Applying will update all orders silently — no customer emails will be sent."}
+                  ? "Applying moves all queued orders to ACCEPTED. Customers get an 'Order Accepted' email with their invoice (or 'Order Updated' if the items changed on an already-accepted order). New orders are created silently."
+                  : "Applying moves all queued orders to ACCEPTED silently — no customer emails will be sent."}
               </p>
             </div>
           </div>
@@ -2823,7 +2823,7 @@ export default function AdminShipmentDetailPage() {
                 <span className="text-sm">
                   <span className="text-white font-medium">Send automatic email</span>
                   <span className="text-white/50 block text-xs mt-0.5">
-                    Existing orders get the accept/changes email on apply. Turn off to stay silent and notify manually later from each invoice.
+                    Existing orders get an Order Accepted email with invoice (or Order Updated if items changed). Turn off to stay silent and send manually later from each invoice.
                   </span>
                 </span>
               </label>

@@ -134,24 +134,44 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           return NextResponse.json({ error: "A customer must be assigned before accepting the order" }, { status: 400 });
         }
         if (draftOrder) {
-          const draftItems = draftOrder.items.map((i) => ({
-            catalogProductId: i.catalogProductId!,
-            quantity: i.quantity,
-            surcharge: Number(i.surcharge) || 0,
-          })).filter((i) => i.catalogProductId);
-          // Delete the draft items then the draft order, then create as ACCEPTED
-          const db2 = await getDb();
-          await db2.getRepository(OrderItem).delete({ orderId: id });
-          await db2.getRepository(Order).delete(id);
-          const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
-          if (accepted) {
-            const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
-            const resultItems = accepted.items.map((i) => ({
-              ...i,
-              latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
-              categoryName: i.catalogProduct?.category?.name || null,
-            }));
-            return NextResponse.json({ ...accepted, items: resultItems, totals });
+          // Shipment DRAFTs use productId (not catalogProductId) — the catalog-order recreation
+          // path below would drop all their items. For shipment DRAFTs we simply replace the
+          // items with body.items (if provided) and transition the existing order to ACCEPTED.
+          if (draftOrder.shipmentId) {
+            if (body.items) {
+              await updateOrderItems(id, body.items);
+            }
+            await updateOrderStatus(id, OrderStatus.ACCEPTED, body.includeShipping, body.skipEmail);
+            const accepted = await getOrderById(id);
+            if (accepted) {
+              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
+              const resultItems = accepted.items.map((i) => ({
+                ...i,
+                latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+                categoryName: i.catalogProduct?.category?.name || null,
+              }));
+              return NextResponse.json({ ...accepted, items: resultItems, totals });
+            }
+          } else {
+            const draftItems = draftOrder.items.map((i) => ({
+              catalogProductId: i.catalogProductId!,
+              quantity: i.quantity,
+              surcharge: Number(i.surcharge) || 0,
+            })).filter((i) => i.catalogProductId);
+            // Delete the draft items then the draft order, then create as ACCEPTED
+            const db2 = await getDb();
+            await db2.getRepository(OrderItem).delete({ orderId: id });
+            await db2.getRepository(Order).delete(id);
+            const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
+            if (accepted) {
+              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
+              const resultItems = accepted.items.map((i) => ({
+                ...i,
+                latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
+                categoryName: i.catalogProduct?.category?.name || null,
+              }));
+              return NextResponse.json({ ...accepted, items: resultItems, totals });
+            }
           }
         }
       }

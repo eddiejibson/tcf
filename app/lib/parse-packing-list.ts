@@ -4,6 +4,10 @@ export interface PackingListItem {
   name: string;
   size: string | null;
   quantity: number;
+  // Supplier's per-unit cost from the packing list (e.g. the U/PRICE column). Used in
+  // the review step so admin can rebase prices with a new margin — especially needed for
+  // items whose products aren't in the shipment catalog (no existing price to work from).
+  unitCost: number | null;
 }
 
 export interface PackingListOrder {
@@ -15,6 +19,7 @@ export interface PackingColumnMapping {
   name: number;
   size: number; // -1 if not mapped
   qty: number;
+  cost: number; // -1 if not mapped
 }
 
 export interface PackingListResult {
@@ -33,7 +38,7 @@ const NAME_PATTERNS = [
   /^name$/i, /english[\s_-]*name/i, /common[\s_-]*name/i, /como?n[\s_-]*name/i,
   /^item$/i, /^product$/i, /^description$/i, /^species$/i, /^title$/i,
   /item[\s_-]*name/i, /product[\s_-]*name/i, /species[\s_-]*name/i,
-  /scientific[\s_-]*name/i, /scientific/i, /^desc/i, /^latin/i,
+  /scientific[\s_-]*name/i, /scientific/i, /^desc/i, /^latin/i, /binomial/i,
   /coral[\s_-]*name/i, /fish[\s_-]*name/i, /livestock/i,
   // Abbreviations & alternatives
   /^descr(?:iption)?$/i, /^prod(?:uct)?[\s_-]*(?:name)?$/i,
@@ -46,6 +51,14 @@ const NAME_PATTERNS = [
   // Common typos
   /^desc?iption$/i, /^discription$/i, /^decription$/i, /^desciption$/i,
   /^prodcut$/i, /^prdouct$/i, /^itme$/i,
+];
+
+// Subset of NAME_PATTERNS to deprioritize when a preferred name column is also present
+// (e.g. aquarium packing lists with both "COMMON NAME" and "SCIENTIFIC NAME" — prefer common)
+const SCIENTIFIC_NAME_PATTERNS = [
+  /scientific[\s_-]*name/i, /^scientific$/i,
+  /^latin$/i, /latin[\s_-]*name/i,
+  /binomial/i,
 ];
 
 const SIZE_PATTERNS = [
@@ -117,6 +130,25 @@ const PRICE_PATTERNS = [
   /^rate$/i, /^tariff$/i, /^markup$/i, /^margin$/i,
   /^p\/u$/i, /^ea[\s_-]*price/i,
   /^invoice$/i, /^charge$/i,
+];
+
+// Per-unit price/cost — the column we WANT to extract as the item's cost basis.
+// Distinct from PRICE_PATTERNS (which also matches line-total / amount columns that we'd
+// never want to treat as per-unit cost).
+const UNIT_COST_PATTERNS = [
+  /unit[\s_-]*price/i, /unit[\s_-]*cost/i,
+  /^u[\s_-]*\/[\s_-]*price$/i, /^u[\s_-]*\/[\s_-]*p$/i, /^u\/price$/i, /^u\/p$/i, /^p\/u$/i,
+  /per[\s_-]*unit/i, /each[\s_-]*price/i, /^ea[\s_-]*price$/i,
+  /^cost$/i, /^price$/i,
+  /wholesale[\s_-]*price/i, /^wholesale$/i,
+  /sell[\s_-]*price/i,
+];
+
+// Line-total / sum / amount — explicitly NOT per-unit. Used as negative signal for cost detection.
+const TOTAL_LIKE_PATTERNS = [
+  /^amount$/i, /^total$/i, /line[\s_-]*total/i,
+  /total[\s_-]*value/i, /^sub[\s_-]*total$/i, /^subtotal$/i,
+  /^value$/i, /grand[\s_-]*total/i,
 ];
 
 const IGNORE_COLUMN_PATTERNS = [
@@ -277,6 +309,8 @@ function detectColumnsSmart(data: unknown[][], headerRowIndex: number): PackingC
 
     // Strong header match
     if (matchesAny(col.header, NAME_PATTERNS)) score += 60;
+    // Prefer common/english/item names over scientific/latin when both exist
+    if (matchesAny(col.header, SCIENTIFIC_NAME_PATTERNS)) score -= 30;
     // Penalize if it matches code/ignore patterns
     if (matchesAny(col.header, CODE_PATTERNS)) score -= 200;
     if (matchesAny(col.header, PRICE_PATTERNS)) score -= 200;
@@ -390,7 +424,28 @@ function detectColumnsSmart(data: unknown[][], headerRowIndex: number): PackingC
     }
   }
 
-  return { name: nameCol, size: sizeCol, qty: qtyCol === -1 ? -1 : qtyCol, headers };
+  // --- Find COST column (per-unit cost, NOT line total) ---
+  let costCol = -1;
+  let bestCostScore = 0;
+  for (const col of stats) {
+    if (col.colIdx === nameCol || col.colIdx === sizeCol || col.colIdx === qtyCol) continue;
+    let score = 0;
+    if (matchesAny(col.header, UNIT_COST_PATTERNS)) score += 70;
+    else if (matchesAny(col.header, PRICE_PATTERNS)) score += 25;
+    // Strongly penalize line-total columns so we don't pick "AMOUNT" over "U/PRICE"
+    if (matchesAny(col.header, TOTAL_LIKE_PATTERNS)) score -= 60;
+    if (matchesAny(col.header, CODE_PATTERNS)) score -= 200;
+    // Numeric column with reasonable per-unit values
+    if (col.numericCount >= col.textCount && col.numericCount > 0) score += 15;
+    if (col.maxNumeric > 0 && col.maxNumeric < 10000) score += 5;
+    if (col.totalNonEmpty > 3) score += 5;
+    if (score > bestCostScore) {
+      bestCostScore = score;
+      costCol = col.colIdx;
+    }
+  }
+
+  return { name: nameCol, size: sizeCol, qty: qtyCol === -1 ? -1 : qtyCol, cost: costCol, headers };
 }
 
 // --- Subtotal/total row blocklist ---
@@ -637,7 +692,19 @@ function extractItemFromRow(row: unknown[], mappings: PackingColumnMapping): Pac
     if (s && s !== "0") size = s;
   }
 
-  return { name: normalizeString(nameVal), size, quantity };
+  let unitCost: number | null = null;
+  if (mappings.cost >= 0) {
+    const raw = row[mappings.cost];
+    if (typeof raw === "number" && raw > 0) {
+      unitCost = raw;
+    } else if (typeof raw === "string") {
+      const cleaned = raw.replace(/[^\d.-]/g, "");
+      const n = parseFloat(cleaned);
+      if (!isNaN(n) && n > 0) unitCost = n;
+    }
+  }
+
+  return { name: normalizeString(nameVal), size, quantity, unitCost };
 }
 
 // --- Build orders from raw data + mappings + separators ---
@@ -730,6 +797,52 @@ function detectMultiQtyColumns(data: unknown[][], headerRowIndex: number, nameCo
   return qtyCols;
 }
 
+// --- Multi-sheet workbook helpers ---
+
+// Sheet names that are clearly not item data (cover pages, summaries, weight logs, etc.)
+const SKIP_SHEET_PATTERN = /^(cover|cover[\s_-]*page|summary|overview|totals?|grand[\s_-]*totals?|invoice[\s_-]*summary|box[\s_-]*weights?|weights?|index|toc|(?:table[\s_-]*of[\s_-]*)?contents?|notes?|readme|info|instructions?|guide|title|front)$/i;
+
+// Reorder a row so its name/size/qty values end up in the target mapping's positions.
+// Other columns are preserved at their source positions (best-effort); identical mappings
+// pass through unchanged so the common case (all sheets share a layout) is a no-op.
+function alignRowToMapping(row: unknown[], from: PackingColumnMapping, to: PackingColumnMapping, headerLen: number): unknown[] {
+  if (from.name === to.name && from.size === to.size && from.qty === to.qty && from.cost === to.cost) {
+    return row;
+  }
+  const size = Math.max(headerLen, row.length);
+  const result: unknown[] = new Array(size).fill(null);
+  for (let i = 0; i < row.length; i++) result[i] = row[i];
+  if (to.name >= 0) result[to.name] = from.name >= 0 ? row[from.name] ?? null : null;
+  if (to.size >= 0) result[to.size] = from.size >= 0 ? row[from.size] ?? null : null;
+  if (to.qty >= 0) result[to.qty] = from.qty >= 0 ? row[from.qty] ?? null : null;
+  if (to.cost >= 0) result[to.cost] = from.cost >= 0 ? row[from.cost] ?? null : null;
+  return result;
+}
+
+interface DetectedSheet {
+  name: string;
+  data: unknown[][];
+  headerRowIndex: number;
+  headers: string[];
+  mappings: PackingColumnMapping;
+}
+
+function detectSheet(sheetName: string, data: unknown[][]): DetectedSheet | null {
+  if (data.length < 2) return null;
+  const headerRowIndex = findHeaderRow(data);
+  const detected = detectColumnsSmart(data, headerRowIndex);
+  const mappings: PackingColumnMapping = { name: detected.name, size: detected.size, qty: detected.qty, cost: detected.cost };
+  if (mappings.name < 0 || mappings.qty < 0) return null;
+
+  let hasItems = false;
+  for (let r = headerRowIndex + 1; r < data.length; r++) {
+    if (extractItemFromRow(data[r] || [], mappings)) { hasItems = true; break; }
+  }
+  if (!hasItems) return null;
+
+  return { name: sheetName, data, headerRowIndex, headers: detected.headers, mappings };
+}
+
 // --- Main parser ---
 
 export function parsePackingList(file: File): Promise<PackingListResult> {
@@ -739,24 +852,88 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
       try {
         const arrayData = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(arrayData, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+        const warnings: string[] = [];
 
-        if (data.length < 2) {
-          resolve({ orders: [], headers: [], rawRows: [], columnMappings: { name: 0, size: -1, qty: -1 }, separators: [], headerRowIndex: 0, warnings: ["No data rows found"] });
+        // Identify data sheets. Each sheet that passes detection is treated as its own order
+        // (using its sheet name as the label) — this is how suppliers often deliver multi-order
+        // invoices (e.g. an invoice workbook with a COVER sheet plus one sheet per customer).
+        const dataSheets: DetectedSheet[] = [];
+        for (const sheetName of workbook.SheetNames) {
+          if (SKIP_SHEET_PATTERN.test(sheetName.trim())) continue;
+          const sheet = workbook.Sheets[sheetName];
+          const sheetData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+          const detected = detectSheet(sheetName, sheetData);
+          if (detected) dataSheets.push(detected);
+        }
+
+        // Fallback: no data sheets found — use first sheet regardless (preserves legacy behavior
+        // for single-sheet uploads that have unusual headers).
+        if (dataSheets.length === 0) {
+          const firstName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstName];
+          const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+          if (data.length < 2) {
+            resolve({ orders: [], headers: [], rawRows: [], columnMappings: { name: 0, size: -1, qty: -1, cost: -1 }, separators: [], headerRowIndex: 0, warnings: ["No data rows found"] });
+            return;
+          }
+          const headerRowIndex = findHeaderRow(data);
+          const detected = detectColumnsSmart(data, headerRowIndex);
+          dataSheets.push({
+            name: firstName,
+            data,
+            headerRowIndex,
+            headers: detected.headers,
+            mappings: { name: detected.name, size: detected.size, qty: detected.qty, cost: detected.cost },
+          });
+        }
+
+        // --- Multi-sheet mode: each sheet is one order; combine with sheet-name separators ---
+        if (dataSheets.length > 1) {
+          const first = dataSheets[0];
+          const headers = first.headers;
+          const unifiedMappings = first.mappings;
+
+          if (unifiedMappings.name < 0) warnings.push("Could not confidently detect name column");
+          if (unifiedMappings.qty < 0) warnings.push("Could not confidently detect quantity column");
+
+          const combinedRawRows: unknown[][] = [];
+          const separators: { rowIndex: number; label: string }[] = [];
+
+          for (const sheet of dataSheets) {
+            separators.push({ rowIndex: combinedRawRows.length, label: sheet.name });
+            combinedRawRows.push([sheet.name]);
+            for (let r = sheet.headerRowIndex + 1; r < sheet.data.length; r++) {
+              combinedRawRows.push(alignRowToMapping(sheet.data[r] || [], sheet.mappings, unifiedMappings, headers.length));
+            }
+          }
+
+          // headerRowIndex = -1 means separator rowIndex is a direct index into rawRows
+          // (buildOrdersFromRawData: relIndex = rowIndex - headerRowIndex - 1 = rowIndex).
+          const virtualHeaderRowIndex = -1;
+          const orders = buildOrdersFromRawData(combinedRawRows, unifiedMappings, separators, virtualHeaderRowIndex);
+
+          resolve({
+            orders,
+            headers,
+            rawRows: combinedRawRows,
+            columnMappings: unifiedMappings,
+            separators,
+            headerRowIndex: virtualHeaderRowIndex,
+            warnings,
+          });
           return;
         }
 
-        const warnings: string[] = [];
-        const headerRowIndex = findHeaderRow(data);
-        const detected = detectColumnsSmart(data, headerRowIndex);
-        const headers = detected.headers;
-        const mappings: PackingColumnMapping = { name: detected.name, size: detected.size, qty: detected.qty };
+        // --- Single-sheet mode: full detection (separators / multi-qty / order column) ---
+        const only = dataSheets[0];
+        const data = only.data;
+        const headerRowIndex = only.headerRowIndex;
+        const headers = only.headers;
+        const mappings = only.mappings;
 
         if (mappings.name < 0) warnings.push("Could not confidently detect name column");
         if (mappings.qty < 0) warnings.push("Could not confidently detect quantity column");
 
-        // Detect separators in the data rows (after header)
         const totalCols = headers.length;
         const separators: { rowIndex: number; label: string }[] = [];
         for (let i = headerRowIndex + 1; i < data.length; i++) {
@@ -771,11 +948,10 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
         // Check for multi-qty-column format (each column = an order)
         const multiQtyCols = detectMultiQtyColumns(data, headerRowIndex, mappings.name, mappings.size);
         if (multiQtyCols.length > 1 && separators.length < 2) {
-          // Each qty column is a separate order
           const orders: PackingListOrder[] = [];
           for (const qtyCol of multiQtyCols) {
             const label = headers[qtyCol] || `Column ${qtyCol}`;
-            const colMappings: PackingColumnMapping = { name: mappings.name, size: mappings.size, qty: qtyCol };
+            const colMappings: PackingColumnMapping = { name: mappings.name, size: mappings.size, qty: qtyCol, cost: mappings.cost };
             const items: PackingListItem[] = [];
             for (const row of rawRows) {
               if (!row) continue;
@@ -787,7 +963,6 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
               orders.push({ label, items });
             }
           }
-          // Use first qty col as the primary mapping
           mappings.qty = multiQtyCols[0];
           resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
           return;
@@ -801,13 +976,11 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
 
           for (const row of rawRows) {
             if (!row) continue;
-            // Skip separator rows
             if (isOrderSeparator(row, totalCols, mappings.qty)) continue;
 
             const val = String(row[orderCol.colIndex] ?? "").trim();
             if (!val) continue;
 
-            // Clean up the group key — strip # prefix for hex IDs
             let key = val;
             if (orderCol.type === "orderId") {
               key = val.replace(/^#/, "").toUpperCase();
@@ -841,9 +1014,7 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
           }
         }
 
-        // Build orders using separator-based splitting
         const orders = buildOrdersFromRawData(rawRows, mappings, separators, headerRowIndex);
-
         resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
       } catch (err) {
         reject(err);

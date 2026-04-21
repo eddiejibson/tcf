@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ProductSearch from "@/app/components/ProductSearch";
+import CustomerPicker from "@/app/components/CustomerPicker";
 import type {
   AdminShipmentDetail,
   AdminShipmentDetailProduct,
   AdminShipmentDetailOrder,
   AdminShipmentDetailOrderItem,
+  UserListItem,
 } from "@/app/lib/types";
 import {
   parsePackingList,
@@ -83,6 +85,51 @@ function findBestMatch(item: PackingListItem, products: AdminShipmentDetailProdu
   return best;
 }
 
+// Resolve a packing order's items to a productId → qty map (using the same fuzzy product
+// matcher as the item-review step). Built once per packing order and reused across every
+// candidate system order during order-matching.
+function resolvePackingToProductQtys(
+  packingOrder: PackingListOrder,
+  products: AdminShipmentDetailProduct[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of packingOrder.items) {
+    const product = findBestMatch(item, products);
+    if (!product) continue;
+    map.set(product.id, (map.get(product.id) || 0) + item.quantity);
+  }
+  return map;
+}
+
+// Score similarity between a packing order (pre-resolved) and a system order by
+// counting overlapping product IDs and weighting each overlap by quantity proximity.
+// Returns 0 when fewer than 2 products overlap — avoids coincidental single-item matches
+// between unrelated customers.
+function scoreOrderByItems(
+  packingByProductId: Map<string, number>,
+  systemOrder: AdminShipmentDetailOrder,
+): number {
+  const systemByProductId = new Map<string, number>();
+  for (const it of systemOrder.items) {
+    if (!it.productId) continue;
+    systemByProductId.set(it.productId, (systemByProductId.get(it.productId) || 0) + it.quantity);
+  }
+
+  let score = 0;
+  let overlap = 0;
+  for (const [pid, pqty] of packingByProductId) {
+    const sqty = systemByProductId.get(pid);
+    if (sqty === undefined) continue;
+    overlap++;
+    score += 10; // base bonus per overlapping product
+    const min = Math.min(pqty, sqty);
+    const max = Math.max(pqty, sqty);
+    if (max > 0) score += 10 * (min / max); // qty-proximity bonus, 0..10
+  }
+
+  return overlap >= 2 ? score : 0;
+}
+
 // --- Review item types ---
 
 interface ReviewItem {
@@ -91,6 +138,9 @@ interface ReviewItem {
   quantity: number;
   unitPrice: number;
   productId: string | null;
+  // Per-unit cost from the packing list (e.g. supplier U/PRICE). Used as the cost basis
+  // when applying a margin to items without a matching shipment product.
+  unitCost: number | null;
   // Diff info
   originalQty: number | null; // null if new item
   status: "unchanged" | "qty_changed" | "new" | "removed";
@@ -98,7 +148,13 @@ interface ReviewItem {
 
 interface OrderMapping {
   packingOrderIndex: number;
+  // "existing" = match to an existing system order (systemOrderId set)
+  // "new" = create a new order for a user (userId + margin set)
+  // "skip" = don't process this packing order
+  type: "existing" | "new" | "skip";
   systemOrderId: string;
+  userId?: string;
+  margin?: number; // percentage markup for new orders (defaults to shipment margin)
 }
 
 const PACKING_MAPPING_FIELDS: { key: keyof PackingColumnMapping; label: string }[] = [
@@ -107,13 +163,16 @@ const PACKING_MAPPING_FIELDS: { key: keyof PackingColumnMapping; label: string }
   { key: "qty", label: "Quantity" },
 ];
 
-type FlowStep = "idle" | "column_mapping" | "mapping" | "reviewing" | "done";
+type FlowStep = "idle" | "column_mapping" | "mapping" | "reviewing" | "summary" | "done";
+
+type OrderDecision = "queued" | "skipped";
 
 export default function AdminShipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [shipment, setShipment] = useState<AdminShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   // Packing list flow state
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
@@ -121,14 +180,22 @@ export default function AdminShipmentDetailPage() {
   const [orderMappings, setOrderMappings] = useState<OrderMapping[]>([]);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
+  // Input for the "apply margin" controls in the review step (sits separately from the
+  // mapping-step margin so admin can experiment per-order without losing the original input)
+  const [reviewMargin, setReviewMargin] = useState<number>(0);
+  // Cache of reviewed items keyed by packingOrderIndex (stable across navigation,
+  // and works for "new" mappings that have no systemOrderId yet).
+  const [reviewedOrders, setReviewedOrders] = useState<Map<number, { items: ReviewItem[]; decision: OrderDecision }>>(new Map());
   const [acceptedOrderIds, setAcceptedOrderIds] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
+  const [applyProgress, setApplyProgress] = useState<{ done: number; total: number } | null>(null);
+  const [applying, setApplying] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [showExportWarning, setShowExportWarning] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<UserListItem[]>([]);
 
   // Column mapping state
   const [packingHeaders, setPackingHeaders] = useState<string[]>([]);
-  const [packingColumnMappings, setPackingColumnMappings] = useState<PackingColumnMapping>({ name: 0, size: -1, qty: -1 });
+  const [packingColumnMappings, setPackingColumnMappings] = useState<PackingColumnMapping>({ name: 0, size: -1, qty: -1, cost: -1 });
   const [packingWarnings, setPackingWarnings] = useState<string[]>([]);
   const packingRawRowsRef = useRef<unknown[][]>([]);
   const packingSeparatorsRef = useRef<{ rowIndex: number; label: string }[]>([]);
@@ -141,6 +208,25 @@ export default function AdminShipmentDetailPage() {
   }, [params.id]);
 
   useEffect(() => { fetchShipment(); }, [fetchShipment]);
+
+  // Preload admin-selectable users for the "create new order" flow in the mapping step.
+  useEffect(() => {
+    fetch("/api/admin/users?role=USER&limit=500")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.users) setAdminUsers(data.users); })
+      .catch(() => {});
+  }, []);
+
+  const handleDeleteOrder = async (orderId: string, customer: string) => {
+    const ref = `#${orderId.slice(0, 8).toUpperCase()}`;
+    if (!confirm(`Delete order ${ref} (${customer})? This will permanently delete its items, payments, DOA claims, and credit transactions.`)) return;
+    setDeletingOrderId(orderId);
+    const res = await fetch(`/api/admin/orders/${orderId}`, { method: "DELETE" });
+    if (res.ok) {
+      await fetchShipment();
+    }
+    setDeletingOrderId(null);
+  };
 
   // Orders that can be processed (SUBMITTED or AWAITING_FULFILLMENT)
   const processableOrders = useMemo(() =>
@@ -370,6 +456,13 @@ export default function AdminShipmentDetailPage() {
     // Track which system orders have already been matched to avoid double-mapping
     const usedSystemOrderIds = new Set<string>();
 
+    // Precompute each packing order's product-id-to-qty map once (used by item-similarity step).
+    // Supplier-authored invoices often use sheet codes (e.g. "AQUA", "RNG") that don't map to any
+    // customer identifier — matching by overlapping products is the only signal left.
+    const packingProductMaps = packingOrders.map((po) =>
+      resolvePackingToProductQtys(po, shipment?.products || [])
+    );
+
     const mappings: OrderMapping[] = packingOrders.map((po, i) => {
       const labelUpper = po.label.replace(/^#/, "").toUpperCase().trim();
       const labelLower = po.label.toLowerCase().trim();
@@ -416,7 +509,22 @@ export default function AdminShipmentDetailPage() {
         }
       }
 
-      // 6. Positional fallback — use next available order by position
+      // 6. Item-similarity fallback — pick the order with the most overlapping products.
+      // Requires ≥2 overlapping product IDs to win (see scoreOrderByItems); weighted by qty proximity.
+      if (!matched) {
+        let bestScore = 0;
+        let bestCandidate: AdminShipmentDetailOrder | undefined;
+        for (const o of available) {
+          const score = scoreOrderByItems(packingProductMaps[i], o);
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = o;
+          }
+        }
+        if (bestCandidate) matched = bestCandidate;
+      }
+
+      // 7. Positional fallback — use next available order by position
       if (!matched) {
         matched = available[0] || processableOrders[i];
       }
@@ -428,6 +536,7 @@ export default function AdminShipmentDetailPage() {
 
       return {
         packingOrderIndex: i,
+        type: systemOrderId ? ("existing" as const) : ("skip" as const),
         systemOrderId,
       };
     });
@@ -436,27 +545,105 @@ export default function AdminShipmentDetailPage() {
   };
 
   // --- Order mapping step ---
-  const updateMapping = (packingIndex: number, systemOrderId: string) => {
+  const updateMappingExisting = (packingIndex: number, systemOrderId: string) => {
     setOrderMappings((prev) =>
-      prev.map((m) => m.packingOrderIndex === packingIndex ? { ...m, systemOrderId } : m)
+      prev.map((m) => m.packingOrderIndex === packingIndex
+        ? { ...m, type: systemOrderId ? "existing" : "skip", systemOrderId, userId: undefined, margin: undefined }
+        : m
+      )
+    );
+  };
+
+  const switchMappingToNew = (packingIndex: number) => {
+    setOrderMappings((prev) =>
+      prev.map((m) => m.packingOrderIndex === packingIndex
+        ? { ...m, type: "new", systemOrderId: "", userId: m.userId, margin: m.margin ?? Number(shipment?.margin) }
+        : m
+      )
+    );
+  };
+
+  const switchMappingToExisting = (packingIndex: number) => {
+    setOrderMappings((prev) =>
+      prev.map((m) => m.packingOrderIndex === packingIndex
+        ? { ...m, type: m.systemOrderId ? "existing" : "skip", userId: undefined, margin: undefined }
+        : m
+      )
+    );
+  };
+
+  const updateMappingUser = (packingIndex: number, userId: string) => {
+    setOrderMappings((prev) =>
+      prev.map((m) => m.packingOrderIndex === packingIndex ? { ...m, userId } : m)
+    );
+  };
+
+  const updateMappingMargin = (packingIndex: number, margin: number) => {
+    setOrderMappings((prev) =>
+      prev.map((m) => m.packingOrderIndex === packingIndex ? { ...m, margin } : m)
     );
   };
 
   const startReview = () => {
-    const validMappings = orderMappings.filter((m) => m.systemOrderId);
+    const validMappings = orderMappings.filter((m) =>
+      (m.type === "existing" && m.systemOrderId) || (m.type === "new" && m.userId)
+    );
     if (validMappings.length === 0) return;
     setOrderMappings(validMappings);
+    setReviewedOrders(new Map());
     setCurrentReviewIndex(0);
     buildReviewItems(validMappings[0]);
     setFlowStep("reviewing");
+  };
+
+  // Rebase a shipment price from shipment.margin onto a target margin.
+  // Shipment products are already priced as cost × (1 + shipment.margin/100),
+  // so recovering cost and re-applying reduces to price × (100+target) / (100+shipment).
+  const rebasePriceToMargin = (price: number, targetMargin: number): number => {
+    const shipMargin = Number(shipment?.margin ?? 0);
+    const denom = 100 + shipMargin;
+    if (denom <= 0) return price;
+    return (price * (100 + targetMargin)) / denom;
   };
 
   // --- Build review items for a mapping ---
   const buildReviewItems = (mapping: OrderMapping) => {
     if (!shipment) return;
     const packingOrder = packingOrders[mapping.packingOrderIndex];
+    if (!packingOrder) return;
+
+    // Default the review-step margin control: use mapping.margin for new-order flows,
+    // otherwise the shipment's margin (what the existing prices were computed at).
+    setReviewMargin(mapping.margin ?? Number(shipment.margin));
+
+    // New-order mode: no system order to diff; every packing item is "new" and prices
+    // are rebased from shipment.margin to the admin-specified margin.
+    if (mapping.type === "new") {
+      const targetMargin = mapping.margin ?? Number(shipment.margin);
+      const items: ReviewItem[] = packingOrder.items.map((pi) => {
+        const product = findBestMatch(pi, shipment.products);
+        const basePrice = product ? Number(product.price) : 0;
+        // Price priority: product (rebased margin) → packing list cost (add margin) → 0 (manual)
+        const unitPrice = product
+          ? rebasePriceToMargin(basePrice, targetMargin)
+          : pi.unitCost != null ? pi.unitCost * (1 + targetMargin / 100) : 0;
+        return {
+          name: pi.name,
+          size: pi.size,
+          quantity: pi.quantity,
+          unitPrice,
+          productId: product?.id || null,
+          unitCost: pi.unitCost,
+          originalQty: null,
+          status: "new",
+        };
+      });
+      setReviewItems(items);
+      return;
+    }
+
     const systemOrder = shipment.orders.find((o) => o.id === mapping.systemOrderId);
-    if (!packingOrder || !systemOrder) return;
+    if (!systemOrder) return;
 
     const items: ReviewItem[] = [];
     const matchedOriginalIds = new Set<string>();
@@ -480,6 +667,7 @@ export default function AdminShipmentDetailPage() {
           quantity: pi.quantity,
           unitPrice: unitPrice || Number(originalItem.unitPrice),
           productId,
+          unitCost: pi.unitCost,
           originalQty: originalItem.quantity,
           status: qtyChanged ? "qty_changed" : "unchanged",
         });
@@ -490,6 +678,7 @@ export default function AdminShipmentDetailPage() {
           quantity: pi.quantity,
           unitPrice,
           productId,
+          unitCost: pi.unitCost,
           originalQty: null,
           status: "new",
         });
@@ -504,6 +693,7 @@ export default function AdminShipmentDetailPage() {
           quantity: 0,
           unitPrice: Number(oi.unitPrice),
           productId: oi.productId,
+          unitCost: null,
           originalQty: oi.quantity,
           status: "removed",
         });
@@ -543,62 +733,180 @@ export default function AdminShipmentDetailPage() {
       quantity: 1,
       unitPrice: 0,
       productId: null,
+      unitCost: null,
       originalQty: null,
       status: "new",
     }]);
   };
 
-  // --- Accept current order ---
-  const handleAcceptOrder = async () => {
-    if (!shipment) return;
-    const mapping = orderMappings[currentReviewIndex];
-    const activeItems = reviewItems.filter((i) => i.status !== "removed" && i.quantity > 0);
+  // Apply a margin to item prices. Two scopes supported:
+  // - "all": recomputes every item's unitPrice (strips existing margin, applies the new one)
+  // - "new": only recomputes items with status === "new" (leaves existing items untouched)
+  // Price basis per item: product.price rebased, OR packing-list unitCost × margin, OR skipped.
+  const applyMarginToReview = (marginPercent: number, scope: "all" | "new") => {
+    setReviewItems((prev) => prev.map((item) => {
+      if (item.status === "removed") return item;
+      if (scope === "new" && item.status !== "new") return item;
 
-    if (activeItems.length === 0) return;
+      const product = item.productId && shipment
+        ? shipment.products.find((p) => p.id === item.productId)
+        : null;
 
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/orders/${mapping.systemOrderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: activeItems.map((i) => ({
-            productId: i.productId,
-            name: i.name,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-          })),
-          status: "ACCEPTED",
-        }),
-      });
-
-      if (res.ok) {
-        setAcceptedOrderIds((prev) => new Set([...prev, mapping.systemOrderId]));
-
-        if (currentReviewIndex < orderMappings.length - 1) {
-          const nextIndex = currentReviewIndex + 1;
-          setCurrentReviewIndex(nextIndex);
-          buildReviewItems(orderMappings[nextIndex]);
-        } else {
-          setFlowStep("done");
-          await fetchShipment();
-        }
+      let nextPrice = item.unitPrice;
+      if (product) {
+        nextPrice = rebasePriceToMargin(Number(product.price), marginPercent);
+      } else if (item.unitCost != null && item.unitCost > 0) {
+        nextPrice = item.unitCost * (1 + marginPercent / 100);
+      } else {
+        return item; // no cost basis; leave as-is for admin to set manually
       }
-    } catch {
-      // Error handled silently
+      return { ...item, unitPrice: nextPrice };
+    }));
+  };
+
+  // Persist the current review's items + decision into the cache, then move position
+  // (or jump to the summary). The next index's items are restored from cache (preserving
+  // edits across navigation) or freshly built from the diff.
+  const commitAndMove = (decision: OrderDecision, delta: number | "summary") => {
+    const snapshot = new Map(reviewedOrders);
+    snapshot.set(currentReviewIndex, { items: reviewItems, decision });
+    setReviewedOrders(snapshot);
+
+    if (delta === "summary") {
+      setFlowStep("summary");
+      return;
     }
-    setSaving(false);
+    const nextIndex = currentReviewIndex + delta;
+    if (nextIndex < 0 || nextIndex >= orderMappings.length) return;
+
+    const cached = snapshot.get(nextIndex);
+    if (cached) setReviewItems(cached.items);
+    else buildReviewItems(orderMappings[nextIndex]);
+    setCurrentReviewIndex(nextIndex);
+  };
+
+  const handleQueueNext = () => {
+    const isLast = currentReviewIndex >= orderMappings.length - 1;
+    commitAndMove("queued", isLast ? "summary" : 1);
   };
 
   const handleSkipOrder = () => {
-    if (currentReviewIndex < orderMappings.length - 1) {
-      const nextIndex = currentReviewIndex + 1;
-      setCurrentReviewIndex(nextIndex);
-      buildReviewItems(orderMappings[nextIndex]);
-    } else {
-      setFlowStep("done");
-      fetchShipment();
+    const isLast = currentReviewIndex >= orderMappings.length - 1;
+    commitAndMove("skipped", isLast ? "summary" : 1);
+  };
+
+  const handlePrevious = () => {
+    if (currentReviewIndex === 0) return;
+    const existing = reviewedOrders.get(currentReviewIndex);
+    commitAndMove(existing?.decision ?? "queued", -1);
+  };
+
+  // Jump from summary back into a specific order for further edits.
+  const jumpToReview = (index: number) => {
+    if (index < 0 || index >= orderMappings.length) return;
+    // Persist whichever order we're currently editing before jumping.
+    if (flowStep === "reviewing") {
+      const existing = reviewedOrders.get(currentReviewIndex);
+      setReviewedOrders((prev) => {
+        const updated = new Map(prev);
+        updated.set(currentReviewIndex, { items: reviewItems, decision: existing?.decision ?? "queued" });
+        return updated;
+      });
     }
+    const cached = reviewedOrders.get(index);
+    if (cached) setReviewItems(cached.items);
+    else buildReviewItems(orderMappings[index]);
+    setCurrentReviewIndex(index);
+    setFlowStep("reviewing");
+  };
+
+  // --- Bulk apply: first point where server-side commits (and emails) happen ---
+  // Existing orders: PATCH to ACCEPTED → customer gets invoice email.
+  // New orders: POST with skipEmail, then PATCH to ACCEPTED with skipEmail — silent,
+  // so the admin can notify the customer explicitly later.
+  const handleApplyAll = async () => {
+    if (!shipment) return;
+    const queued: { mapping: OrderMapping; items: ReviewItem[] }[] = [];
+    for (let i = 0; i < orderMappings.length; i++) {
+      const entry = reviewedOrders.get(i);
+      if (!entry || entry.decision !== "queued") continue;
+      const active = entry.items.filter((it) => it.status !== "removed" && it.quantity > 0);
+      if (active.length === 0) continue;
+      queued.push({ mapping: orderMappings[i], items: active });
+    }
+    if (queued.length === 0) return;
+
+    const existingCount = queued.filter((q) => q.mapping.type === "existing").length;
+    const newCount = queued.length - existingCount;
+    const lines = [`Apply ${queued.length} order${queued.length !== 1 ? "s" : ""}?`];
+    if (existingCount > 0) lines.push(`• ${existingCount} existing order${existingCount !== 1 ? "s" : ""} → invoice email sent`);
+    if (newCount > 0) lines.push(`• ${newCount} new order${newCount !== 1 ? "s" : ""} created silently (no email)`);
+    if (!confirm(lines.join("\n"))) return;
+
+    setApplying(true);
+    setApplyProgress({ done: 0, total: queued.length });
+    const accepted = new Set<string>();
+
+    for (let i = 0; i < queued.length; i++) {
+      const { mapping, items } = queued[i];
+      const payloadItems = items.map((it) => ({
+        productId: it.productId,
+        name: it.name,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+      }));
+
+      try {
+        let targetOrderId = mapping.systemOrderId;
+        const isNewOrder = mapping.type === "new";
+
+        if (isNewOrder) {
+          if (!mapping.userId) { setApplyProgress({ done: i + 1, total: queued.length }); continue; }
+          const createRes = await fetch(`/api/orders`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              shipmentId: shipment.id,
+              forUserId: mapping.userId,
+              skipEmail: true,
+              items: payloadItems,
+            }),
+          });
+          if (!createRes.ok) { setApplyProgress({ done: i + 1, total: queued.length }); continue; }
+          const created = await createRes.json();
+          targetOrderId = created.id;
+        }
+
+        const res = await fetch(`/api/admin/orders/${targetOrderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: payloadItems,
+            status: "ACCEPTED",
+            ...(isNewOrder ? { skipEmail: true } : {}),
+          }),
+        });
+        if (res.ok) accepted.add(targetOrderId);
+      } catch {
+        // Per-order failures don't halt the batch.
+      }
+      setApplyProgress({ done: i + 1, total: queued.length });
+    }
+
+    setAcceptedOrderIds(accepted);
+    setApplying(false);
+    setApplyProgress(null);
+    setFlowStep("done");
+    await fetchShipment();
+  };
+
+  const handleDiscardAll = () => {
+    const queuedCount = Array.from(reviewedOrders.values()).filter((v) => v.decision === "queued").length;
+    const msg = queuedCount > 0
+      ? `Discard ${queuedCount} queued order${queuedCount !== 1 ? "s" : ""}? Nothing will be applied and no customers will be notified.`
+      : `Discard this packing list import? Nothing will be applied.`;
+    if (!confirm(msg)) return;
+    resetFlow();
   };
 
   const resetFlow = () => {
@@ -607,10 +915,12 @@ export default function AdminShipmentDetailPage() {
     setOrderMappings([]);
     setCurrentReviewIndex(0);
     setReviewItems([]);
+    setReviewedOrders(new Map());
     setAcceptedOrderIds(new Set());
+    setApplyProgress(null);
     setParseError(null);
     setPackingHeaders([]);
-    setPackingColumnMappings({ name: 0, size: -1, qty: -1 });
+    setPackingColumnMappings({ name: 0, size: -1, qty: -1, cost: -1 });
     setPackingWarnings([]);
     packingRawRowsRef.current = [];
     packingSeparatorsRef.current = [];
@@ -619,7 +929,12 @@ export default function AdminShipmentDetailPage() {
   // --- Current review context ---
   const currentMapping = flowStep === "reviewing" ? orderMappings[currentReviewIndex] : null;
   const currentPackingOrder = currentMapping ? packingOrders[currentMapping.packingOrderIndex] : null;
-  const currentSystemOrder = currentMapping ? shipment?.orders.find((o) => o.id === currentMapping.systemOrderId) : null;
+  const currentSystemOrder = currentMapping && currentMapping.type === "existing"
+    ? shipment?.orders.find((o) => o.id === currentMapping.systemOrderId)
+    : null;
+  const currentNewOrderUser = currentMapping && currentMapping.type === "new"
+    ? adminUsers.find((u) => u.id === currentMapping.userId)
+    : null;
 
   // Preview items count for column mapping step
   const totalParsedItems = useMemo(() => packingOrders.reduce((sum, o) => sum + o.items.length, 0), [packingOrders]);
@@ -751,21 +1066,37 @@ export default function AdminShipmentDetailPage() {
             ) : (
               <div>
                 {shipment.orders.map((o) => (
-                  <Link key={o.id} href={`/admin/orders/${o.id}`} className="px-4 md:px-6 py-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-white/5 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-white/50 text-xs font-mono">#{o.id.slice(0, 8).toUpperCase()}</span>
-                          <p className="text-white text-sm font-medium">{o.userCompanyName || o.userEmail}</p>
+                  <div key={o.id} className="border-b border-white/5 flex items-center hover:bg-white/5 transition-colors">
+                    <Link href={`/admin/orders/${o.id}`} className="flex-1 px-4 md:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/50 text-xs font-mono">#{o.id.slice(0, 8).toUpperCase()}</span>
+                            <p className="text-white text-sm font-medium">{o.userCompanyName || o.userEmail}</p>
+                          </div>
+                          {o.userCompanyName && <p className="text-white/30 text-xs">{o.userEmail}</p>}
+                          <p className="text-white/40 text-xs mt-0.5">{o.itemCount} items - {formatPrice(o.total)}</p>
                         </div>
-                        {o.userCompanyName && <p className="text-white/30 text-xs">{o.userEmail}</p>}
-                        <p className="text-white/40 text-xs mt-0.5">{o.itemCount} items - {formatPrice(o.total)}</p>
                       </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>
-                      {statusLabels[o.status] || o.status}
-                    </span>
-                  </Link>
+                      <span className={`px-3 py-1 rounded-lg text-xs font-medium ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>
+                        {statusLabels[o.status] || o.status}
+                      </span>
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteOrder(o.id, o.userCompanyName || o.userEmail || "no customer")}
+                      disabled={deletingOrderId === o.id}
+                      className="mr-4 md:mr-6 p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      title="Delete order"
+                    >
+                      {deletingOrderId === o.id ? (
+                        <div className="w-5 h-5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -920,7 +1251,7 @@ export default function AdminShipmentDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">Map Packing List Orders</h3>
-                <p className="text-white/50 text-sm mt-1">Match each packing list order to a system order</p>
+                <p className="text-white/50 text-sm mt-1">Match to an existing order, or create a new one for a customer</p>
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => setFlowStep("column_mapping")} className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm transition-colors">Back to Columns</button>
@@ -929,35 +1260,79 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             <div className="space-y-4">
-              {packingOrders.map((po, i) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 bg-white/[0.03] rounded-xl">
-                  <div className="sm:flex-1">
-                    <p className="text-white text-sm font-medium">Packing List: {po.label}</p>
-                    <p className="text-white/40 text-xs mt-0.5">{po.items.length} items</p>
+              {packingOrders.map((po, i) => {
+                const mapping = orderMappings.find((m) => m.packingOrderIndex === i);
+                const mode = mapping?.type ?? "skip";
+                const isNew = mode === "new";
+                return (
+                  <div key={i} className="flex flex-col gap-3 p-4 bg-white/[0.03] rounded-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div>
+                        <p className="text-white text-sm font-medium">Packing List: {po.label}</p>
+                        <p className="text-white/40 text-xs mt-0.5">{po.items.length} items</p>
+                      </div>
+                      {/* Mode tabs */}
+                      <div className="inline-flex bg-white/5 border border-white/10 rounded-lg p-0.5 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => switchMappingToExisting(i)}
+                          className={`px-3 py-1 rounded-md transition-colors ${!isNew ? "bg-white/10 text-white" : "text-white/50 hover:text-white"}`}
+                        >
+                          Match existing
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => switchMappingToNew(i)}
+                          className={`px-3 py-1 rounded-md transition-colors ${isNew ? "bg-green-500/20 text-green-400" : "text-white/50 hover:text-white"}`}
+                        >
+                          Create new
+                        </button>
+                      </div>
+                    </div>
+
+                    {!isNew ? (
+                      <select
+                        value={mapping?.systemOrderId || ""}
+                        onChange={(e) => updateMappingExisting(i, e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 appearance-none cursor-pointer"
+                      >
+                        <option value="" className="bg-[#1a1f26] text-white/50">-- Skip this order --</option>
+                        {processableOrders.map((o) => (
+                          <option key={o.id} value={o.id} className="bg-[#1a1f26] text-white">
+                            #{o.id.slice(0, 8).toUpperCase()} — {o.userCompanyName || o.userEmail} ({o.itemCount} items, {formatPrice(o.total)})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2">
+                        <CustomerPicker
+                          users={adminUsers}
+                          value={mapping?.userId || ""}
+                          onChange={(id) => updateMappingUser(i, id)}
+                          placeholder="Select customer..."
+                        />
+                        <div className="flex items-center gap-2 px-3 bg-white/5 border border-white/10 rounded-xl">
+                          <span className="text-white/40 text-xs">Margin</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={mapping?.margin ?? Number(shipment?.margin ?? 0)}
+                            onChange={(e) => updateMappingMargin(i, Number(e.target.value) || 0)}
+                            className="w-full bg-transparent text-white text-sm text-right focus:outline-none"
+                          />
+                          <span className="text-white/40 text-xs">%</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <svg className="w-5 h-5 text-white/20 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                  <div className="sm:flex-1">
-                    <select
-                      value={orderMappings.find((m) => m.packingOrderIndex === i)?.systemOrderId || ""}
-                      onChange={(e) => updateMapping(i, e.target.value)}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 appearance-none cursor-pointer"
-                    >
-                      <option value="" className="bg-[#1a1f26] text-white/50">-- Skip this order --</option>
-                      {processableOrders.map((o) => (
-                        <option key={o.id} value={o.id} className="bg-[#1a1f26] text-white">
-                          #{o.id.slice(0, 8).toUpperCase()} — {o.userCompanyName || o.userEmail} ({o.itemCount} items, {formatPrice(o.total)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex justify-end mt-6">
               <button
                 onClick={startReview}
-                disabled={!orderMappings.some((m) => m.systemOrderId)}
+                disabled={!orderMappings.some((m) => (m.type === "existing" && m.systemOrderId) || (m.type === "new" && m.userId))}
                 className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all"
               >
                 Start Review
@@ -968,15 +1343,37 @@ export default function AdminShipmentDetailPage() {
       )}
 
       {/* Review step */}
-      {flowStep === "reviewing" && currentPackingOrder && currentSystemOrder && (
+      {flowStep === "reviewing" && currentPackingOrder && (currentSystemOrder || currentNewOrderUser) && (
         <div className="space-y-6">
+          {/* Preview banner — nothing is applied until the final summary step */}
+          <div className="bg-[#0984E3]/10 border border-[#0984E3]/30 rounded-[16px] px-4 py-3 flex items-center gap-3">
+            <svg className="w-5 h-5 text-[#0984E3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <p className="text-[#0984E3] text-sm font-medium flex-1">
+              Preview mode — nothing is saved or sent to customers until you click Apply All on the summary.
+            </p>
+          </div>
+
           {/* Progress bar */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-white text-sm font-medium">
-                Order {currentReviewIndex + 1} of {orderMappings.length} — <span className="font-mono text-white/60">#{currentSystemOrder.id.slice(0, 8).toUpperCase()}</span> {currentSystemOrder.userCompanyName || currentSystemOrder.userEmail}
+                Order {currentReviewIndex + 1} of {orderMappings.length} — {currentSystemOrder ? (
+                  <>
+                    <span className="font-mono text-white/60">#{currentSystemOrder.id.slice(0, 8).toUpperCase()}</span> {currentSystemOrder.userCompanyName || currentSystemOrder.userEmail}
+                  </>
+                ) : currentNewOrderUser ? (
+                  <>
+                    <span className="text-green-400 font-medium">NEW</span> {currentNewOrderUser.companyName || currentNewOrderUser.email}
+                    {currentMapping?.margin != null && (
+                      <span className="text-white/40 ml-2">@ {currentMapping.margin}% margin</span>
+                    )}
+                  </>
+                ) : null}
               </p>
-              <button onClick={resetFlow} className="text-white/50 hover:text-white text-sm transition-colors">Cancel</button>
+              <button onClick={handleDiscardAll} className="text-white/50 hover:text-red-400 text-sm transition-colors">Discard</button>
             </div>
             <div className="w-full bg-white/10 rounded-full h-1.5">
               <div
@@ -990,7 +1387,39 @@ export default function AdminShipmentDetailPage() {
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
             <div className="p-4 md:p-6 border-b border-white/10">
               <h3 className="text-white font-semibold">Review Items — Packing List &quot;{currentPackingOrder.label}&quot;</h3>
-              <p className="text-white/50 text-sm mt-1">Review and edit the adjusted items before accepting</p>
+              <p className="text-white/50 text-sm mt-1">Edit items and prices. Use Previous/Next to move between orders; changes are held locally.</p>
+            </div>
+
+            {/* Margin apply controls */}
+            <div className="px-4 md:px-6 py-3 border-b border-white/10 bg-white/[0.02] flex flex-wrap items-center gap-3">
+              <span className="text-white/50 text-xs uppercase tracking-wider font-medium">Apply margin</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={reviewMargin}
+                  onChange={(e) => setReviewMargin(Number(e.target.value) || 0)}
+                  className="w-16 bg-transparent text-white text-sm text-right focus:outline-none"
+                />
+                <span className="text-white/40 text-xs">%</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => applyMarginToReview(reviewMargin, "all")}
+                className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] hover:bg-[#0984E3]/30 text-xs font-medium rounded-lg transition-colors"
+              >
+                Apply to whole order
+              </button>
+              <button
+                type="button"
+                onClick={() => applyMarginToReview(reviewMargin, "new")}
+                className="px-3 py-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium rounded-lg transition-colors"
+              >
+                Apply to new items only
+              </button>
+              <span className="text-white/30 text-[11px] ml-auto">
+                Items without a matching product need a unit cost in the packing list to be rebased.
+              </span>
             </div>
 
             <div className="overflow-x-auto">
@@ -1126,17 +1555,143 @@ export default function AdminShipmentDetailPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-between">
-            <button onClick={handleSkipOrder} className="text-white/50 hover:text-white text-sm font-medium transition-colors">
-              Skip This Order
-            </button>
+          <div className="flex items-center justify-between gap-3">
             <button
-              onClick={handleAcceptOrder}
-              disabled={saving || reviewItems.filter((i) => i.status !== "removed" && i.quantity > 0).length === 0}
-              className="px-6 py-3 bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:bg-white/10 disabled:text-white/30 font-medium rounded-xl transition-all"
+              onClick={handlePrevious}
+              disabled={currentReviewIndex === 0}
+              className="px-4 py-3 text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium transition-colors flex items-center gap-1.5"
             >
-              {saving ? "Accepting..." : "Accept Order"}
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Previous
             </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSkipOrder}
+                className="px-4 py-3 text-white/50 hover:text-white text-sm font-medium transition-colors"
+              >
+                Skip This Order
+              </button>
+              <button
+                onClick={handleQueueNext}
+                disabled={reviewItems.filter((i) => i.status !== "removed" && i.quantity > 0).length === 0}
+                className="px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white font-medium rounded-xl transition-all flex items-center gap-1.5"
+              >
+                {currentReviewIndex >= orderMappings.length - 1 ? "Continue to Summary" : "Queue & Next"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary step — review all queued/skipped orders before applying */}
+      {flowStep === "summary" && (
+        <div className="space-y-6">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-[16px] px-4 py-3 flex items-start gap-3">
+            <svg className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-amber-400 text-sm font-medium">Final review — no changes have been saved yet</p>
+              <p className="text-amber-400/70 text-xs mt-0.5">Applying will update existing orders (sends invoice email) and create new orders silently.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+            <div className="p-4 md:p-6 border-b border-white/10">
+              <h3 className="text-white font-semibold">Summary</h3>
+            </div>
+            <div>
+              {orderMappings.map((m, i) => {
+                const entry = reviewedOrders.get(i);
+                const decision: OrderDecision = entry?.decision ?? "skipped";
+                const items = entry?.items ?? [];
+                const active = items.filter((it) => it.status !== "removed" && it.quantity > 0);
+                const subtotal = active.reduce((s, it) => s + it.quantity * Number(it.unitPrice), 0);
+                const sysOrder = m.type === "existing" ? shipment.orders.find((o) => o.id === m.systemOrderId) : null;
+                const newUser = m.type === "new" ? adminUsers.find((u) => u.id === m.userId) : null;
+                const customerLabel = sysOrder
+                  ? (sysOrder.userCompanyName || sysOrder.userEmail)
+                  : (newUser ? (newUser.companyName || newUser.email) : "—");
+                const effectiveDecision: OrderDecision = decision === "queued" && active.length === 0 ? "skipped" : decision;
+                return (
+                  <div key={i} className="px-4 md:px-6 py-4 border-b border-white/5 flex items-center gap-4">
+                    <div className="w-24 shrink-0">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${effectiveDecision === "queued" ? "bg-green-500/20 text-green-400" : "bg-white/10 text-white/40"}`}>
+                        {effectiveDecision === "queued" ? "QUEUED" : "SKIPPED"}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {m.type === "new" ? (
+                          <span className="text-green-400 text-xs font-medium">NEW</span>
+                        ) : sysOrder ? (
+                          <span className="font-mono text-white/50 text-xs">#{sysOrder.id.slice(0, 8).toUpperCase()}</span>
+                        ) : null}
+                        <p className="text-white text-sm font-medium truncate">{customerLabel}</p>
+                      </div>
+                      <p className="text-white/40 text-xs mt-0.5">
+                        {active.length} item{active.length !== 1 ? "s" : ""}
+                        {m.type === "new" && m.margin != null && ` · ${m.margin}% margin`}
+                      </p>
+                    </div>
+                    <div className="w-28 text-right">
+                      <p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(subtotal)}</p>
+                    </div>
+                    <button
+                      onClick={() => jumpToReview(i)}
+                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-4 md:p-6 border-t border-white/10 flex items-center justify-between">
+              <div className="text-xs text-white/50">
+                {(() => {
+                  const queuedEntries = orderMappings
+                    .map((_, i) => reviewedOrders.get(i))
+                    .filter((e): e is { items: ReviewItem[]; decision: OrderDecision } => !!e && e.decision === "queued")
+                    .filter((e) => e.items.filter((it) => it.status !== "removed" && it.quantity > 0).length > 0);
+                  const total = queuedEntries.reduce((sum, e) =>
+                    sum + e.items.filter((it) => it.status !== "removed" && it.quantity > 0)
+                      .reduce((s, it) => s + it.quantity * Number(it.unitPrice), 0), 0);
+                  return `${queuedEntries.length} queued · ${formatPrice(total)} total (ex VAT)`;
+                })()}
+              </div>
+              {applyProgress && (
+                <div className="text-xs text-white/60">Applying {applyProgress.done}/{applyProgress.total}...</div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={() => jumpToReview(orderMappings.length - 1)}
+              disabled={applying}
+              className="px-4 py-3 text-white/60 hover:text-white text-sm font-medium transition-colors flex items-center gap-1.5 disabled:opacity-30"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Back to Review
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDiscardAll}
+                disabled={applying}
+                className="px-4 py-3 text-white/50 hover:text-red-400 text-sm font-medium transition-colors disabled:opacity-30"
+              >
+                Discard All
+              </button>
+              <button
+                onClick={handleApplyAll}
+                disabled={applying || Array.from(reviewedOrders.values()).filter((v) => v.decision === "queued" && v.items.filter((it) => it.status !== "removed" && it.quantity > 0).length > 0).length === 0}
+                className="px-6 py-3 bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:bg-white/10 disabled:text-white/30 font-medium rounded-xl transition-all"
+              >
+                {applying ? (applyProgress ? `Applying ${applyProgress.done}/${applyProgress.total}...` : "Applying...") : "Apply All"}
+              </button>
+            </div>
           </div>
         </div>
       )}

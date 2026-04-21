@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { shipmentId, items, forUserId } = await request.json();
+  const { shipmentId, items, forUserId, skipEmail } = await request.json();
   if (!items?.length) {
     return NextResponse.json({ error: "Items are required" }, { status: 400 });
   }
@@ -70,7 +70,9 @@ export async function POST(request: NextRequest) {
     })));
 
     // Send email to customer when admin creates order on their behalf
-    if (forUserId && user.role === "ADMIN" && order) {
+    // (skipEmail lets flows like packing-list import suppress notifications until the admin
+    // has reviewed/edited the order and is ready to notify the customer explicitly.)
+    if (forUserId && user.role === "ADMIN" && order && !skipEmail) {
       const fullOrder = await getOrderById(order.id);
       if (fullOrder?.user) {
         const orderRef = order.id.slice(0, 8).toUpperCase();

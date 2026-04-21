@@ -64,6 +64,36 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return NextResponse.json({ ...order, items, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order), shippingAddress, billingAddress });
 }
 
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const db = await getDb();
+  const order = await db.getRepository(Order).findOneBy({ id });
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+  await db.transaction(async (manager) => {
+    await manager.query(
+      `DELETE FROM credit_transactions WHERE "doaClaimId" IN (SELECT id FROM doa_claims WHERE "orderId" = $1)`,
+      [id]
+    );
+    await manager.query(
+      `DELETE FROM doa_items WHERE "claimId" IN (SELECT id FROM doa_claims WHERE "orderId" = $1)`,
+      [id]
+    );
+    await manager.query(`DELETE FROM doa_claims WHERE "orderId" = $1`, [id]);
+    await manager.query(`DELETE FROM credit_transactions WHERE "orderId" = $1`, [id]);
+    await manager.query(`DELETE FROM order_payments WHERE "orderId" = $1`, [id]);
+    await manager.query(`DELETE FROM order_items WHERE "orderId" = $1`, [id]);
+    await manager.query(`DELETE FROM orders WHERE id = $1`, [id]);
+  });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

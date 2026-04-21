@@ -1307,6 +1307,10 @@ export default function AdminShipmentDetailPage() {
             status: "ACCEPTED",
             freightCharge,
             includeShipping,
+            // Persist the discount % on the order so order detail / invoice views can show
+            // "N% customer discount applied" — 0 when the toggle is off, customer's company
+            // discount when on. Unit prices sent above are already the post-discount values.
+            discountPercent: discountPct,
             // sendEmails=false → silent for both existing and new; sendEmails=true → existing
             // orders get the normal accept/changes email, new orders still skip (DRAFT→ACCEPTED
             // via this PATCH would otherwise trigger the admin-created template).

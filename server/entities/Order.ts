@@ -62,6 +62,13 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   creditApplied: number;
 
+  // Discount applied to this specific order (percentage 0-100). Populated when admin
+  // enables "Apply customer discount" in flows like the packing-list review. Lets the order
+  // detail view and invoice show the discount as a visible line instead of silently baking
+  // it into unit prices.
+  @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
+  discountPercent: number;
+
   @Column({ type: "boolean", default: false })
   useCredit: boolean;
 

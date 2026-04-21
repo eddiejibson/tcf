@@ -17,7 +17,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
   const items = order.items.map((i) => ({
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const updated = await getOrderById(id);
   if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
+  const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent);
   const updatedItems = updated.items.map((i) => ({
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,

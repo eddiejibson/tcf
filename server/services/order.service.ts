@@ -18,17 +18,22 @@ import { OrderPayment, OrderPaymentStatus, OrderPaymentMethod } from "../entitie
 const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;
 
-export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number) {
-  const subtotal = items.reduce((sum, item) => {
+export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number, discountPercent?: number) {
+  const grossSubtotal = items.reduce((sum, item) => {
     const base = Number(item.unitPrice) * item.quantity;
     return sum + base + base * ((Number(item.surcharge) || 0) / 100);
   }, 0);
+  const discountPct = Number(discountPercent) || 0;
+  const discount = grossSubtotal * (discountPct / 100);
+  // `subtotal` stays the post-discount number so downstream math (VAT, total) is unchanged
+  // for callers that don't pass discountPercent — backward compatible.
+  const subtotal = grossSubtotal - discount;
   const shipping = includeShipping ? SHIPPING_COST : 0;
   const freight = Number(freightCharge) || 0;
   const vat = (subtotal + shipping + freight) * VAT_RATE;
   const credit = Number(creditApplied) || 0;
   const total = subtotal + shipping + freight + vat - credit;
-  return { subtotal, vat, shipping, freight, credit, total };
+  return { subtotal, grossSubtotal, discount, vat, shipping, freight, credit, total };
 }
 
 export function formatPrice(price: number): string {
@@ -197,7 +202,7 @@ export async function submitOrder(orderId: string) {
 
   const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
   const adminEmails = adminUsers.map((u) => u.email);
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
 
   sendOrderNotification(adminEmails, order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
     .catch((e) => log.error("Failed to send order notification", e));
@@ -267,7 +272,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
             const refreshed = await getOrderById(orderId);
             if (refreshed) Object.assign(order, refreshed);
 
-            const newTotals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+            const newTotals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
             if (newTotals.total <= 0) {
               await markOrderPaid(orderId, "CREDIT");
               const paidOrder = await getOrderById(orderId);
@@ -293,7 +298,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
   }
 
   if (!skipEmail && (status === OrderStatus.ACCEPTED || status === OrderStatus.REJECTED || status === OrderStatus.AWAITING_FULFILLMENT)) {
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     // Fire and forget — don't block the API response on email/PDF
     if (status === OrderStatus.ACCEPTED) {
       const orderDiscountPct = order.userId ? await getUserDiscount(order.userId) : 0;
@@ -413,7 +418,7 @@ export async function updateAcceptedOrderItems(
   if (changes.length > 0 && !skipEmail) {
     const updated = await getOrderById(orderId);
     if (updated) {
-      const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
+      const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent);
       const recipients = await getOrderCustomerEmails(updated.userId);
       sendOrderChanges(recipients.length ? recipients : updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
@@ -470,7 +475,7 @@ export async function markOrderPaid(orderId: string, reference?: string) {
 
   const order = await getOrderById(orderId);
   if (order) {
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     // Notify the customer (all company members). Admins are not emailed here — in the
     // admin-marks-paid path they triggered the action so don't need a self-notification,
     // and in the webhook path the webhook separately sends its own admin-facing email.
@@ -574,7 +579,7 @@ export async function createAdminOrder(
 
   // Send email to customer with invoice PDF unless skipped
   if (fullOrder && !skipEmail) {
-    const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, null, 0);
+    const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, null, 0, fullOrder.discountPercent);
     const orderRef = fullOrder.id.slice(0, 8).toUpperCase();
     const invoiceData: InvoiceData = {
       orderRef,
@@ -745,8 +750,8 @@ export function getOrderPaidAmount(order: { payments?: { status: string; amount:
     .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
-export function getOrderRemainingBalance(order: { items: { unitPrice: number; quantity: number; surcharge?: number }[]; includeShipping: boolean; freightCharge?: number | null; creditApplied?: number; payments?: { status: string; amount: number }[] }): number {
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+export function getOrderRemainingBalance(order: { items: { unitPrice: number; quantity: number; surcharge?: number }[]; includeShipping: boolean; freightCharge?: number | null; creditApplied?: number; discountPercent?: number; payments?: { status: string; amount: number }[] }): number {
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
   const paid = getOrderPaidAmount(order);
   return Math.max(0, Math.round((totals.total - paid) * 100) / 100);
 }

@@ -10,7 +10,7 @@ export async function GET() {
 
   return NextResponse.json(
     orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
       return {
         id: o.id,
         status: o.status,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       : await createAdminOrder(admin.userId, userId, mappedItems, notes, includeShipping, skipEmail);
     if (!order) return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
 
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     return NextResponse.json({
       id: order.id,
       status: order.status,

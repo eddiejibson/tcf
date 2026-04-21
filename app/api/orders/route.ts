@@ -16,7 +16,7 @@ export async function GET() {
 
   return NextResponse.json(
     orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
       return {
         id: o.id,
         status: o.status,

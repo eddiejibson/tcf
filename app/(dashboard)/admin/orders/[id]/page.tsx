@@ -539,6 +539,12 @@ export default function AdminOrderDetailPage() {
             <span>VAT (20%)</span>
             <span className="tabular-nums">{formatPrice(vat)}</span>
           </div>
+          {Number(order.discountPercent) > 0 && (
+            <div className="flex items-center justify-between text-green-400 text-sm">
+              <span>Customer Discount</span>
+              <span className="tabular-nums">{Number(order.discountPercent)}% applied</span>
+            </div>
+          )}
           {credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>

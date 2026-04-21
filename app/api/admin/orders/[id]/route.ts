@@ -23,7 +23,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
   const items = order.items.map((i) => ({
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -108,8 +108,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const currentOrder = await getOrderById(id);
     if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    // Save freight/adminNotes/boxLimits FIRST so the invoice gets the correct values
-    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined) {
+    // Save freight/adminNotes/boxLimits/discount FIRST so the invoice gets the correct values
+    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined || body.discountPercent !== undefined) {
       const db = await getDb();
       const update: Record<string, unknown> = {};
       if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
@@ -117,6 +117,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body.maxBoxes !== undefined) update.maxBoxes = body.maxBoxes;
       if (body.minBoxes !== undefined) update.minBoxes = body.minBoxes;
       if (body.includeShipping !== undefined) update.includeShipping = body.includeShipping;
+      if (body.discountPercent !== undefined) update.discountPercent = body.discountPercent;
       await db.getRepository(Order).update(id, update);
     }
 
@@ -144,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           await db2.getRepository(Order).delete(id);
           const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
           if (accepted) {
-            const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied);
+            const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
             const resultItems = accepted.items.map((i) => ({
               ...i,
               latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -183,7 +184,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.resendEmail) {
       const resendOrder = await getOrderById(id);
       if (resendOrder && resendOrder.user) {
-        const totals = calculateOrderTotals(resendOrder.items, resendOrder.includeShipping, resendOrder.freightCharge, resendOrder.creditApplied);
+        const totals = calculateOrderTotals(resendOrder.items, resendOrder.includeShipping, resendOrder.freightCharge, resendOrder.creditApplied, resendOrder.discountPercent);
         const orderRef = resendOrder.id.slice(0, 8).toUpperCase();
         const discountPct = resendOrder.userId ? await getUserDiscount(resendOrder.userId) : 0;
         const invoiceData: InvoiceData = {
@@ -227,7 +228,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     const patchItems = order.items.map((i) => ({
       ...i,
       latinName: i.catalogProduct?.latinName || i.product?.latinName || null,

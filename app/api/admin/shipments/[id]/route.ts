@@ -84,7 +84,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       originalRow: p.originalRow || null,
     })),
     orders: shipment.orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
       return {
         id: o.id,
         status: o.status,

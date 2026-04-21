@@ -80,7 +80,7 @@ async function sendPaidNotification(orderId: string) {
     const db = await getDb();
     const fullOrder = await getOrderById(orderId);
     if (fullOrder) {
-      const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, fullOrder.freightCharge, fullOrder.creditApplied);
+      const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, fullOrder.freightCharge, fullOrder.creditApplied, fullOrder.discountPercent);
       const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
       const adminEmails = adminUsers.map((u) => u.email);
       await sendOrderPaidNotification(

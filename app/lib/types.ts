@@ -71,6 +71,8 @@ export interface CatalogProductListItem {
 
 export interface OrderTotals {
   subtotal: number;
+  grossSubtotal: number;
+  discount: number;
   vat: number;
   shipping: number;
   freight: number;

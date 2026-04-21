@@ -79,7 +79,9 @@ export interface OrderTotals {
 }
 
 export type UserListItem = Pick<SerializedUser, "id" | "email" | "role" | "createdAt"> & {
+  companyId: string | null;
   companyName: string | null;
+  companyRole: string | null;
   orderCount: number;
   creditBalance: number;
   lastLogin: string | null;
@@ -122,6 +124,8 @@ export interface AdminShipmentDetailOrder {
   items: AdminShipmentDetailOrderItem[];
   maxBoxes?: number | null;
   minBoxes?: number | null;
+  freightCharge: number | null;
+  includeShipping: boolean;
 }
 
 export interface AdminShipmentDetail {

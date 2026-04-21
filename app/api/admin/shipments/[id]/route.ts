@@ -95,6 +95,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         createdAt: o.createdAt,
         maxBoxes: o.maxBoxes ?? null,
         minBoxes: o.minBoxes ?? null,
+        freightCharge: o.freightCharge != null ? Number(o.freightCharge) : null,
+        includeShipping: o.includeShipping,
         items: o.items.map((i) => ({
           id: i.id,
           productId: i.productId,

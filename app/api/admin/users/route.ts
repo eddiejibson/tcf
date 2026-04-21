@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const [users, total] = await repo.findAndCount({
     where: where.length > 0 ? where : undefined,
     order: { createdAt: "DESC" },
-    relations: ["orders"],
+    relations: ["orders", "company"],
     skip: (page - 1) * limit,
     take: limit,
   });
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       companyId: u.companyId || null,
       companyName: u.companyName || null,
       companyRole: u.companyRole || null,
+      companyDiscount: u.company ? Number(u.company.discount) || 0 : 0,
       orderCount: u.orders?.length || 0,
       creditBalance: Number(u.creditBalance) || 0,
       lastLogin: u.lastLogin,

@@ -155,9 +155,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
       }
     } else if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT)) {
-      await updateAcceptedOrderItems(id, body.items, body.includeShipping);
+      await updateAcceptedOrderItems(id, body.items, body.includeShipping, body.skipEmail);
       if (body.status && body.status !== currentOrder.status) {
-        await updateOrderStatus(id, body.status, body.includeShipping);
+        await updateOrderStatus(id, body.status, body.includeShipping, body.skipEmail);
       }
     } else {
       if (body.items) {
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       if (body.status || body.includeShipping !== undefined) {
-        await updateOrderStatus(id, body.status, body.includeShipping);
+        await updateOrderStatus(id, body.status, body.includeShipping, body.skipEmail);
       }
     }
 

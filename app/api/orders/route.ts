@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, hasPermission } from "@/server/middleware/auth";
-import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals, getOrderById } from "@/server/services/order.service";
+import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals, getOrderById, getOrderCustomerEmails } from "@/server/services/order.service";
 import { sendOrderCreatedForUser } from "@/server/services/email.service";
 import { Permission } from "@/server/lib/permissions";
 import { log } from "@/server/logger";
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { shipmentId, items, forUserId, skipEmail } = await request.json();
+  const { shipmentId, items, forUserId, skipEmail, skipDiscount } = await request.json();
   if (!items?.length) {
     return NextResponse.json({ error: "Items are required" }, { status: 400 });
   }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       unitPrice: i.unitPrice,
       substituteProductId: i.substituteProductId || null,
       substituteName: i.substituteName || null,
-    })));
+    })), { skipDiscount: !!skipDiscount });
 
     // Send email to customer when admin creates order on their behalf
     // (skipEmail lets flows like packing-list import suppress notifications until the admin
@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
       if (fullOrder?.user) {
         const orderRef = order.id.slice(0, 8).toUpperCase();
         const shipmentName = fullOrder.shipment?.name || "Shipment";
-        sendOrderCreatedForUser(fullOrder.user.email, orderRef, shipmentName, order.id)
+        const recipients = await getOrderCustomerEmails(fullOrder.userId);
+        sendOrderCreatedForUser(recipients.length ? recipients : fullOrder.user.email, orderRef, shipmentName, order.id)
           .catch((e) => log.error("Failed to send order created for user email", e, { meta: { orderId: order.id } }));
       }
     }

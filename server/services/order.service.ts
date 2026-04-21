@@ -6,7 +6,7 @@ import { User, UserRole } from "../entities/User";
 import { log } from "../logger";
 import { MoreThanOrEqual } from "typeorm";
 import { Shipment } from "../entities/Shipment";
-import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated, sendOrderPaidNotification } from "./email.service";
+import { sendOrderNotification, sendOrderStatusUpdate, sendOrderAcceptedWithInvoice, sendOrderChanges, sendAdminOrderCreated, sendOrderPaidNotification, sendOrderPaidCustomerNotification } from "./email.service";
 import { generateInvoiceBuffer } from "./invoice.service";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
 import { applyCredit, refundCredit, getCompanyIdForUser } from "./credit.service";
@@ -33,6 +33,24 @@ export function calculateOrderTotals(items: { unitPrice: number; quantity: numbe
 
 export function formatPrice(price: number): string {
   return `£${price.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Returns every email that should receive a customer-facing notification about this order.
+// If the order's user belongs to a company, all company members are included (shared access
+// model — orders are company-visible via getCompanyOrders). Otherwise just the user's email.
+// Returns [] if neither is available so callers can skip emailing safely.
+export async function getOrderCustomerEmails(userId: string | null | undefined): Promise<string[]> {
+  if (!userId) return [];
+  const db = await getDb();
+  const user = await db.getRepository(User).findOne({ where: { id: userId } });
+  if (!user) return [];
+  if (!user.companyId) return [user.email];
+  const members = await db.getRepository(User).find({ where: { companyId: user.companyId } });
+  const emails = members.map((m) => m.email).filter((e): e is string => !!e);
+  // De-dupe and ensure the order's primary user email is always in the list
+  const set = new Set(emails);
+  set.add(user.email);
+  return Array.from(set);
 }
 
 export async function getActiveShipments() {
@@ -82,7 +100,7 @@ export async function getOrderById(id: string, relations = ["items", "items.prod
   return order;
 }
 
-export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null }[]) {
+export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null }[], opts?: { skipDiscount?: boolean }) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
   const productRepo = db.getRepository(Product);
@@ -90,7 +108,9 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
   // Stock is checked as a warning only — orders are still created as drafts
   // Admin will adjust quantities if needed before accepting
 
-  const discountPct = await getUserDiscount(userId);
+  // skipDiscount lets callers (like the packing-list import) provide final admin-set prices
+  // without the backend layering another discount on top.
+  const discountPct = opts?.skipDiscount ? 0 : await getUserDiscount(userId);
 
   const order = orderRepo.create({
     userId,
@@ -213,7 +233,7 @@ async function restoreStock(items: OrderItem[]) {
   }
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus, includeShipping?: boolean) {
+export async function updateOrderStatus(orderId: string, status: OrderStatus, includeShipping?: boolean, skipEmail?: boolean) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
 
@@ -272,7 +292,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
     }
   }
 
-  if (status === OrderStatus.ACCEPTED || status === OrderStatus.REJECTED || status === OrderStatus.AWAITING_FULFILLMENT) {
+  if (!skipEmail && (status === OrderStatus.ACCEPTED || status === OrderStatus.REJECTED || status === OrderStatus.AWAITING_FULFILLMENT)) {
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
     // Fire and forget — don't block the API response on email/PDF
     if (status === OrderStatus.ACCEPTED) {
@@ -303,11 +323,13 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         paymentReference: order.paymentReference,
         discountPercent: orderDiscountPct,
       };
+      const recipients = await getOrderCustomerEmails(order.userId);
       generateInvoiceBuffer(invoiceData)
-        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
+        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
         .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
-      sendOrderStatusUpdate(order.user!.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
+      const recipients = await getOrderCustomerEmails(order.userId);
+      sendOrderStatusUpdate(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
         .catch((e) => log.error("Failed to send status update email", e));
     }
   }
@@ -318,7 +340,8 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
 export async function updateAcceptedOrderItems(
   orderId: string,
   newItems: { productId?: string | null; name: string; quantity: number; unitPrice: number; surcharge?: number }[],
-  includeShipping?: boolean
+  includeShipping?: boolean,
+  skipEmail?: boolean,
 ) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
@@ -387,11 +410,12 @@ export async function updateAcceptedOrderItems(
     }
   }
 
-  if (changes.length > 0) {
+  if (changes.length > 0 && !skipEmail) {
     const updated = await getOrderById(orderId);
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied);
-      sendOrderChanges(updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
+      const recipients = await getOrderCustomerEmails(updated.userId);
+      sendOrderChanges(recipients.length ? recipients : updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
@@ -447,19 +471,22 @@ export async function markOrderPaid(orderId: string, reference?: string) {
   const order = await getOrderById(orderId);
   if (order) {
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied);
-    const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
-    const adminEmails = adminUsers.map((u) => u.email);
-    try {
-      await sendOrderPaidNotification(
-        adminEmails,
-        order.user!.email,
-        order.id.slice(0, 8).toUpperCase(),
-        formatPrice(totals.total),
-        order.paymentMethod || "Unknown",
-        order.id,
-      );
-    } catch (e) {
-      log.error("Failed to send order paid notification", e);
+    // Notify the customer (all company members). Admins are not emailed here — in the
+    // admin-marks-paid path they triggered the action so don't need a self-notification,
+    // and in the webhook path the webhook separately sends its own admin-facing email.
+    const recipients = await getOrderCustomerEmails(order.userId);
+    if (recipients.length) {
+      try {
+        await sendOrderPaidCustomerNotification(
+          recipients,
+          order.id.slice(0, 8).toUpperCase(),
+          formatPrice(totals.total),
+          order.paymentMethod || "Unknown",
+          order.id,
+        );
+      } catch (e) {
+        log.error("Failed to send customer paid notification", e);
+      }
     }
   }
 
@@ -577,8 +604,9 @@ export async function createAdminOrder(
     };
     try {
       const pdfBuffer = await generateInvoiceBuffer(invoiceData);
+      const recipients = await getOrderCustomerEmails(fullOrder.userId);
       await sendAdminOrderCreated(
-        fullOrder.user!.email,
+        recipients.length ? recipients : fullOrder.user!.email,
         orderRef,
         formatPrice(totals.total),
         fullOrder.id,

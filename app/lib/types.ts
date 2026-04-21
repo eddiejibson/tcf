@@ -82,6 +82,7 @@ export type UserListItem = Pick<SerializedUser, "id" | "email" | "role" | "creat
   companyId: string | null;
   companyName: string | null;
   companyRole: string | null;
+  companyDiscount: number;
   orderCount: number;
   creditBalance: number;
   lastLogin: string | null;

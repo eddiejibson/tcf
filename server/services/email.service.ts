@@ -132,7 +132,7 @@ export async function sendOrderNotification(
 }
 
 export async function sendOrderStatusUpdate(
-  userEmail: string,
+  userEmail: string | string[],
   shipmentName: string,
   status: string,
   orderTotal: string,
@@ -169,7 +169,7 @@ export async function sendOrderStatusUpdate(
 }
 
 export async function sendOrderAcceptedWithInvoice(
-  userEmail: string,
+  userEmail: string | string[],
   shipmentName: string,
   orderTotal: string,
   orderId: string,
@@ -211,7 +211,7 @@ export async function sendOrderAcceptedWithInvoice(
 }
 
 export async function sendOrderChanges(
-  userEmail: string,
+  userEmail: string | string[],
   shipmentName: string,
   changes: string[],
   newTotal: string,
@@ -265,6 +265,38 @@ export async function sendOrderPaidNotification(
       </div>
     `,
     text: `Order #${orderRef} has been paid by ${userEmail}. Total: ${orderTotal}. Method: ${methodLabel}. View order: ${viewUrl}`,
+  });
+}
+
+// Customer-facing payment confirmation. Fired when an order transitions to PAID (including
+// when admin manually marks it paid) so all company members receive a receipt-style email.
+// Distinct from sendOrderPaidNotification which is the admin-facing variant.
+export async function sendOrderPaidCustomerNotification(
+  userEmail: string | string[],
+  orderRef: string,
+  orderTotal: string,
+  paymentMethod: string,
+  orderId: string,
+) {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "http://localhost:3000";
+  const viewUrl = `${baseUrl}/login?to=/orders/${orderId}`;
+  const methodLabel = paymentMethod === "BANK_TRANSFER" ? "Bank Transfer" : paymentMethod === "CARD" ? "Card Payment" : paymentMethod === "CREDIT" ? "Account Credit" : paymentMethod === "SPLIT" ? "Multiple Payments" : paymentMethod;
+  await sendWithRetry({
+    from: from(),
+    to: userEmail,
+    subject: `Payment Received - Order #${orderRef} - The Coral Farm`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1f26; padding: 40px; border-radius: 16px;">
+        <h1 style="color: #ffffff; font-size: 24px; margin-bottom: 8px;">The Coral Farm</h1>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Your payment has been received — thank you.</p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Order: <strong style="color: #ffffff;">#${orderRef}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 8px;">Amount: <strong style="color: #27ae60;">${orderTotal}</strong></p>
+        <p style="color: #ffffffcc; font-size: 16px; margin-bottom: 24px;">Method: <strong style="color: #ffffff;">${methodLabel}</strong></p>
+        <a href="${viewUrl}" style="display: inline-block; background: #27ae60; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">View Order</a>
+        <p style="color: #ffffff66; font-size: 12px; margin-top: 32px;">This is your payment confirmation. If you have any questions, please contact us.</p>
+      </div>
+    `,
+    text: `Payment received for Order #${orderRef}. Amount: ${orderTotal}. Method: ${methodLabel}. View order: ${viewUrl}`,
   });
 }
 
@@ -339,7 +371,7 @@ export async function sendApplicationRejected(
 }
 
 export async function sendAdminOrderCreated(
-  userEmail: string,
+  userEmail: string | string[],
   orderRef: string,
   orderTotal: string,
   orderId: string,
@@ -381,7 +413,7 @@ export async function sendAdminOrderCreated(
 }
 
 export async function sendOrderCreatedForUser(
-  userEmail: string,
+  userEmail: string | string[],
   orderRef: string,
   shipmentName: string,
   orderId: string,

@@ -235,6 +235,12 @@ export default function AdminShipmentDetailPage() {
   const [applying, setApplying] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [showExportWarning, setShowExportWarning] = useState(false);
+  // Final-review toggles (applied in handleApplyAll):
+  // - sendEmails: when false, passes skipEmail on POST+PATCH so nothing is mailed to customers
+  // - applyDiscount: when true, multiplies each item's unitPrice by the customer's company
+  //   discount before sending (and passes skipDiscount so the backend doesn't re-apply it)
+  const [sendEmails, setSendEmails] = useState<boolean>(true);
+  const [applyDiscountToTotals, setApplyDiscountToTotals] = useState<boolean>(false);
   const [adminUsers, setAdminUsers] = useState<UserListItem[]>([]);
 
   // Column mapping state
@@ -343,6 +349,23 @@ export default function AdminShipmentDetailPage() {
     solo.sort((a, b) => a.email.localeCompare(b.email));
     return [...reps, ...solo];
   }, [adminUsers]);
+
+  // Resolve each mapping's customer discount percent (used for the "apply customer discount"
+  // toggle in the final summary). Existing mappings look up by userEmail against adminUsers;
+  // new mappings look up by userId. Returns 0 when no match or company has no discount.
+  const getMappingDiscountPct = (m: OrderMapping): number => {
+    if (m.type === "new") {
+      const u = adminUsers.find((x) => x.id === m.userId);
+      return u?.companyDiscount || 0;
+    }
+    if (m.type === "existing") {
+      const sys = shipment?.orders.find((o) => o.id === m.systemOrderId);
+      if (!sys) return 0;
+      const u = adminUsers.find((x) => x.email.toLowerCase() === sys.userEmail.toLowerCase());
+      return u?.companyDiscount || 0;
+    }
+    return 0;
+  };
 
   // Orders exportable for packing list (awaiting fulfillment or already accepted)
   const exportableOrders = useMemo(
@@ -1238,11 +1261,14 @@ export default function AdminShipmentDetailPage() {
 
     for (let i = 0; i < queued.length; i++) {
       const { mapping, items, freightCharge, includeShipping } = queued[i];
+      // Apply customer discount client-side if toggled ON (backend is told to skip its own
+      // discount via skipDiscount so we don't double-apply on top of the admin-set prices).
+      const discountPct = applyDiscountToTotals ? getMappingDiscountPct(mapping) : 0;
       const payloadItems = items.map((it) => ({
         productId: it.productId,
         name: it.name,
         quantity: it.quantity,
-        unitPrice: it.unitPrice,
+        unitPrice: discountPct > 0 ? it.unitPrice * (1 - discountPct / 100) : it.unitPrice,
       }));
 
       try {
@@ -1260,7 +1286,8 @@ export default function AdminShipmentDetailPage() {
             body: JSON.stringify({
               shipmentId: shipment.id,
               forUserId: mapping.userId,
-              skipEmail: true,
+              skipEmail: true, // always silent at DRAFT creation; notification gated by sendEmails on the PATCH
+              skipDiscount: true, // admin has already set final prices; backend must not re-apply
               items: payloadItems,
             }),
           });
@@ -1280,7 +1307,10 @@ export default function AdminShipmentDetailPage() {
             status: "ACCEPTED",
             freightCharge,
             includeShipping,
-            ...(isNewOrder ? { skipEmail: true } : {}),
+            // sendEmails=false → silent for both existing and new; sendEmails=true → existing
+            // orders get the normal accept/changes email, new orders still skip (DRAFT→ACCEPTED
+            // via this PATCH would otherwise trigger the admin-created template).
+            ...(!sendEmails || isNewOrder ? { skipEmail: true } : {}),
           }),
         });
         if (res.ok) accepted.add(targetOrderId);
@@ -2618,8 +2648,9 @@ export default function AdminShipmentDetailPage() {
                 Final review — no changes have been saved yet
               </p>
               <p className="text-amber-400/70 text-xs mt-0.5">
-                Applying will update existing orders (sends invoice email) and
-                create new orders silently.
+                {sendEmails
+                  ? "Applying will update existing orders (sends accept/changes email) and create new orders silently."
+                  : "Applying will update all orders silently — no customer emails will be sent."}
               </p>
             </div>
           </div>
@@ -2645,6 +2676,11 @@ export default function AdminShipmentDetailPage() {
                   : 0;
                 const entryShipping = entry?.includeShipping ? 30 : 0;
                 const rowTotal = subtotal + entryFreight + entryShipping;
+                const discountPct = getMappingDiscountPct(m);
+                const showDiscount = applyDiscountToTotals && discountPct > 0;
+                const discountedRowTotal = showDiscount
+                  ? subtotal * (1 - discountPct / 100) + entryFreight + entryShipping
+                  : rowTotal;
                 const sysOrder =
                   m.type === "existing"
                     ? shipment.orders.find((o) => o.id === m.systemOrderId)
@@ -2696,15 +2732,31 @@ export default function AdminShipmentDetailPage() {
                           ` · ${m.margin}% margin`}
                       </p>
                     </div>
-                    <div className="w-28 text-right">
-                      <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
-                        {formatPrice(rowTotal)}
-                      </p>
-                      {(entryFreight > 0 || entryShipping > 0) && (
-                        <p className="text-white/40 text-[10px] tabular-nums mt-0.5">
-                          {formatPrice(subtotal)} +{" "}
-                          {formatPrice(entryFreight + entryShipping)} fees
-                        </p>
+                    <div className="w-32 text-right">
+                      {showDiscount ? (
+                        <>
+                          <p className="text-white/40 text-xs line-through tabular-nums">
+                            {formatPrice(rowTotal)}
+                          </p>
+                          <p className="text-green-400 text-sm font-semibold tabular-nums">
+                            {formatPrice(discountedRowTotal)}
+                          </p>
+                          <p className="text-green-400/60 text-[10px] tabular-nums mt-0.5">
+                            −{discountPct}% discount
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
+                            {formatPrice(rowTotal)}
+                          </p>
+                          {(entryFreight > 0 || entryShipping > 0) && (
+                            <p className="text-white/40 text-[10px] tabular-nums mt-0.5">
+                              {formatPrice(subtotal)} +{" "}
+                              {formatPrice(entryFreight + entryShipping)} fees
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                     <button
@@ -2720,33 +2772,32 @@ export default function AdminShipmentDetailPage() {
             <div className="p-4 md:p-6 border-t border-white/10 flex items-center justify-between">
               <div className="text-xs text-white/50">
                 {(() => {
-                  const queuedEntries = orderMappings
-                    .map((_, i) => reviewedOrders.get(i))
-                    .filter(
-                      (e): e is ReviewedEntry => !!e && e.decision === "queued",
-                    )
-                    .filter(
-                      (e) =>
-                        e.items.filter(
-                          (it) => it.status !== "removed" && it.quantity > 0,
-                        ).length > 0,
+                  let queuedCount = 0;
+                  let grossTotal = 0;
+                  let netTotal = 0;
+                  for (let i = 0; i < orderMappings.length; i++) {
+                    const e = reviewedOrders.get(i);
+                    if (!e || e.decision !== "queued") continue;
+                    const active = e.items.filter((it) => it.status !== "removed" && it.quantity > 0);
+                    if (active.length === 0) continue;
+                    queuedCount++;
+                    const itemsTotal = active.reduce((s, it) => s + it.quantity * Number(it.unitPrice), 0);
+                    const f = e.freightCharge ? parseFloat(e.freightCharge) || 0 : 0;
+                    const sh = e.includeShipping ? 30 : 0;
+                    grossTotal += itemsTotal + f + sh;
+                    const dPct = applyDiscountToTotals ? getMappingDiscountPct(orderMappings[i]) : 0;
+                    netTotal += (dPct > 0 ? itemsTotal * (1 - dPct / 100) : itemsTotal) + f + sh;
+                  }
+                  if (applyDiscountToTotals && netTotal !== grossTotal) {
+                    return (
+                      <span>
+                        {queuedCount} queued ·{" "}
+                        <span className="line-through text-white/30">{formatPrice(grossTotal)}</span>{" "}
+                        <span className="text-green-400">{formatPrice(netTotal)}</span> total (ex VAT)
+                      </span>
                     );
-                  const total = queuedEntries.reduce((sum, e) => {
-                    const itemsTotal = e.items
-                      .filter(
-                        (it) => it.status !== "removed" && it.quantity > 0,
-                      )
-                      .reduce(
-                        (s, it) => s + it.quantity * Number(it.unitPrice),
-                        0,
-                      );
-                    const f = e.freightCharge
-                      ? parseFloat(e.freightCharge) || 0
-                      : 0;
-                    const s = e.includeShipping ? 30 : 0;
-                    return sum + itemsTotal + f + s;
-                  }, 0);
-                  return `${queuedEntries.length} queued · ${formatPrice(total)} total (ex VAT)`;
+                  }
+                  return <span>{queuedCount} queued · {formatPrice(grossTotal)} total (ex VAT)</span>;
                 })()}
               </div>
               {applyProgress && (
@@ -2754,6 +2805,38 @@ export default function AdminShipmentDetailPage() {
                   Applying {applyProgress.done}/{applyProgress.total}...
                 </div>
               )}
+            </div>
+
+            {/* Final-review toggles */}
+            <div className="p-4 md:p-6 border-t border-white/10 flex flex-col gap-3 bg-white/[0.02]">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sendEmails}
+                  onChange={(e) => setSendEmails(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-[#0984E3] focus:ring-[#0984E3]/40 cursor-pointer"
+                />
+                <span className="text-sm">
+                  <span className="text-white font-medium">Send automatic email</span>
+                  <span className="text-white/50 block text-xs mt-0.5">
+                    Existing orders get the accept/changes email on apply. Turn off to stay silent and notify manually later from each invoice.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={applyDiscountToTotals}
+                  onChange={(e) => setApplyDiscountToTotals(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-green-400 focus:ring-green-400/40 cursor-pointer"
+                />
+                <span className="text-sm">
+                  <span className="text-white font-medium">Apply customer discount</span>
+                  <span className="text-white/50 block text-xs mt-0.5">
+                    Off by default. When on, each customer&apos;s company discount is applied to their items — preview and final total update to reflect it.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
 

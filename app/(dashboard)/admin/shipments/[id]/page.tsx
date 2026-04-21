@@ -1261,14 +1261,14 @@ export default function AdminShipmentDetailPage() {
 
     for (let i = 0; i < queued.length; i++) {
       const { mapping, items, freightCharge, includeShipping } = queued[i];
-      // Apply customer discount client-side if toggled ON (backend is told to skip its own
-      // discount via skipDiscount so we don't double-apply on top of the admin-set prices).
+      // Customer discount is persisted as Order.discountPercent — the totals calculation
+      // applies it at subtotal level, so unit prices go through untouched.
       const discountPct = applyDiscountToTotals ? getMappingDiscountPct(mapping) : 0;
       const payloadItems = items.map((it) => ({
         productId: it.productId,
         name: it.name,
         quantity: it.quantity,
-        unitPrice: discountPct > 0 ? it.unitPrice * (1 - discountPct / 100) : it.unitPrice,
+        unitPrice: it.unitPrice,
       }));
 
       try {

@@ -36,6 +36,7 @@ export default function AdminOrderDetailPage() {
   const [includeShipping, setIncludeShipping] = useState(false);
   const [freightCharge, setFreightCharge] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemQty, setNewItemQty] = useState("1");
@@ -68,6 +69,8 @@ export default function AdminOrderDetailPage() {
     setFreightCharge(fc);
     setMaxBoxes(data.maxBoxes != null ? String(data.maxBoxes) : "");
     setMinBoxes(data.minBoxes != null ? String(data.minBoxes) : "");
+    const dp = Number(data.discountPercent) || 0;
+    setDiscountPercent(dp > 0 ? String(dp) : "");
 
     setSavedSnapshot(JSON.stringify({
       items: data.items.map((i: EditableOrderItem) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
@@ -76,6 +79,7 @@ export default function AdminOrderDetailPage() {
       adminNotes: data.adminNotes || "",
       maxBoxes: data.maxBoxes != null ? String(data.maxBoxes) : "",
       minBoxes: data.minBoxes != null ? String(data.minBoxes) : "",
+      discountPercent: dp > 0 ? String(dp) : "",
     }));
   }, []);
 
@@ -144,6 +148,7 @@ export default function AdminOrderDetailPage() {
         adminNotes: adminNotes || null,
         maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
         minBoxes: minBoxes ? parseInt(minBoxes) : null,
+        discountPercent: discountPercent ? parseFloat(discountPercent) : 0,
       });
     } finally {
       setSaving(false);
@@ -161,9 +166,26 @@ export default function AdminOrderDetailPage() {
         adminNotes: adminNotes || null,
         maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
         minBoxes: minBoxes ? parseInt(minBoxes) : null,
+        discountPercent: discountPercent ? parseFloat(discountPercent) : 0,
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Prefill the discount input with the customer's company discount (fetched on demand
+  // so the page doesn't need to pre-load the full users list).
+  const handleApplyCompanyDiscount = async () => {
+    if (!order?.userId) return;
+    try {
+      const res = await fetch(`/api/admin/users?role=USER&limit=100&search=${encodeURIComponent(order.user?.email || "")}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const match = (data.users || []).find((u: { id: string; companyDiscount?: number }) => u.id === order.userId);
+      const pct = Number(match?.companyDiscount) || 0;
+      setDiscountPercent(pct > 0 ? String(pct) : "0");
+    } catch {
+      // Silent — admin can still type the discount manually.
     }
   };
 
@@ -220,10 +242,13 @@ export default function AdminOrderDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-4 md:p-8 text-white/40">Order not found</div>;
 
-  const subtotal = items.reduce((sum, i) => {
+  const grossSubtotal = items.reduce((sum, i) => {
     const base = i.quantity * Number(i.unitPrice);
     return sum + base + base * ((Number(i.surcharge) || 0) / 100);
   }, 0);
+  const discountPct = Number(discountPercent) || 0;
+  const discountAmount = grossSubtotal * (discountPct / 100);
+  const subtotal = grossSubtotal - discountAmount;
   const shipping = includeShipping ? 30 : 0;
   const freight = parseFloat(freightCharge) || 0;
   const vat = (subtotal + shipping + freight) * 0.2;
@@ -238,6 +263,7 @@ export default function AdminOrderDetailPage() {
     adminNotes,
     maxBoxes,
     minBoxes,
+    discountPercent,
   });
   const hasChanges = savedSnapshot !== "" && currentSnapshot !== savedSnapshot;
 
@@ -507,7 +533,54 @@ export default function AdminOrderDetailPage() {
         <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
-            <span className="tabular-nums">{formatPrice(subtotal)}</span>
+            <span className="tabular-nums">
+              {discountPct > 0 ? (
+                <>
+                  <span className="line-through text-white/30 mr-2">{formatPrice(grossSubtotal)}</span>
+                  <span>{formatPrice(subtotal)}</span>
+                </>
+              ) : (
+                formatPrice(subtotal)
+              )}
+            </span>
+          </div>
+          {/* Editable customer discount — admin can type a %, or press "Apply company discount"
+              to prefill from the customer's company setting. Applied at totals level so unit
+              prices stay untouched. */}
+          <div className="flex items-center justify-between text-sm gap-3">
+            <span className={discountPct > 0 ? "text-green-400" : "text-white/60"}>Discount</span>
+            <div className="flex items-center gap-2">
+              {isEditable ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleApplyCompanyDiscount}
+                    className="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-[11px] font-medium rounded-md transition-colors"
+                    title="Prefill with the customer's company discount"
+                  >
+                    Apply company discount
+                  </button>
+                  <div className="flex items-center gap-1 px-2 py-1 bg-white/5 border border-white/10 rounded-lg">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(e.target.value)}
+                      placeholder="0"
+                      className="w-14 bg-transparent text-white text-sm text-right focus:outline-none tabular-nums"
+                    />
+                    <span className="text-white/40 text-xs">%</span>
+                  </div>
+                  <span className="tabular-nums text-green-400 w-24 text-right">
+                    {discountPct > 0 ? `-${formatPrice(discountAmount)}` : formatPrice(0)}
+                  </span>
+                </>
+              ) : (
+                <span className="tabular-nums text-green-400">
+                  {discountPct > 0 ? `${discountPct}% · -${formatPrice(discountAmount)}` : "—"}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>{isEditable ? "Freight Charge" : "Freight"}</span>
@@ -539,12 +612,6 @@ export default function AdminOrderDetailPage() {
             <span>VAT (20%)</span>
             <span className="tabular-nums">{formatPrice(vat)}</span>
           </div>
-          {Number(order.discountPercent) > 0 && (
-            <div className="flex items-center justify-between text-green-400 text-sm">
-              <span>Customer Discount</span>
-              <span className="tabular-nums">{Number(order.discountPercent)}% applied</span>
-            </div>
-          )}
           {credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>

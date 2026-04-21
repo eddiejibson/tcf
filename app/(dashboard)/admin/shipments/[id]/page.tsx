@@ -210,11 +210,22 @@ export default function AdminShipmentDetailPage() {
   useEffect(() => { fetchShipment(); }, [fetchShipment]);
 
   // Preload admin-selectable users for the "create new order" flow in the mapping step.
+  // The /api/admin/users endpoint clamps limit to 100, so we paginate to collect all users —
+  // otherwise newer or older customers (past index 100) don't appear in the picker.
   useEffect(() => {
-    fetch("/api/admin/users?role=USER&limit=500")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.users) setAdminUsers(data.users); })
-      .catch(() => {});
+    const load = async () => {
+      const collected: UserListItem[] = [];
+      for (let page = 1; page <= 50; page++) {
+        const res = await fetch(`/api/admin/users?role=USER&limit=100&page=${page}`);
+        if (!res.ok) break;
+        const data = await res.json();
+        if (!data?.users?.length) break;
+        collected.push(...data.users);
+        if (page >= (data.totalPages ?? 1)) break;
+      }
+      setAdminUsers(collected);
+    };
+    load().catch(() => {});
   }, []);
 
   const handleDeleteOrder = async (orderId: string, customer: string) => {
@@ -229,8 +240,17 @@ export default function AdminShipmentDetailPage() {
   };
 
   // Orders that can be processed (SUBMITTED or AWAITING_FULFILLMENT)
+  // Matchable targets for packing-list import. Includes ACCEPTED / AWAITING_PAYMENT / PAID
+  // so admin can re-apply a later-arriving packing list to an order that's already progressed.
+  // DRAFT and REJECTED are excluded — those aren't valid fulfillment targets.
   const processableOrders = useMemo(() =>
-    shipment?.orders.filter((o) => o.status === "SUBMITTED" || o.status === "AWAITING_FULFILLMENT") || [],
+    shipment?.orders.filter((o) =>
+      o.status === "SUBMITTED" ||
+      o.status === "AWAITING_FULFILLMENT" ||
+      o.status === "ACCEPTED" ||
+      o.status === "AWAITING_PAYMENT" ||
+      o.status === "PAID"
+    ) || [],
     [shipment]
   );
 

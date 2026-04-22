@@ -5,6 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import type { AdminOrderDetail, EditableOrderItem } from "@/app/lib/types";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import { estimateFreight } from "@/app/lib/freight";
+import ProductSearch, { type ProductSearchItem } from "@/app/components/ProductSearch";
+
+interface CatalogOption extends ProductSearchItem {
+  latinName: string | null;
+  categoryName: string;
+  surcharge: number;
+}
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -37,6 +44,18 @@ export default function AdminOrderDetailPage() {
   const [freightCharge, setFreightCharge] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
+  const [catalogOptions, setCatalogOptions] = useState<CatalogOption[]>([]);
+  // When true, the "add item" row shows the free-text inputs for an off-catalog entry.
+  // Default is the catalog picker so new items stay linked and latin names flow through.
+  const [customAddMode, setCustomAddMode] = useState(false);
+  // Autolink preview/apply state — lets admin link legacy free-text items to catalog products
+  // via name+price matching so latin name / category resolve on the next refresh.
+  const [autolinkPreview, setAutolinkPreview] = useState<null | {
+    matched: number;
+    unmatched: number;
+    results: { itemId: string; itemName: string; itemPrice: number; matched: null | { catalogName: string; catalogLatinName: string | null; catalogPrice: number; score: number } }[];
+  }>(null);
+  const [autolinkRunning, setAutolinkRunning] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   const [newItemQty, setNewItemQty] = useState("1");
@@ -98,6 +117,24 @@ export default function AdminOrderDetailPage() {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
+  // Load active catalog products for the "add item" picker so new items are linked
+  // (sets catalogProductId → latin name / category resolve on save-and-fetch).
+  useEffect(() => {
+    fetch("/api/admin/catalog?active=true")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: { id: string; name: string; latinName: string | null; price: number; categoryName: string; surcharge: number }[]) => {
+        setCatalogOptions(data.map((p) => ({
+          id: p.id,
+          name: p.name,
+          latinName: p.latinName,
+          price: Number(p.price) || 0,
+          categoryName: p.categoryName,
+          surcharge: Number(p.surcharge) || 0,
+        })));
+      })
+      .catch(() => {});
+  }, []);
+
   const updateItem = (index: number, field: string, value: string | number) => {
     const updated = [...items];
     if (field === "quantity") updated[index] = { ...updated[index], quantity: Number(value) || 0 };
@@ -127,6 +164,26 @@ export default function AdminOrderDetailPage() {
     setNewItemQty("1");
   };
 
+  // Add item linked to a catalog product — preserves catalogProductId so latin name /
+  // category resolve via the relation on the next fetch, and surcharge defaults to the
+  // product's configured surcharge (admin can still override in the row).
+  const addCatalogItem = (picked: CatalogOption) => {
+    setItems([...items, {
+      id: "",
+      productId: null,
+      catalogProductId: picked.id,
+      name: picked.name,
+      latinName: picked.latinName,
+      categoryName: picked.categoryName,
+      quantity: parseInt(newItemQty) || 1,
+      unitPrice: Number(picked.price) || 0,
+      surcharge: picked.surcharge,
+      substituteProductId: null,
+      substituteName: null,
+    }]);
+    setNewItemQty("1");
+  };
+
   const patchOrder = async (body: Record<string, unknown>) => {
     const res = await fetch(`/api/admin/orders/${params.id}`, {
       method: "PATCH",
@@ -142,7 +199,7 @@ export default function AdminOrderDetailPage() {
     setSaving(true);
     try {
       await patchOrder({
-        items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, surcharge: i.surcharge || 0 })),
+        items: items.map((i) => ({ productId: i.productId, catalogProductId: i.catalogProductId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, surcharge: i.surcharge || 0 })),
         includeShipping,
         freightCharge: freightCharge ? parseFloat(freightCharge) : null,
         adminNotes: adminNotes || null,
@@ -160,7 +217,7 @@ export default function AdminOrderDetailPage() {
     try {
       await patchOrder({
         status,
-        items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+        items: items.map((i) => ({ productId: i.productId, catalogProductId: i.catalogProductId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
         includeShipping,
         freightCharge: freightCharge ? parseFloat(freightCharge) : null,
         adminNotes: adminNotes || null,
@@ -195,6 +252,37 @@ export default function AdminOrderDetailPage() {
       await patchOrder({ markPaid: true });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAutolinkPreview = async () => {
+    setAutolinkRunning(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/autolink-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      if (res.ok) setAutolinkPreview(await res.json());
+    } finally {
+      setAutolinkRunning(false);
+    }
+  };
+
+  const handleAutolinkApply = async () => {
+    setAutolinkRunning(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/autolink-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setAutolinkPreview(null);
+        await fetchOrder();
+      }
+    } finally {
+      setAutolinkRunning(false);
     }
   };
 
@@ -255,6 +343,9 @@ export default function AdminOrderDetailPage() {
   const credit = Number(order?.creditApplied) || 0;
   const total = subtotal + shipping + freight + vat - credit;
   const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED"].includes(order.status);
+  // Items on this order that have neither productId nor catalogProductId — these are the
+  // legacy free-text rows where latin name / category can't resolve.
+  const unlinkedItemCount = items.filter((i) => !i.productId && !i.catalogProductId).length;
 
   const currentSnapshot = JSON.stringify({
     items: items.map((i) => ({ productId: i.productId, name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
@@ -444,6 +535,86 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
+      {/* Autolink banner — only when the order has legacy free-text items that could be
+          linked to catalog products. Shows a preview modal with proposed matches before writing. */}
+      {isEditable && unlinkedItemCount > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-6 flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-amber-400 text-sm font-medium">
+              {unlinkedItemCount} item{unlinkedItemCount !== 1 ? "s" : ""} not linked to a catalog product — latin name and category won&apos;t show until linked.
+            </p>
+            <p className="text-amber-400/60 text-xs mt-0.5">
+              Auto-match by name + price (surcharge-aware). Admin confirms matches before writing.
+            </p>
+          </div>
+          <button
+            onClick={handleAutolinkPreview}
+            disabled={autolinkRunning}
+            className="px-3 py-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-40 text-xs font-medium rounded-lg transition-colors"
+          >
+            {autolinkRunning ? "Scanning..." : "Auto-link items"}
+          </button>
+        </div>
+      )}
+
+      {/* Autolink preview modal */}
+      {autolinkPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !autolinkRunning && setAutolinkPreview(null)}>
+          <div className="bg-[#1a1f2e] border border-white/10 rounded-[20px] max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 md:p-6 border-b border-white/10">
+              <h3 className="text-white font-semibold">Auto-link items preview</h3>
+              <p className="text-white/50 text-xs mt-1">
+                {autolinkPreview.matched} matched · {autolinkPreview.unmatched} unmatched · applying writes <code className="text-white/70">catalogProductId</code> on each matched row
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {autolinkPreview.results.map((r) => (
+                <div key={r.itemId} className="px-4 md:px-6 py-3 border-b border-white/5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white/90 text-sm truncate">{r.itemName} <span className="text-white/40">@ {formatPrice(r.itemPrice)}</span></p>
+                      {r.matched ? (
+                        <p className="text-green-400 text-xs mt-1 truncate">
+                          → {r.matched.catalogName}
+                          {r.matched.catalogLatinName && <span className="italic text-green-400/70"> · {r.matched.catalogLatinName}</span>}
+                          <span className="text-white/40"> @ {formatPrice(r.matched.catalogPrice)}</span>
+                        </p>
+                      ) : (
+                        <p className="text-white/40 text-xs mt-1">No confident match</p>
+                      )}
+                    </div>
+                    {r.matched && (
+                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-medium rounded">
+                        score {r.matched.score}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 md:p-6 border-t border-white/10 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setAutolinkPreview(null)}
+                disabled={autolinkRunning}
+                className="px-4 py-2 text-white/60 hover:text-white text-sm transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAutolinkApply}
+                disabled={autolinkRunning || autolinkPreview.matched === 0}
+                className="px-4 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 disabled:opacity-40 text-sm font-medium rounded-lg transition-colors"
+              >
+                {autolinkRunning ? "Applying..." : `Link ${autolinkPreview.matched} item${autolinkPreview.matched !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
         <div className="overflow-x-auto">
         <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
@@ -466,9 +637,9 @@ export default function AdminOrderDetailPage() {
               )}
               {(item.latinName || item.categoryName) && (
                 <p className="text-white/30 text-xs mt-0.5">
-                  {item.categoryName && <span>{item.categoryName}</span>}
-                  {item.categoryName && item.latinName && <span> · </span>}
-                  {item.latinName && <span className="italic">{item.latinName}</span>}
+                  {item.latinName
+                    ? <span className="italic">{item.latinName}</span>
+                    : <span>{item.categoryName}</span>}
                 </p>
               )}
             </div>
@@ -509,23 +680,62 @@ export default function AdminOrderDetailPage() {
         ))}
 
         {isEditable && (
-          <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-start gap-4 border-b border-white/10 bg-white/[0.02]">
-            <div className="flex-1">
-              <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+          <div className="min-w-[500px] px-4 md:px-6 py-3 border-b border-white/10 bg-white/[0.02] space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Add item</p>
+              <div className="inline-flex bg-white/5 border border-white/10 rounded-md p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setCustomAddMode(false)}
+                  className={`px-2 py-0.5 rounded transition-colors ${!customAddMode ? "bg-white/10 text-white" : "text-white/50 hover:text-white"}`}
+                >
+                  From catalog
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomAddMode(true)}
+                  className={`px-2 py-0.5 rounded transition-colors ${customAddMode ? "bg-white/10 text-white" : "text-white/50 hover:text-white"}`}
+                >
+                  Custom
+                </button>
+              </div>
             </div>
-            <div className="w-28">
-              <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
-            </div>
-            <div className="w-16">
-              <span className="text-white/20 text-xs flex items-center justify-center h-[30px]">—</span>
-            </div>
-            <div className="w-20">
-              <input type="number" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
-            </div>
-            <div className="w-28"></div>
-            <div className="w-16">
-              <button onClick={addCustomItem} disabled={!newItemName || !newItemPrice} className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 disabled:opacity-30 transition-all">Add</button>
-            </div>
+            {!customAddMode ? (
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <ProductSearch
+                    products={catalogOptions}
+                    onSelect={(p) => addCatalogItem(p as CatalogOption)}
+                    compact
+                    placeholder="Search catalog…"
+                  />
+                </div>
+                <div className="w-20 shrink-0">
+                  <input
+                    type="number"
+                    value={newItemQty}
+                    onChange={(e) => setNewItemQty(e.target.value)}
+                    placeholder="Qty"
+                    className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Custom item name (no catalog link — latin name won't resolve)" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+                </div>
+                <div className="w-28">
+                  <input type="number" step="0.01" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} placeholder="Price" className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50" />
+                </div>
+                <div className="w-20">
+                  <input type="number" value={newItemQty} onChange={(e) => setNewItemQty(e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-center focus:outline-none focus:border-[#0984E3]/50" />
+                </div>
+                <div className="w-16">
+                  <button onClick={addCustomItem} disabled={!newItemName || !newItemPrice} className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 disabled:opacity-30 transition-all">Add</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         </div>

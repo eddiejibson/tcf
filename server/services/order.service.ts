@@ -170,7 +170,7 @@ export async function createCatalogOrder(userId: string, items: { catalogProduct
   return orderRepo.save(order);
 }
 
-export async function updateOrderItems(orderId: string, items: { productId?: string | null; name: string; quantity: number; unitPrice: number }[]) {
+export async function updateOrderItems(orderId: string, items: { productId?: string | null; catalogProductId?: string | null; name: string; quantity: number; unitPrice: number }[]) {
   const db = await getDb();
   const itemRepo = db.getRepository(OrderItem);
 
@@ -180,6 +180,7 @@ export async function updateOrderItems(orderId: string, items: { productId?: str
     itemRepo.create({
       orderId,
       productId: item.productId || null,
+      catalogProductId: item.catalogProductId || null,
       name: item.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
@@ -344,7 +345,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
 
 export async function updateAcceptedOrderItems(
   orderId: string,
-  newItems: { productId?: string | null; name: string; quantity: number; unitPrice: number; surcharge?: number }[],
+  newItems: { productId?: string | null; catalogProductId?: string | null; name: string; quantity: number; unitPrice: number; surcharge?: number }[],
   includeShipping?: boolean,
   skipEmail?: boolean,
 ) {
@@ -394,6 +395,7 @@ export async function updateAcceptedOrderItems(
       itemRepo.create({
         orderId,
         productId: item.productId || null,
+        catalogProductId: item.catalogProductId || null,
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,

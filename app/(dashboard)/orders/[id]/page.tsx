@@ -227,9 +227,9 @@ export default function OrderDetailPage() {
                 <p className="text-white/90 text-sm font-medium">{item.name}</p>
                 {(item.latinName || item.categoryName) && (
                   <p className="text-white/30 text-xs mt-0.5">
-                    {item.categoryName && <span>{item.categoryName}</span>}
-                    {item.categoryName && item.latinName && <span> · </span>}
-                    {item.latinName && <span className="italic">{item.latinName}</span>}
+                    {item.latinName
+                      ? <span className="italic">{item.latinName}</span>
+                      : <span>{item.categoryName}</span>}
                   </p>
                 )}
               </div>

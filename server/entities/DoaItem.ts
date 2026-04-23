@@ -1,17 +1,15 @@
 import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
-import { DoaClaim } from "./DoaClaim";
 import { DoaPhotoGroup } from "./DoaPhotoGroup";
 import { OrderItem } from "./OrderItem";
 
 @Entity("doa_items")
 export class DoaItem extends BaseEntityWithUpdate {
+  // Kept as a plain column (no relation decorator) so queries can filter by
+  // claim without forming a metadata cycle DoaClaim<->DoaItem<->DoaPhotoGroup.
+  // The "real" path from item to claim is via photoGroup.
   @Column({ type: "uuid" })
   claimId: string;
-
-  @ManyToOne(() => DoaClaim, (claim) => claim.items)
-  @JoinColumn({ name: "claimId" })
-  claim: Relation<DoaClaim>;
 
   @Column({ type: "uuid" })
   photoGroupId: string;
@@ -37,4 +35,4 @@ export class DoaItem extends BaseEntityWithUpdate {
   denied: boolean;
 }
 
-export type DoaItemType = Omit<DoaItem, "claim" | "orderItem" | "photoGroup">;
+export type DoaItemType = Omit<DoaItem, "orderItem" | "photoGroup">;

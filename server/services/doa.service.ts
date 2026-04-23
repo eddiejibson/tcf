@@ -22,9 +22,6 @@ export async function createDoaClaim(orderId: string, groups: DoaGroupInput[]) {
   const groupRepo = db.getRepository(DoaPhotoGroup);
   const itemRepo = db.getRepository(DoaItem);
 
-  const existing = await claimRepo.findOne({ where: { orderId } });
-  if (existing) throw new Error("A DOA claim already exists for this order");
-
   const claim = await claimRepo.save(claimRepo.create({
     orderId,
     status: DoaClaimStatus.PENDING,
@@ -35,12 +32,19 @@ export async function createDoaClaim(orderId: string, groups: DoaGroupInput[]) {
       claimId: claim.id,
       imageKeys: group.imageKeys,
     }));
-    await itemRepo.save(group.items.map((item) => itemRepo.create({
-      claimId: claim.id,
-      photoGroupId: saved.id,
-      orderItemId: item.orderItemId,
-      quantity: item.quantity,
-    })));
+    if (group.items.length === 0) continue;
+    // insert() bypasses TypeORM's subject topological sort, which otherwise
+    // trips on the DoaClaim <-> DoaPhotoGroup <-> DoaItem metadata cycle.
+    await itemRepo
+      .createQueryBuilder()
+      .insert()
+      .values(group.items.map((item) => ({
+        claimId: claim.id,
+        photoGroupId: saved.id,
+        orderItemId: item.orderItemId,
+        quantity: item.quantity,
+      })))
+      .execute();
   }
 
   return claim;
@@ -50,8 +54,6 @@ const claimRelations = [
   "photoGroups",
   "photoGroups.items",
   "photoGroups.items.orderItem",
-  "items",
-  "items.orderItem",
 ];
 
 export async function getDoaClaimByOrderId(orderId: string) {
@@ -252,9 +254,11 @@ export async function generateDoaReport(shipmentId: string) {
 
     // Auto-credit user for approved DOA items (item value only, no freight/VAT)
     let creditAmount = 0;
-    for (const item of claim.items || []) {
-      if (item.approved) {
-        creditAmount += item.quantity * Number(item.orderItem.unitPrice);
+    for (const group of claim.photoGroups || []) {
+      for (const item of group.items || []) {
+        if (item.approved) {
+          creditAmount += item.quantity * Number(item.orderItem.unitPrice);
+        }
       }
     }
     if (creditAmount > 0 && claim.order.userId) {

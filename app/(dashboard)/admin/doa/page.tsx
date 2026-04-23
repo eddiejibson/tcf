@@ -37,12 +37,24 @@ export default function AdminDoaPage() {
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
 
-  const toggleShipment = (id: string) => {
+  const loadReportDetail = useCallback(async (shipmentId: string, reportId: string) => {
+    const res = await fetch(`/api/admin/doa/report/${reportId}`);
+    if (res.ok) {
+      const detail = await res.json();
+      setReports((prev) => ({ ...prev, [shipmentId]: detail }));
+      setReportPanelShipment(shipmentId);
+    }
+  }, []);
+
+  const toggleShipment = (id: string, hasReport: boolean, reportId: string | null) => {
     setExpandedShipments((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    if (hasReport && reportId && !reports[id]) {
+      loadReportDetail(id, reportId);
+    }
   };
 
   const toggleClaim = (id: string) => {
@@ -131,7 +143,7 @@ export default function AdminDoaPage() {
             <AnimatedListItem key={group.shipment.id}>
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
               <div
-                onClick={() => toggleShipment(group.shipment.id)}
+                onClick={() => toggleShipment(group.shipment.id, group.hasReport, group.reportId)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
@@ -239,21 +251,34 @@ export default function AdminDoaPage() {
 
                   {reportPanelShipment === group.shipment.id && reports[group.shipment.id] && (
                     <div className="px-6 py-4 border-t border-white/10 bg-white/[0.02]">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
                         <h4 className="text-white font-semibold text-sm">Generated Report</h4>
-                        {reports[group.shipment.id].downloadUrl && (
+                        <div className="flex items-center gap-2">
                           <a
-                            href={reports[group.shipment.id].downloadUrl!}
+                            href={`/api/admin/doa/report/${reports[group.shipment.id].id}/pdf`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-3 py-1.5 bg-[#0984E3] text-white rounded-lg text-xs font-medium hover:bg-[#0984E3]/80 transition-all flex items-center gap-1"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                             </svg>
-                            Download ZIP
+                            Download PDF
                           </a>
-                        )}
+                          {reports[group.shipment.id].downloadUrl && (
+                            <a
+                              href={reports[group.shipment.id].downloadUrl!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-medium hover:bg-white/20 transition-all flex items-center gap-1"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              Download ZIP
+                            </a>
+                          )}
+                        </div>
                       </div>
                       <pre className="bg-black/30 rounded-lg p-4 text-white/70 text-xs font-mono whitespace-pre-wrap overflow-auto max-h-64">
                         {reports[group.shipment.id].reportText}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { OrderItem } from "@/server/entities/OrderItem";
+import { Order } from "@/server/entities/Order";
+import { User } from "@/server/entities/User";
 import { CatalogProduct } from "@/server/entities/CatalogProduct";
 import { IsNull } from "typeorm";
 
@@ -9,37 +11,68 @@ function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
-// 0-100 score. Exact normalized → latin match → substring → token overlap.
+// 0-100 score. Strict matching so short generic names ("A grade") don't false-match
+// into longer, more specific names ("Cynarina Red A Grade").
 function nameScore(itemName: string, catalogName: string, catalogLatin: string | null): number {
   const a = normalize(itemName);
   const b = normalize(catalogName);
   const latin = catalogLatin ? normalize(catalogLatin) : "";
   if (!a || !b) return 0;
   if (a === b) return 100;
-  if (a === latin) return 95;
-  if (b.includes(a) || a.includes(b)) return 75;
-  if (latin && (latin.includes(a) || a.includes(latin))) return 70;
-  const aw = new Set(a.split(" ").filter((w) => w.length >= 2));
-  const bw = new Set(b.split(" ").filter((w) => w.length >= 2));
+  if (latin && a === latin) return 95;
+
+  // Substring matches only count when the shorter string is a substantial, specific chunk
+  // of the longer (≥6 chars AND covers ≥60% of the longer). Blocks short generic fragments.
+  const substringCovers = (short: string, long: string) =>
+    short.length >= 6 && long.includes(short) && short.length / long.length >= 0.6;
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  if (substringCovers(short, long)) return 80;
+  if (latin) {
+    const [ls, ll] = a.length < latin.length ? [a, latin] : [latin, a];
+    if (substringCovers(ls, ll)) return 75;
+  }
+
+  // Token overlap — requires ≥50% overlap on BOTH sides, so 1 shared word out of 5
+  // doesn't produce a match. Skips short stop-words (<3 chars).
+  const tokens = (s: string) => new Set(s.split(" ").filter((w) => w.length >= 3));
+  const aw = tokens(a);
+  const bw = tokens(b);
   if (aw.size === 0 || bw.size === 0) return 0;
   const overlap = [...aw].filter((w) => bw.has(w)).length;
-  return (overlap / Math.max(aw.size, bw.size)) * 60;
+  if (overlap === 0) return 0;
+  const propA = overlap / aw.size;
+  const propB = overlap / bw.size;
+  if (Math.min(propA, propB) < 0.5) return 0;
+  return Math.round(((propA + propB) / 2) * 60);
 }
 
-// Tries the stored unitPrice both as-is and with surcharge stripped, so orders where surcharge
-// was baked into unitPrice still match. Tolerance widens to account for discounts.
-function priceScore(itemPrice: number, itemSurchargePct: number, catalogPrice: number): number {
+// Price match. The stored unitPrice may have been computed from catalogPrice with any of:
+//   - surcharge baked in (unitPrice = catalogPrice × (1 + surcharge/100))
+//   - customer company discount applied (unitPrice = catalogPrice × (1 − discount/100))
+//   - both combined
+// We reverse each of those to recover the likely catalog price and take the closest match.
+// Accepts within 15% — anything further returns 0.
+function priceScore(
+  itemPrice: number,
+  itemSurchargePct: number,
+  catalogPrice: number,
+  companyDiscountPct: number,
+): number {
   if (!catalogPrice || !itemPrice) return 0;
+  const sur = itemSurchargePct > 0 ? 1 + itemSurchargePct / 100 : 1;
+  const disc = companyDiscountPct > 0 ? 1 - companyDiscountPct / 100 : 1;
   const candidates = [
-    itemPrice,
-    itemSurchargePct > 0 ? itemPrice / (1 + itemSurchargePct / 100) : itemPrice,
+    itemPrice,                // no adjustment
+    itemPrice / sur,          // strip surcharge
+    itemPrice / disc,         // reverse discount
+    itemPrice / (sur * disc), // strip both
   ];
   const diffs = candidates.map((p) => Math.abs(p - catalogPrice) / catalogPrice);
   const minDiff = Math.min(...diffs);
   if (minDiff <= 0.01) return 40;
   if (minDiff <= 0.05) return 30;
-  if (minDiff <= 0.15) return 20;
-  if (minDiff <= 0.25) return 10;
+  if (minDiff <= 0.10) return 20;
+  if (minDiff <= 0.15) return 10;
   return 0;
 }
 
@@ -65,6 +98,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const itemRepo = db.getRepository(OrderItem);
   const catalogRepo = db.getRepository(CatalogProduct);
 
+  // Pull the order's user → company discount, so the price match can reverse any customer
+  // discount that was baked into the stored unitPrice at creation time.
+  const order = await db.getRepository(Order).findOne({ where: { id } });
+  let companyDiscountPct = 0;
+  if (order?.userId) {
+    const user = await db.getRepository(User).findOne({ where: { id: order.userId }, relations: ["company"] });
+    if (user?.company) companyDiscountPct = Number(user.company.discount) || 0;
+  }
+
   const unlinked = await itemRepo.find({
     where: { orderId: id, productId: IsNull(), catalogProductId: IsNull() },
   });
@@ -73,23 +115,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const results: MatchResult[] = [];
   for (const item of unlinked) {
+    // Only consider candidates that meet BOTH the name threshold (≥80) AND have a price
+    // within 15%. Among those, pick the one with highest combined score. This way a
+    // high-name/wrong-price catalog entry can't beat a correct same-name entry at the
+    // right price — and when nothing meets both bars, we emit a clean "no match".
     let bestScore = 0;
     let bestProduct: CatalogProduct | null = null;
     for (const c of catalog) {
       const ns = nameScore(item.name, c.name, c.latinName);
-      if (ns < 40) continue;
-      const ps = priceScore(Number(item.unitPrice), Number(item.surcharge) || 0, Number(c.price));
+      if (ns < 80) continue;
+      const ps = priceScore(Number(item.unitPrice), Number(item.surcharge) || 0, Number(c.price), companyDiscountPct);
+      if (ps <= 0) continue;
       const total = ns + ps;
       if (total > bestScore) {
         bestScore = total;
         bestProduct = c;
       }
     }
-    // Accept if strong name alone (>=70) OR decent name (>=60) with any price signal.
-    const accepted = bestProduct && (
-      bestScore >= 70 ||
-      (bestScore >= 60 && priceScore(Number(item.unitPrice), Number(item.surcharge) || 0, Number(bestProduct.price)) > 0)
-    );
+    const accepted = !!bestProduct;
 
     results.push({
       itemId: item.id,
@@ -118,6 +161,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   return NextResponse.json({
     dryRun,
+    companyDiscountPct,
     totalUnlinked: unlinked.length,
     matched: toApply.length,
     unmatched: results.length - toApply.length,

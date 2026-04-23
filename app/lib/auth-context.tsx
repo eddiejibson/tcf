@@ -13,6 +13,7 @@ interface AuthUser {
   permissions: string[] | null;
   creditBalance: number;
   companyDiscount: number;
+  isImpersonating?: boolean;
 }
 
 interface AuthContextValue {

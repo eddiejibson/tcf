@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { requireAuth } from "@/server/middleware/auth";
 import { getCreditBalanceForUser } from "@/server/services/credit.service";
 import { getDb } from "@/server/db/data-source";
@@ -15,6 +16,8 @@ export async function GET() {
     relations: ["company"],
   });
   const creditBalance = await getCreditBalanceForUser(user.userId);
+  const cookieStore = await cookies();
+  const isImpersonating = Boolean(cookieStore.get("tcf_admin_session")?.value);
   return NextResponse.json({
     ...user,
     companyName: dbUser?.companyName || null,
@@ -23,5 +26,6 @@ export async function GET() {
     permissions: dbUser?.permissions || null,
     creditBalance,
     companyDiscount: Number((dbUser?.company as any)?.discount) || 0,
+    isImpersonating,
   });
 }

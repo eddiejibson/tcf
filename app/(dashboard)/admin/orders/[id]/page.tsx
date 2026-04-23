@@ -53,6 +53,7 @@ export default function AdminOrderDetailPage() {
   const [autolinkPreview, setAutolinkPreview] = useState<null | {
     matched: number;
     unmatched: number;
+    companyDiscountPct: number;
     results: { itemId: string; itemName: string; itemPrice: number; matched: null | { catalogName: string; catalogLatinName: string | null; catalogPrice: number; score: number } }[];
   }>(null);
   const [autolinkRunning, setAutolinkRunning] = useState(false);
@@ -567,7 +568,11 @@ export default function AdminOrderDetailPage() {
             <div className="p-4 md:p-6 border-b border-white/10">
               <h3 className="text-white font-semibold">Auto-link items preview</h3>
               <p className="text-white/50 text-xs mt-1">
-                {autolinkPreview.matched} matched · {autolinkPreview.unmatched} unmatched · applying writes <code className="text-white/70">catalogProductId</code> on each matched row
+                {autolinkPreview.matched} matched · {autolinkPreview.unmatched} unmatched
+                {autolinkPreview.companyDiscountPct > 0 && (
+                  <> · price match considers {autolinkPreview.companyDiscountPct}% customer discount</>
+                )}
+                {" "}· applying writes <code className="text-white/70">catalogProductId</code> on each matched row
               </p>
             </div>
             <div className="overflow-y-auto flex-1">

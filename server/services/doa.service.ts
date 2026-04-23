@@ -7,6 +7,7 @@ import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
 import { addDoaCredit, getCompanyIdForUser } from "./credit.service";
+import { generateDoaReportPdfBuffer, type DoaPdfItem } from "./doa-pdf.service";
 import JSZip from "jszip";
 
 export async function createDoaClaim(
@@ -61,6 +62,7 @@ export async function getAllDoaClaimsGrouped() {
     shipment: { id: string; name: string };
     claims: typeof claims;
     hasReport: boolean;
+    reportId: string | null;
   }>();
 
   for (const claim of claims) {
@@ -70,6 +72,7 @@ export async function getAllDoaClaimsGrouped() {
         shipment: { id: shipmentId, name: claim.order.shipment?.name || "Catalog Order" },
         claims: [],
         hasReport: false,
+        reportId: null,
       });
     }
     shipmentMap.get(shipmentId)!.claims.push(claim);
@@ -80,6 +83,7 @@ export async function getAllDoaClaimsGrouped() {
     if (shipmentId === "catalog") continue;
     const report = await reportRepo.findOne({ where: { shipmentId } });
     group.hasReport = !!report;
+    group.reportId = report?.id ?? null;
   }
 
   return Array.from(shipmentMap.values());
@@ -242,4 +246,41 @@ export async function getDoaReportDownloadUrl(reportId: string): Promise<string 
   const report = await db.getRepository(DoaReport).findOneBy({ id: reportId });
   if (!report || !report.zipKey) return null;
   return getDownloadUrl(report.zipKey);
+}
+
+export async function generateDoaReportPdfForShipment(shipmentId: string): Promise<{
+  buffer: Buffer;
+  shipmentName: string;
+} | null> {
+  const db = await getDb();
+  const shipment = await db.getRepository(Shipment).findOneByOrFail({ id: shipmentId });
+
+  const claims = await db.getRepository(DoaClaim).find({
+    where: { order: { shipmentId } },
+    relations: ["items", "items.orderItem", "order"],
+  });
+
+  const pdfItems: DoaPdfItem[] = [];
+  for (const claim of claims) {
+    for (const item of claim.items) {
+      if (!item.approved) continue;
+      const images: { buffer: Buffer; key: string }[] = [];
+      for (const key of item.imageKeys || []) {
+        try {
+          const buffer = await getObjectBuffer(key);
+          images.push({ buffer, key });
+        } catch (e) {
+          log.error(`Failed to fetch DOA image for PDF: ${key}`, e);
+        }
+      }
+      pdfItems.push({
+        itemName: item.orderItem.name,
+        quantity: item.quantity,
+        images,
+      });
+    }
+  }
+
+  const buffer = await generateDoaReportPdfBuffer(pdfItems);
+  return { buffer, shipmentName: shipment.name };
 }

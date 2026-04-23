@@ -5,20 +5,49 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./Sidebar";
 import PageTransition from "./PageTransition";
+import { useAuth } from "@/app/lib/auth-context";
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
 
   // Close sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
+  const handleExitSudo = async () => {
+    setExiting(true);
+    const res = await fetch("/api/auth/sudo/exit", { method: "POST" });
+    if (res.ok) {
+      window.location.href = "/admin/users";
+    } else {
+      setExiting(false);
+    }
+  };
+
+  const sudoBarOffset = user?.isImpersonating ? "top-9" : "top-0";
+
   return (
-    <div className="flex min-h-screen bg-[#1a1f26]">
+    <div className={`flex min-h-screen bg-[#1a1f26] ${user?.isImpersonating ? "pt-9" : ""}`}>
+      {user?.isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[60] h-9 bg-amber-500 text-black px-4 flex items-center justify-center gap-3 text-xs font-medium shadow-lg">
+          <span>
+            Viewing as <span className="font-bold">{user.email}</span>
+          </span>
+          <button
+            onClick={handleExitSudo}
+            disabled={exiting}
+            className="px-3 py-0.5 bg-black/20 hover:bg-black/30 rounded-md font-semibold transition-colors disabled:opacity-50"
+          >
+            {exiting ? "Switching…" : "Switch back to admin"}
+          </button>
+        </div>
+      )}
       {/* Mobile top bar */}
-      <div className="fixed top-0 left-0 right-0 z-40 md:hidden bg-[#141820] border-b border-white/5 px-4 py-3 flex items-center gap-3">
+      <div className={`fixed ${sudoBarOffset} left-0 right-0 z-40 md:hidden bg-[#141820] border-b border-white/5 px-4 py-3 flex items-center gap-3`}>
         <button
           onClick={() => setSidebarOpen(true)}
           className="text-white/60 hover:text-white transition-colors p-1"

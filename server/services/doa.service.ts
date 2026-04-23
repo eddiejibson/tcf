@@ -50,6 +50,18 @@ export async function createDoaClaim(orderId: string, groups: DoaGroupInput[]) {
   return claim;
 }
 
+export async function deleteDoaClaim(claimId: string) {
+  const db = await getDb();
+  const claimRepo = db.getRepository(DoaClaim);
+  const itemRepo = db.getRepository(DoaItem);
+  const groupRepo = db.getRepository(DoaPhotoGroup);
+
+  // FKs cascade, but explicit deletes keep this resilient if cascade is ever stripped.
+  await itemRepo.delete({ claimId });
+  await groupRepo.delete({ claimId });
+  await claimRepo.delete({ id: claimId });
+}
+
 const claimRelations = [
   "photoGroups",
   "photoGroups.items",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getDoaClaimById, updateDoaItemStates, approveAllItemsForClaim } from "@/server/services/doa.service";
+import { getDoaClaimById, updateDoaItemStates, approveAllItemsForClaim, deleteDoaClaim } from "@/server/services/doa.service";
 import { claimWithGroupUrls } from "@/server/services/doa-serialize";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -50,6 +50,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json(await claimWithGroupUrls(claim));
   } catch (e) {
     log.error("Failed to update DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "PATCH" });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ claimId: string }> }) {
+  try {
+    const admin = await requireAdmin();
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { claimId } = await params;
+    if (!isUuid(claimId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await deleteDoaClaim(claimId);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    log.error("Failed to delete DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "DELETE" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
   }
 }

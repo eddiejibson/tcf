@@ -87,6 +87,14 @@ export default function AdminDoaPage() {
     setActionLoading(null);
   };
 
+  const handleDeleteClaim = async (claimId: string) => {
+    if (!confirm("Delete this DOA claim? The customer will be able to submit a new one.")) return;
+    setActionLoading(`delete-${claimId}`);
+    await fetch(`/api/admin/doa/${claimId}`, { method: "DELETE" });
+    await fetchGroups({ silent: true });
+    setActionLoading(null);
+  };
+
   const handleGenerateReport = async (shipmentId: string) => {
     setActionLoading(`report-${shipmentId}`);
     const res = await fetch("/api/admin/doa/report", {
@@ -203,7 +211,14 @@ export default function AdminDoaPage() {
 
                       {expandedClaims.has(claim.id) && (
                         <div className="px-6 pb-4">
-                          <div className="flex justify-end mb-3">
+                          <div className="flex justify-end gap-2 mb-3">
+                            <button
+                              onClick={() => handleDeleteClaim(claim.id)}
+                              disabled={actionLoading === `delete-${claim.id}`}
+                              className="px-3 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition-all disabled:opacity-50"
+                            >
+                              {actionLoading === `delete-${claim.id}` ? "Deleting..." : "Delete"}
+                            </button>
                             <button
                               onClick={() => handleApproveAll(claim.id)}
                               disabled={actionLoading === claim.id}

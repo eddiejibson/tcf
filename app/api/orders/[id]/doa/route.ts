@@ -50,8 +50,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const { groups } = await request.json();
-    if (!groups || !Array.isArray(groups) || groups.length === 0) {
+    const body = await request.json();
+
+    // Accept either the new {groups:[{imageKeys, items:[{orderItemId, quantity}]}]}
+    // shape or the legacy {items:[{orderItemId, quantity, imageKeys}]} shape —
+    // each legacy item becomes its own single-item group.
+    let groups: { imageKeys: string[]; items: { orderItemId: string; quantity: number }[] }[];
+    if (Array.isArray(body.groups)) {
+      groups = body.groups;
+    } else if (Array.isArray(body.items)) {
+      groups = body.items.map((it: { orderItemId: string; quantity: number; imageKeys: string[] }) => ({
+        imageKeys: it.imageKeys || [],
+        items: [{ orderItemId: it.orderItemId, quantity: it.quantity }],
+      }));
+    } else {
+      return NextResponse.json({ error: "Provide groups or items array" }, { status: 400 });
+    }
+
+    if (groups.length === 0) {
       return NextResponse.json({ error: "At least one photo group is required" }, { status: 400 });
     }
 

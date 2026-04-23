@@ -355,7 +355,7 @@ export default function OrderDetailPage() {
         />
       </div>
 
-      {order.status === "PAID" && (canViewDoa || canCreateDoa) && (
+      {(order.status === "PAID" || (order.status === "ACCEPTED" && !!order.shipment)) && (canViewDoa || canCreateDoa) && (
         <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
           <h3 className="text-white font-semibold text-lg mb-2">Dead On Arrival (DOA) Report</h3>
 

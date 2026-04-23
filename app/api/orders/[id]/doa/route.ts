@@ -47,7 +47,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     if (!canAccessOrder(user, order)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!hasPermission(user, Permission.CREATE_DOA)) return NextResponse.json({ error: "No permission to submit DOA claims" }, { status: 403 });
-    if (order.status !== "PAID") return NextResponse.json({ error: "Order must be paid to report DOA" }, { status: 400 });
+    const doaAllowed =
+      order.status === "PAID" ||
+      (order.status === "ACCEPTED" && !!order.shipmentId);
+    if (!doaAllowed) {
+      return NextResponse.json(
+        { error: "Order must be paid, or accepted with a shipment attached, to report DOA" },
+        { status: 400 }
+      );
+    }
 
     const { items } = await request.json();
     if (!items || !Array.isArray(items) || items.length === 0) {

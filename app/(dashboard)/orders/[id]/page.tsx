@@ -379,8 +379,12 @@ export default function OrderDetailPage() {
                         <p className="text-white/90 text-sm font-medium">{item.orderItem?.name || "Item"}</p>
                         <p className="text-white/50 text-xs">Qty DOA: {item.quantity}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${item.approved ? "bg-green-500/20 text-green-400" : "bg-white/10 text-white/40"}`}>
-                        {item.approved ? "Approved" : "Pending"}
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        item.approved ? "bg-green-500/20 text-green-400"
+                          : item.denied ? "bg-red-500/20 text-red-400"
+                          : "bg-white/10 text-white/40"
+                      }`}>
+                        {item.approved ? "Approved" : item.denied ? "Denied" : "Pending"}
                       </span>
                     </div>
                     {item.imageUrls?.length > 0 && (

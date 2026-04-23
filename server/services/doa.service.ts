@@ -89,19 +89,24 @@ export async function getAllDoaClaimsGrouped() {
   return Array.from(shipmentMap.values());
 }
 
-export async function updateDoaItemApprovals(
+export type DoaItemAction = "approve" | "deny" | "pending";
+
+export async function updateDoaItemStates(
   claimId: string,
-  approvals: { itemId: string; approved: boolean }[]
+  updates: { itemId: string; action: DoaItemAction }[]
 ) {
   const db = await getDb();
   const itemRepo = db.getRepository(DoaItem);
   const claimRepo = db.getRepository(DoaClaim);
 
-  for (const approval of approvals) {
-    await itemRepo.update(
-      { id: approval.itemId, claimId },
-      { approved: approval.approved }
-    );
+  for (const update of updates) {
+    const patch =
+      update.action === "approve"
+        ? { approved: true, denied: false }
+        : update.action === "deny"
+          ? { approved: false, denied: true }
+          : { approved: false, denied: false };
+    await itemRepo.update({ id: update.itemId, claimId }, patch);
   }
 
   await claimRepo.update(claimId, { status: DoaClaimStatus.REVIEWED });
@@ -114,7 +119,7 @@ export async function approveAllItemsForClaim(claimId: string) {
   const itemRepo = db.getRepository(DoaItem);
   const claimRepo = db.getRepository(DoaClaim);
 
-  await itemRepo.update({ claimId }, { approved: true });
+  await itemRepo.update({ claimId }, { approved: true, denied: false });
   await claimRepo.update(claimId, { status: DoaClaimStatus.REVIEWED });
 
   return getDoaClaimById(claimId);
@@ -140,7 +145,7 @@ export async function generateDoaReport(shipmentId: string) {
 
   for (const claim of claims) {
     for (const item of claim.items) {
-      if (item.approved) {
+      if (!item.denied) {
         approvedItems.push({
           itemName: item.orderItem.name,
           quantity: item.quantity,
@@ -155,7 +160,7 @@ export async function generateDoaReport(shipmentId: string) {
   reportText += `${"=".repeat(50)}\n\n`;
 
   if (approvedItems.length === 0) {
-    reportText += "No approved DOA items for this shipment.\n";
+    reportText += "No DOA items for this shipment.\n";
   } else {
     for (const item of approvedItems) {
       reportText += `Item: ${item.itemName}\n`;
@@ -163,7 +168,7 @@ export async function generateDoaReport(shipmentId: string) {
       reportText += `Images: ${(item.imageKeys || []).map((k) => k.split("/").pop()).join(", ")}\n`;
       reportText += `${"-".repeat(30)}\n`;
     }
-    reportText += `\nTotal approved DOA items: ${approvedItems.length}\n`;
+    reportText += `\nTotal DOA items: ${approvedItems.length}\n`;
   }
 
   let zipKey: string | null = null;
@@ -263,7 +268,7 @@ export async function generateDoaReportPdfForShipment(shipmentId: string): Promi
   const pdfItems: DoaPdfItem[] = [];
   for (const claim of claims) {
     for (const item of claim.items) {
-      if (!item.approved) continue;
+      if (item.denied) continue;
       const images: { buffer: Buffer; key: string }[] = [];
       for (const key of item.imageKeys || []) {
         try {

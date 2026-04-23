@@ -65,12 +65,12 @@ export default function AdminDoaPage() {
     });
   };
 
-  const handleToggleApproval = async (claimId: string, itemId: string, approved: boolean) => {
+  const handleSetItemState = async (claimId: string, itemId: string, action: "approve" | "deny" | "pending") => {
     setActionLoading(itemId);
     await fetch(`/api/admin/doa/${claimId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ approvals: [{ itemId, approved }] }),
+      body: JSON.stringify({ actions: [{ itemId, action }] }),
     });
     await fetchGroups();
     setActionLoading(null);
@@ -213,36 +213,53 @@ export default function AdminDoaPage() {
                             </button>
                           </div>
                           <div className="space-y-3">
-                            {claim.items.map((item) => (
+                            {claim.items.map((item) => {
+                              const state = item.approved ? "approved" : item.denied ? "denied" : "pending";
+                              const busy = actionLoading === item.id;
+                              return (
                               <div key={item.id} className="bg-white/[0.03] rounded-xl p-3">
                                 <div className="flex items-center gap-4">
                                   <div className="flex-1 min-w-0">
                                     <p className="text-white/90 text-sm font-medium">{item.orderItem?.name || "Item"}</p>
                                     <p className="text-white/50 text-xs">Qty DOA: {item.quantity}</p>
                                   </div>
-                                  <button
-                                    onClick={() => handleToggleApproval(claim.id, item.id, !item.approved)}
-                                    disabled={actionLoading === item.id}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                                      item.approved
-                                        ? "bg-green-500/20 text-green-400 hover:bg-red-500/20 hover:text-red-400"
-                                        : "bg-white/10 text-white/40 hover:bg-green-500/20 hover:text-green-400"
-                                    }`}
-                                  >
-                                    {actionLoading === item.id ? "..." : item.approved ? "Approved" : "Approve"}
-                                  </button>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      onClick={() => handleSetItemState(claim.id, item.id, state === "approved" ? "pending" : "approve")}
+                                      disabled={busy}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        state === "approved"
+                                          ? "bg-green-500/20 text-green-400"
+                                          : "bg-white/10 text-white/50 hover:bg-green-500/20 hover:text-green-400"
+                                      } disabled:opacity-50`}
+                                    >
+                                      {busy && state !== "approved" ? "..." : state === "approved" ? "Approved" : "Approve"}
+                                    </button>
+                                    <button
+                                      onClick={() => handleSetItemState(claim.id, item.id, state === "denied" ? "pending" : "deny")}
+                                      disabled={busy}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                        state === "denied"
+                                          ? "bg-red-500/20 text-red-400"
+                                          : "bg-white/10 text-white/50 hover:bg-red-500/20 hover:text-red-400"
+                                      } disabled:opacity-50`}
+                                    >
+                                      {busy && state !== "denied" ? "..." : state === "denied" ? "Denied" : "Deny"}
+                                    </button>
+                                  </div>
                                 </div>
                                 {item.imageUrls?.length > 0 && (
                                   <div className="flex gap-2 mt-2 flex-wrap">
                                     {item.imageUrls.map((url: string, i: number) => (
                                       <button key={i} onClick={() => setLightboxUrl(url)} className="shrink-0">
-                                        <img src={url} alt="DOA evidence" className="w-20 h-20 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer" />
+                                        <img src={url} alt="DOA evidence" className={`w-20 h-20 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer ${state === "denied" ? "opacity-40" : ""}`} />
                                       </button>
                                     ))}
                                   </div>
                                 )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

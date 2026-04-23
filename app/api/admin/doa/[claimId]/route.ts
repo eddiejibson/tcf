@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getDoaClaimById, updateDoaItemApprovals, approveAllItemsForClaim } from "@/server/services/doa.service";
+import { getDoaClaimById, updateDoaItemStates, approveAllItemsForClaim } from "@/server/services/doa.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -43,10 +43,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let claim;
     if (body.approveAll) {
       claim = await approveAllItemsForClaim(claimId);
-    } else if (body.approvals && Array.isArray(body.approvals)) {
-      claim = await updateDoaItemApprovals(claimId, body.approvals);
+    } else if (body.actions && Array.isArray(body.actions)) {
+      for (const action of body.actions) {
+        if (!action.itemId || !["approve", "deny", "pending"].includes(action.action)) {
+          return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        }
+      }
+      claim = await updateDoaItemStates(claimId, body.actions);
     } else {
-      return NextResponse.json({ error: "Provide approvals array or approveAll flag" }, { status: 400 });
+      return NextResponse.json({ error: "Provide actions array or approveAll flag" }, { status: 400 });
     }
 
     if (!claim) return NextResponse.json({ error: "Claim not found" }, { status: 404 });

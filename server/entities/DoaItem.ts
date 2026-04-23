@@ -27,6 +27,9 @@ export class DoaItem extends BaseEntityWithUpdate {
 
   @Column({ type: "boolean", default: false })
   approved: boolean;
+
+  @Column({ type: "boolean", default: false })
+  denied: boolean;
 }
 
 export type DoaItemType = Omit<DoaItem, "claim" | "orderItem">;

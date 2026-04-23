@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById } from "@/server/services/order.service";
 import { createDoaClaim, getDoaClaimByOrderId } from "@/server/services/doa.service";
-import { getDownloadUrl } from "@/server/services/storage.service";
+import { claimWithGroupUrls } from "@/server/services/doa-serialize";
 import { Permission } from "@/server/lib/permissions";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -22,14 +22,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     const claim = await getDoaClaimByOrderId(id);
     if (!claim) return NextResponse.json(null);
 
-    const itemsWithUrls = await Promise.all(
-      claim.items.map(async (item) => ({
-        ...item,
-        imageUrls: await Promise.all((item.imageKeys || []).map((k: string) => getDownloadUrl(k))),
-      }))
-    );
-
-    return NextResponse.json({ ...claim, items: itemsWithUrls });
+    return NextResponse.json(await claimWithGroupUrls(claim));
   } catch (e) {
     log.error("Failed to get DOA claim", e, { route: "/api/orders/[id]/doa", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
@@ -57,18 +50,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const { items } = await request.json();
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "At least one DOA item is required" }, { status: 400 });
+    const { groups } = await request.json();
+    if (!groups || !Array.isArray(groups) || groups.length === 0) {
+      return NextResponse.json({ error: "At least one photo group is required" }, { status: 400 });
     }
 
-    for (const item of items) {
-      if (!item.orderItemId || !item.quantity || !item.imageKeys?.length) {
-        return NextResponse.json({ error: "Each item needs orderItemId, quantity, and at least one image" }, { status: 400 });
+    for (const group of groups) {
+      if (!Array.isArray(group.imageKeys) || group.imageKeys.length === 0) {
+        return NextResponse.json({ error: "Each group needs at least one photo" }, { status: 400 });
+      }
+      if (!Array.isArray(group.items) || group.items.length === 0) {
+        return NextResponse.json({ error: "Each group needs at least one item" }, { status: 400 });
+      }
+      for (const item of group.items) {
+        if (!item.orderItemId || !item.quantity) {
+          return NextResponse.json({ error: "Each item needs orderItemId and quantity" }, { status: 400 });
+        }
       }
     }
 
-    const claim = await createDoaClaim(id, items);
+    const claim = await createDoaClaim(id, groups);
     return NextResponse.json(claim, { status: 201 });
   } catch (e) {
     log.error("Failed to create DOA claim", e, { route: "/api/orders/[id]/doa", method: "POST" });

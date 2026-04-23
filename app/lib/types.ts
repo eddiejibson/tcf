@@ -5,6 +5,7 @@ import type { OrderType } from "@/server/entities/Order";
 import type { OrderItemType } from "@/server/entities/OrderItem";
 import type { DoaClaimType } from "@/server/entities/DoaClaim";
 import type { DoaItemType } from "@/server/entities/DoaItem";
+import type { DoaPhotoGroupType } from "@/server/entities/DoaPhotoGroup";
 import type { DoaReportType } from "@/server/entities/DoaReport";
 import type { CategoryType } from "@/server/entities/Category";
 import type { CatalogProductRecord } from "@/server/entities/CatalogProduct";
@@ -22,6 +23,7 @@ export type SerializedOrder = Serialized<OrderType>;
 export type SerializedOrderItem = Serialized<OrderItemType>;
 export type SerializedDoaClaim = Serialized<DoaClaimType>;
 export type SerializedDoaItem = Serialized<DoaItemType>;
+export type SerializedDoaPhotoGroup = Serialized<DoaPhotoGroupType>;
 export type SerializedDoaReport = Serialized<DoaReportType>;
 export type SerializedCategory = Serialized<CategoryType>;
 export type SerializedOrderPayment = Serialized<OrderPaymentType>;
@@ -205,13 +207,17 @@ export type UserOrderDetail = SerializedOrder & {
   remainingBalance: number;
 };
 
-export type DoaItemWithUrl = SerializedDoaItem & {
-  imageUrls: string[];
+export type DoaItemInGroup = SerializedDoaItem & {
   orderItem: SerializedOrderItem;
 };
 
+export type DoaPhotoGroupWithUrls = SerializedDoaPhotoGroup & {
+  imageUrls: string[];
+  items: DoaItemInGroup[];
+};
+
 export type DoaClaimDetail = SerializedDoaClaim & {
-  items: DoaItemWithUrl[];
+  groups: DoaPhotoGroupWithUrls[];
   order: {
     id: string;
     shipmentId: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getAllDoaClaimsGrouped } from "@/server/services/doa.service";
-import { getDownloadUrl } from "@/server/services/storage.service";
+import { claimWithGroupUrls } from "@/server/services/doa-serialize";
 import { log } from "@/server/logger";
 
 export async function GET() {
@@ -14,17 +14,7 @@ export async function GET() {
     const result = await Promise.all(
       groups.map(async (group) => ({
         ...group,
-        claims: await Promise.all(
-          group.claims.map(async (claim) => ({
-            ...claim,
-            items: await Promise.all(
-              claim.items.map(async (item) => ({
-                ...item,
-                imageUrls: await Promise.all((item.imageKeys || []).map((k: string) => getDownloadUrl(k))),
-              }))
-            ),
-          }))
-        ),
+        claims: await Promise.all(group.claims.map((claim) => claimWithGroupUrls(claim))),
       }))
     );
 

@@ -1,45 +1,64 @@
 import { getDb } from "../db/data-source";
 import { DoaClaim, DoaClaimStatus } from "../entities/DoaClaim";
 import { DoaItem } from "../entities/DoaItem";
+import { DoaPhotoGroup } from "../entities/DoaPhotoGroup";
 import { DoaReport } from "../entities/DoaReport";
 import { Order } from "../entities/Order";
 import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
 import { addDoaCredit, getCompanyIdForUser } from "./credit.service";
-import { generateDoaReportPdfBuffer, type DoaPdfItem } from "./doa-pdf.service";
+import { generateDoaReportPdfBuffer, type DoaPdfGroup } from "./doa-pdf.service";
 import JSZip from "jszip";
 
-export async function createDoaClaim(
-  orderId: string,
-  items: { orderItemId: string; quantity: number; imageKeys: string[] }[]
-) {
+export type DoaGroupInput = {
+  imageKeys: string[];
+  items: { orderItemId: string; quantity: number }[];
+};
+
+export async function createDoaClaim(orderId: string, groups: DoaGroupInput[]) {
   const db = await getDb();
   const claimRepo = db.getRepository(DoaClaim);
+  const groupRepo = db.getRepository(DoaPhotoGroup);
+  const itemRepo = db.getRepository(DoaItem);
 
   const existing = await claimRepo.findOne({ where: { orderId } });
   if (existing) throw new Error("A DOA claim already exists for this order");
 
-  const claim = claimRepo.create({
+  const claim = await claimRepo.save(claimRepo.create({
     orderId,
     status: DoaClaimStatus.PENDING,
-    items: items.map((item) => {
-      const doaItem = new DoaItem();
-      doaItem.orderItemId = item.orderItemId;
-      doaItem.quantity = item.quantity;
-      doaItem.imageKeys = item.imageKeys;
-      return doaItem;
-    }),
-  });
+  }));
 
-  return claimRepo.save(claim);
+  for (const group of groups) {
+    const saved = await groupRepo.save(groupRepo.create({
+      claimId: claim.id,
+      imageKeys: group.imageKeys,
+    }));
+    await itemRepo.save(group.items.map((item) => itemRepo.create({
+      claimId: claim.id,
+      photoGroupId: saved.id,
+      orderItemId: item.orderItemId,
+      quantity: item.quantity,
+    })));
+  }
+
+  return claim;
 }
+
+const claimRelations = [
+  "photoGroups",
+  "photoGroups.items",
+  "photoGroups.items.orderItem",
+  "items",
+  "items.orderItem",
+];
 
 export async function getDoaClaimByOrderId(orderId: string) {
   const db = await getDb();
   return db.getRepository(DoaClaim).findOne({
     where: { orderId },
-    relations: ["items", "items.orderItem"],
+    relations: claimRelations,
   });
 }
 
@@ -47,14 +66,25 @@ export async function getDoaClaimById(claimId: string) {
   const db = await getDb();
   return db.getRepository(DoaClaim).findOne({
     where: { id: claimId },
-    relations: ["items", "items.orderItem", "order", "order.user", "order.shipment", "order.items"],
+    relations: [
+      ...claimRelations,
+      "order",
+      "order.user",
+      "order.shipment",
+      "order.items",
+    ],
   });
 }
 
 export async function getAllDoaClaimsGrouped() {
   const db = await getDb();
   const claims = await db.getRepository(DoaClaim).find({
-    relations: ["items", "items.orderItem", "order", "order.user", "order.shipment"],
+    relations: [
+      ...claimRelations,
+      "order",
+      "order.user",
+      "order.shipment",
+    ],
     order: { createdAt: "DESC" },
   });
 
@@ -125,6 +155,25 @@ export async function approveAllItemsForClaim(claimId: string) {
   return getDoaClaimById(claimId);
 }
 
+type ReportableGroup = {
+  items: { name: string; quantity: number }[];
+  imageKeys: string[];
+};
+
+function collectReportableGroups(claims: DoaClaim[]): ReportableGroup[] {
+  const out: ReportableGroup[] = [];
+  for (const claim of claims) {
+    for (const group of claim.photoGroups || []) {
+      const items = (group.items || [])
+        .filter((item) => !item.denied)
+        .map((item) => ({ name: item.orderItem.name, quantity: item.quantity }));
+      if (items.length === 0) continue;
+      out.push({ items, imageKeys: group.imageKeys || [] });
+    }
+  }
+  return out;
+}
+
 export async function generateDoaReport(shipmentId: string) {
   const db = await getDb();
   const claimRepo = db.getRepository(DoaClaim);
@@ -134,54 +183,51 @@ export async function generateDoaReport(shipmentId: string) {
 
   const claims = await claimRepo.find({
     where: { order: { shipmentId } },
-    relations: ["items", "items.orderItem", "order", "order.user", "order.items"],
+    relations: [
+      ...claimRelations,
+      "order",
+      "order.user",
+      "order.items",
+    ],
   });
 
-  const reportableItems: {
-    itemName: string;
-    quantity: number;
-    imageKeys: string[];
-  }[] = [];
-
-  for (const claim of claims) {
-    for (const item of claim.items) {
-      if (!item.denied) {
-        reportableItems.push({
-          itemName: item.orderItem.name,
-          quantity: item.quantity,
-          imageKeys: item.imageKeys || [],
-        });
-      }
-    }
-  }
+  const reportable = collectReportableGroups(claims);
 
   let reportText = `DOA Report - ${shipment.name}\n`;
   reportText += `Generated: ${new Date().toLocaleString("en-GB")}\n`;
   reportText += `${"=".repeat(50)}\n\n`;
 
-  if (reportableItems.length === 0) {
+  if (reportable.length === 0) {
     reportText += "No DOA items for this shipment.\n";
   } else {
-    for (const item of reportableItems) {
-      reportText += `Item: ${item.itemName}\n`;
-      reportText += `Quantity DOA: ${item.quantity}\n`;
-      reportText += `Images: ${(item.imageKeys || []).map((k) => k.split("/").pop()).join(", ")}\n`;
+    for (const group of reportable) {
+      for (const item of group.items) {
+        reportText += `Item: ${item.name}\n`;
+        reportText += `Quantity DOA: ${item.quantity}\n`;
+      }
+      reportText += `Images: ${(group.imageKeys || []).map((k) => k.split("/").pop()).join(", ")}\n`;
       reportText += `${"-".repeat(30)}\n`;
     }
-    reportText += `\nTotal DOA items: ${reportableItems.length}\n`;
+    const totalItems = reportable.reduce((n, g) => n + g.items.length, 0);
+    reportText += `\nTotal DOA items: ${totalItems}\n`;
   }
 
   let zipKey: string | null = null;
 
-  if (reportableItems.length > 0) {
+  if (reportable.length > 0) {
     const zip = new JSZip();
     zip.file("report.txt", reportText);
 
-    for (const item of reportableItems) {
-      for (const key of item.imageKeys || []) {
+    for (let gi = 0; gi < reportable.length; gi++) {
+      const group = reportable[gi];
+      const label = group.items
+        .map((i) => i.name.replace(/[^a-zA-Z0-9]/g, "_"))
+        .join("_")
+        .slice(0, 80) || `group_${gi + 1}`;
+      for (const key of group.imageKeys || []) {
         try {
           const buffer = await getObjectBuffer(key);
-          const filename = `${item.itemName.replace(/[^a-zA-Z0-9]/g, "_")}_${key.split("/").pop()}`;
+          const filename = `${label}_${key.split("/").pop()}`;
           zip.file(filename, buffer);
         } catch (e) {
           log.error(`Failed to fetch DOA image: ${key}`, e);
@@ -206,7 +252,7 @@ export async function generateDoaReport(shipmentId: string) {
 
     // Auto-credit user for approved DOA items (item value only, no freight/VAT)
     let creditAmount = 0;
-    for (const item of claim.items) {
+    for (const item of claim.items || []) {
       if (item.approved) {
         creditAmount += item.quantity * Number(item.orderItem.unitPrice);
       }
@@ -262,15 +308,22 @@ export async function generateDoaReportPdfForShipment(shipmentId: string): Promi
 
   const claims = await db.getRepository(DoaClaim).find({
     where: { order: { shipmentId } },
-    relations: ["items", "items.orderItem", "order"],
+    relations: [
+      ...claimRelations,
+      "order",
+    ],
   });
 
-  const pdfItems: DoaPdfItem[] = [];
+  const pdfGroups: DoaPdfGroup[] = [];
   for (const claim of claims) {
-    for (const item of claim.items) {
-      if (item.denied) continue;
+    for (const group of claim.photoGroups || []) {
+      const items = (group.items || [])
+        .filter((item) => !item.denied)
+        .map((item) => ({ name: item.orderItem.name, quantity: item.quantity }));
+      if (items.length === 0) continue;
+
       const images: { buffer: Buffer; key: string }[] = [];
-      for (const key of item.imageKeys || []) {
+      for (const key of group.imageKeys || []) {
         try {
           const buffer = await getObjectBuffer(key);
           images.push({ buffer, key });
@@ -278,14 +331,10 @@ export async function generateDoaReportPdfForShipment(shipmentId: string): Promi
           log.error(`Failed to fetch DOA image for PDF: ${key}`, e);
         }
       }
-      pdfItems.push({
-        itemName: item.orderItem.name,
-        quantity: item.quantity,
-        images,
-      });
+      pdfGroups.push({ items, images });
     }
   }
 
-  const buffer = await generateDoaReportPdfBuffer(pdfItems);
+  const buffer = await generateDoaReportPdfBuffer(pdfGroups);
   return { buffer, shipmentName: shipment.name };
 }

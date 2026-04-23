@@ -6,9 +6,8 @@ const BORDER: [number, number, number] = [225, 228, 235];
 const WHITE: [number, number, number] = [255, 255, 255];
 const DANGER: [number, number, number] = [239, 68, 68];
 
-export type DoaPdfItem = {
-  itemName: string;
-  quantity: number;
+export type DoaPdfGroup = {
+  items: { name: string; quantity: number }[];
   images: { buffer: Buffer; key: string }[];
 };
 
@@ -37,7 +36,7 @@ function detectImageFormat(buffer: Buffer): "JPEG" | "PNG" | "WEBP" {
   return "JPEG";
 }
 
-export async function generateDoaReportPdfBuffer(items: DoaPdfItem[]): Promise<Buffer> {
+export async function generateDoaReportPdfBuffer(groups: DoaPdfGroup[]): Promise<Buffer> {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;
@@ -47,25 +46,27 @@ export async function generateDoaReportPdfBuffer(items: DoaPdfItem[]): Promise<B
 
   let firstPage = true;
 
-  for (const item of items) {
-    if (item.images.length === 0) {
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+
+    if (group.images.length === 0) {
       if (!firstPage) doc.addPage();
       firstPage = false;
-      drawItemHeader(doc, pw, m, cw, item);
+      const headerBottom = drawGroupHeader(doc, pw, m, cw, group);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(12);
       doc.setTextColor(...GRAY);
-      doc.text("(No photos submitted)", pw / 2, ph / 2, { align: "center" });
+      doc.text("(No photos submitted)", pw / 2, headerBottom + (ph - headerBottom) / 2, { align: "center" });
       continue;
     }
 
-    for (let imgIdx = 0; imgIdx < item.images.length; imgIdx++) {
+    for (let imgIdx = 0; imgIdx < group.images.length; imgIdx++) {
       if (!firstPage) doc.addPage();
       firstPage = false;
 
-      drawItemHeader(doc, pw, m, cw, item);
+      const headerBottom = drawGroupHeader(doc, pw, m, cw, group);
 
-      const img = item.images[imgIdx];
+      const img = group.images[imgIdx];
       const format = detectImageFormat(img.buffer);
       const dataUrl = `data:image/${format.toLowerCase()};base64,${img.buffer.toString("base64")}`;
 
@@ -73,7 +74,6 @@ export async function generateDoaReportPdfBuffer(items: DoaPdfItem[]): Promise<B
         const imgProps = doc.getImageProperties(dataUrl);
         const aspect = imgProps.width / imgProps.height;
 
-        const headerBottom = 35;
         const bottomPadding = 15;
         const maxW = cw;
         const maxH = ph - headerBottom - bottomPadding;
@@ -100,7 +100,7 @@ export async function generateDoaReportPdfBuffer(items: DoaPdfItem[]): Promise<B
         doc.setFont("helvetica", "italic");
         doc.setFontSize(12);
         doc.setTextColor(...GRAY);
-        doc.text("(Image could not be rendered)", pw / 2, ph / 2, { align: "center" });
+        doc.text("(Image could not be rendered)", pw / 2, headerBottom + 20, { align: "center" });
       }
     }
   }
@@ -108,47 +108,59 @@ export async function generateDoaReportPdfBuffer(items: DoaPdfItem[]): Promise<B
   return Buffer.from(doc.output("arraybuffer"));
 }
 
-function drawItemHeader(
+function drawGroupHeader(
   doc: JsPdfInstance,
   pw: number,
   m: number,
   cw: number,
-  item: DoaPdfItem
-) {
-  // Item name (left)
+  group: DoaPdfGroup
+): number {
+  let y = 18;
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
+  doc.setFontSize(16);
   doc.setTextColor(...DARK);
+  doc.text(group.items.length === 1 ? "DOA item" : `DOA — ${group.items.length} items`, m, y);
+  y += 6;
 
-  const qtyText = `QTY ${item.quantity}`;
-  doc.setFontSize(12);
-  const qtyPadX = 6;
-  const qtyW = doc.getTextWidth(qtyText) + qtyPadX * 2;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
 
-  doc.setFontSize(22);
-  let displayName = item.itemName;
-  const maxNameW = cw - qtyW - 8;
-  if (doc.getTextWidth(displayName) > maxNameW) {
-    while (doc.getTextWidth(displayName + "...") > maxNameW && displayName.length > 0) {
-      displayName = displayName.slice(0, -1);
+  for (const item of group.items) {
+    const qtyText = `QTY ${item.quantity}`;
+    const qtyPadX = 4;
+    const qtyW = doc.getTextWidth(qtyText) + qtyPadX * 2;
+    const qtyH = 6;
+
+    let displayName = item.name;
+    const maxNameW = cw - qtyW - 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    if (doc.getTextWidth(displayName) > maxNameW) {
+      while (doc.getTextWidth(displayName + "...") > maxNameW && displayName.length > 0) {
+        displayName = displayName.slice(0, -1);
+      }
+      displayName += "...";
     }
-    displayName += "...";
+    doc.setTextColor(...DARK);
+    doc.text(displayName, m, y + 4);
+
+    const qtyX = pw - m - qtyW;
+    const qtyY = y - 0.5;
+    doc.setFillColor(...DANGER);
+    doc.roundedRect(qtyX, qtyY, qtyW, qtyH, 1.5, 1.5, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(qtyText, qtyX + qtyW / 2, qtyY + qtyH / 2 + 1.2, { align: "center" });
+
+    y += 7;
   }
-  doc.text(displayName, m, 22);
 
-  // Quantity badge (right)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  const qtyX = pw - m - qtyW;
-  const qtyY = 14;
-  const qtyH = 10;
-  doc.setFillColor(...DANGER);
-  doc.roundedRect(qtyX, qtyY, qtyW, qtyH, 2, 2, "F");
-  doc.setTextColor(...WHITE);
-  doc.text(qtyText, qtyX + qtyW / 2, qtyY + qtyH / 2 + 1.4, { align: "center" });
-
-  // Separator
+  y += 2;
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.3);
-  doc.line(m, 28, pw - m, 28);
+  doc.line(m, y, pw - m, y);
+
+  return y + 4;
 }

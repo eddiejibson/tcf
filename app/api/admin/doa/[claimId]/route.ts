@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDoaClaimById, updateDoaItemStates, approveAllItemsForClaim } from "@/server/services/doa.service";
-import { getDownloadUrl } from "@/server/services/storage.service";
+import { claimWithGroupUrls } from "@/server/services/doa-serialize";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
-
-async function itemsWithUrls(claim: NonNullable<Awaited<ReturnType<typeof getDoaClaimById>>>) {
-  return Promise.all(
-    claim.items.map(async (item) => ({
-      ...item,
-      imageUrls: await Promise.all((item.imageKeys || []).map((k: string) => getDownloadUrl(k))),
-    }))
-  );
-}
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ claimId: string }> }) {
   try {
@@ -24,7 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ claimI
     const claim = await getDoaClaimById(claimId);
     if (!claim) return NextResponse.json({ error: "Claim not found" }, { status: 404 });
 
-    return NextResponse.json({ ...claim, items: await itemsWithUrls(claim) });
+    return NextResponse.json(await claimWithGroupUrls(claim));
   } catch (e) {
     log.error("Failed to get DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "GET" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });
@@ -56,7 +47,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (!claim) return NextResponse.json({ error: "Claim not found" }, { status: 404 });
 
-    return NextResponse.json({ ...claim, items: await itemsWithUrls(claim) });
+    return NextResponse.json(await claimWithGroupUrls(claim));
   } catch (e) {
     log.error("Failed to update DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "PATCH" });
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal server error" }, { status: 500 });

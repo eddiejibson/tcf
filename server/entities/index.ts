@@ -14,6 +14,8 @@ export { DoaClaim, DoaClaimStatus } from "./DoaClaim";
 export type { DoaClaimType } from "./DoaClaim";
 export { DoaItem } from "./DoaItem";
 export type { DoaItemType } from "./DoaItem";
+export { DoaPhotoGroup } from "./DoaPhotoGroup";
+export type { DoaPhotoGroupType } from "./DoaPhotoGroup";
 export { DoaReport } from "./DoaReport";
 export type { DoaReportType } from "./DoaReport";
 export { CreditTransaction, CreditType } from "./CreditTransaction";

@@ -38,7 +38,19 @@ export default function OrderDetailPage() {
 
   const [doaClaim, setDoaClaim] = useState<DoaClaimDetail | null>(null);
   const [showDoaForm, setShowDoaForm] = useState(false);
-  const [doaItems, setDoaItems] = useState<{ orderItemId: string; quantity: number; imageKeys: string[]; uploading: boolean; previews: string[] }[]>([]);
+  type DoaFormGroup = {
+    imageKeys: string[];
+    previews: string[];
+    uploading: boolean;
+    items: { orderItemId: string; quantity: number }[];
+  };
+  const emptyGroup = (): DoaFormGroup => ({
+    imageKeys: [],
+    previews: [],
+    uploading: false,
+    items: [{ orderItemId: "", quantity: 0 }],
+  });
+  const [doaGroups, setDoaGroups] = useState<DoaFormGroup[]>([]);
   const [doaSubmitting, setDoaSubmitting] = useState(false);
 
   const fetchOrder = useCallback(async () => {
@@ -142,35 +154,47 @@ export default function OrderDetailPage() {
     return { key, preview: URL.createObjectURL(compressed) };
   };
 
-  const handleDoaImageUpload = async (index: number, files: FileList) => {
-    setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, uploading: true } : item));
+  const updateGroup = (index: number, fn: (g: DoaFormGroup) => DoaFormGroup) =>
+    setDoaGroups((prev) => prev.map((g, i) => i === index ? fn(g) : g));
+
+  const handleDoaImageUpload = async (groupIndex: number, files: FileList) => {
+    updateGroup(groupIndex, (g) => ({ ...g, uploading: true }));
     for (const file of Array.from(files)) {
       try {
         const result = await uploadOneImage(file);
-        setDoaItems((prev) => prev.map((item, i) => i === index ? {
-          ...item,
-          imageKeys: [...item.imageKeys, result.key],
-          previews: [...item.previews, result.preview],
-        } : item));
+        updateGroup(groupIndex, (g) => ({
+          ...g,
+          imageKeys: [...g.imageKeys, result.key],
+          previews: [...g.previews, result.preview],
+        }));
       } catch {
         // Skip failed file, continue with the rest
       }
     }
-    setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, uploading: false } : item));
+    updateGroup(groupIndex, (g) => ({ ...g, uploading: false }));
   };
 
   const handleDoaSubmit = async () => {
-    const valid = doaItems.every((item) => item.orderItemId && item.quantity > 0 && item.imageKeys.length > 0);
+    const valid = doaGroups.every((g) =>
+      g.imageKeys.length > 0 &&
+      g.items.length > 0 &&
+      g.items.every((it) => it.orderItemId && it.quantity > 0)
+    );
     if (!valid) return;
     setDoaSubmitting(true);
     const res = await fetch(`/api/orders/${params.id}/doa`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: doaItems.map(({ orderItemId, quantity, imageKeys }) => ({ orderItemId, quantity, imageKeys })) }),
+      body: JSON.stringify({
+        groups: doaGroups.map((g) => ({
+          imageKeys: g.imageKeys,
+          items: g.items.map(({ orderItemId, quantity }) => ({ orderItemId, quantity })),
+        })),
+      }),
     });
     if (res.ok) {
       setShowDoaForm(false);
-      setDoaItems([]);
+      setDoaGroups([]);
       await fetchDoaClaim();
     }
     setDoaSubmitting(false);
@@ -372,124 +396,169 @@ export default function OrderDetailPage() {
                 <p className="text-white/50 text-sm">Claim submitted</p>
               </div>
               <div className="space-y-3">
-                {doaClaim.items.map((item) => (
-                  <div key={item.id} className="bg-white/5 rounded-xl p-3">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <p className="text-white/90 text-sm font-medium">{item.orderItem?.name || "Item"}</p>
-                        <p className="text-white/50 text-xs">Qty DOA: {item.quantity}</p>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        item.approved ? "bg-green-500/20 text-green-400"
-                          : item.denied ? "bg-red-500/20 text-red-400"
-                          : "bg-white/10 text-white/40"
-                      }`}>
-                        {item.approved ? "Approved" : item.denied ? "Denied" : "Pending"}
-                      </span>
-                    </div>
-                    {item.imageUrls?.length > 0 && (
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {item.imageUrls.map((url: string, i: number) => (
-                          <img key={i} src={url} alt="DOA evidence" className="w-16 h-16 object-cover rounded-lg" />
+                {doaClaim.groups.map((group) => (
+                  <div key={group.id} className="bg-white/5 rounded-xl p-3">
+                    {group.imageUrls?.length > 0 && (
+                      <div className="flex gap-2 mb-3 flex-wrap">
+                        {group.imageUrls.map((url: string, i: number) => (
+                          <img key={i} src={url} alt="DOA evidence" className="w-20 h-20 object-cover rounded-lg" />
                         ))}
                       </div>
                     )}
+                    <div className="space-y-1.5">
+                      {group.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <p className="text-white/90 text-sm font-medium">{item.orderItem?.name || "Item"}</p>
+                            <p className="text-white/50 text-xs">Qty DOA: {item.quantity}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            item.approved ? "bg-green-500/20 text-green-400"
+                              : item.denied ? "bg-red-500/20 text-red-400"
+                              : "bg-white/10 text-white/40"
+                          }`}>
+                            {item.approved ? "Approved" : item.denied ? "Denied" : "Pending"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : showDoaForm ? (
             <div>
-              <p className="text-white/50 text-sm mb-4">Report items that arrived dead. Add a photo of each item as evidence.</p>
+              <p className="text-white/50 text-sm mb-4">Upload a photo of each damaged group, then list the items shown in that photo. One photo can cover multiple items.</p>
               <div className="space-y-4">
-                {doaItems.map((doaItem, index) => (
-                  <div key={index} className="bg-white/5 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={doaItem.orderItemId}
-                        onChange={(e) => setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, orderItemId: e.target.value } : item))}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 [&>option]:bg-[#1a1f2e] [&>option]:text-white"
-                      >
-                        <option value="">Select item...</option>
-                        {order.items.map((oi) => (
-                          <option key={oi.id} value={oi.id}>{oi.name} (ordered: {oi.quantity})</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min={1}
-                        value={doaItem.quantity || ""}
-                        onChange={(e) => setDoaItems((prev) => prev.map((item, i) => i === index ? { ...item, quantity: parseInt(e.target.value) || 0 } : item))}
-                        placeholder="Qty"
-                        className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30"
-                      />
-                      <button
-                        onClick={() => setDoaItems((prev) => prev.filter((_, i) => i !== index))}
-                        className="text-white/30 hover:text-red-400 transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div>
-                      {doaItem.previews.length > 0 && (
-                        <div className="flex gap-2 mb-2 flex-wrap">
-                          {doaItem.previews.map((preview, pi) => (
-                            <div key={pi} className="relative">
-                              <img src={preview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
-                              <button
-                                onClick={() => setDoaItems((prev) => prev.map((item, i) => i === index ? {
-                                  ...item,
-                                  imageKeys: item.imageKeys.filter((_, ki) => ki !== pi),
-                                  previews: item.previews.filter((_, ki) => ki !== pi),
-                                } : item))}
-                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px]"
-                              >x</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <label className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 border border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 transition-colors">
-                        {doaItem.uploading ? (
-                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                          </svg>
+                {doaGroups.map((group, gIndex) => (
+                  <div key={gIndex} className="bg-white/5 rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        {group.previews.length > 0 && (
+                          <div className="flex gap-2 mb-2 flex-wrap">
+                            {group.previews.map((preview, pi) => (
+                              <div key={pi} className="relative">
+                                <img src={preview} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
+                                <button
+                                  onClick={() => updateGroup(gIndex, (g) => ({
+                                    ...g,
+                                    imageKeys: g.imageKeys.filter((_, ki) => ki !== pi),
+                                    previews: g.previews.filter((_, ki) => ki !== pi),
+                                  }))}
+                                  className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px]"
+                                >x</button>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                        <span className="text-white/40 text-xs">{doaItem.uploading ? "Uploading..." : doaItem.previews.length > 0 ? "Add more photos" : "Upload photos"}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.length) handleDoaImageUpload(index, e.target.files);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
+                        <label className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 border border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 transition-colors">
+                          {group.uploading ? (
+                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                          )}
+                          <span className="text-white/40 text-xs">{group.uploading ? "Uploading..." : group.previews.length > 0 ? "Add more photos" : "Upload photo(s)"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.length) handleDoaImageUpload(gIndex, e.target.files);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {doaGroups.length > 1 && (
+                        <button
+                          onClick={() => setDoaGroups((prev) => prev.filter((_, i) => i !== gIndex))}
+                          className="text-white/30 hover:text-red-400 transition-colors shrink-0"
+                          title="Remove group"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {group.items.map((item, iIndex) => (
+                        <div key={iIndex} className="flex items-center gap-3">
+                          <select
+                            value={item.orderItemId}
+                            onChange={(e) => updateGroup(gIndex, (g) => ({
+                              ...g,
+                              items: g.items.map((it, i) => i === iIndex ? { ...it, orderItemId: e.target.value } : it),
+                            }))}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 [&>option]:bg-[#1a1f2e] [&>option]:text-white"
+                          >
+                            <option value="">Select item...</option>
+                            {order.items.map((oi) => (
+                              <option key={oi.id} value={oi.id}>{oi.name} (ordered: {oi.quantity})</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity || ""}
+                            onChange={(e) => updateGroup(gIndex, (g) => ({
+                              ...g,
+                              items: g.items.map((it, i) => i === iIndex ? { ...it, quantity: parseInt(e.target.value) || 0 } : it),
+                            }))}
+                            placeholder="Qty"
+                            className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30"
+                          />
+                          {group.items.length > 1 && (
+                            <button
+                              onClick={() => updateGroup(gIndex, (g) => ({ ...g, items: g.items.filter((_, i) => i !== iIndex) }))}
+                              className="text-white/30 hover:text-red-400 transition-colors"
+                              title="Remove item"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => updateGroup(gIndex, (g) => ({ ...g, items: [...g.items, { orderItemId: "", quantity: 0 }] }))}
+                        className="text-white/50 hover:text-white text-xs transition-colors"
+                      >
+                        + Add another item to this photo
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-3 mt-4">
+              <div className="flex items-center gap-3 mt-4 flex-wrap">
                 <button
-                  onClick={() => setDoaItems((prev) => [...prev, { orderItemId: "", quantity: 0, imageKeys: [], uploading: false, previews: [] }])}
+                  onClick={() => setDoaGroups((prev) => [...prev, emptyGroup()])}
                   className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 text-sm font-medium transition-all"
                 >
-                  + Add Item
+                  + Add another photo
                 </button>
                 <button
                   onClick={handleDoaSubmit}
-                  disabled={doaSubmitting || doaItems.length === 0 || doaItems.some((i) => !i.orderItemId || !i.quantity || !i.imageKeys.length)}
+                  disabled={
+                    doaSubmitting ||
+                    doaGroups.length === 0 ||
+                    doaGroups.some((g) =>
+                      g.imageKeys.length === 0 ||
+                      g.items.length === 0 ||
+                      g.items.some((it) => !it.orderItemId || !it.quantity)
+                    )
+                  }
                   className="px-4 py-2 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white font-medium rounded-xl text-sm transition-all"
                 >
                   {doaSubmitting ? "Submitting..." : "Submit DOA Report"}
                 </button>
                 <button
-                  onClick={() => { setShowDoaForm(false); setDoaItems([]); }}
+                  onClick={() => { setShowDoaForm(false); setDoaGroups([]); }}
                   className="px-4 py-2 text-white/40 hover:text-white text-sm transition-colors"
                 >
                   Cancel
@@ -504,7 +573,7 @@ export default function OrderDetailPage() {
                   <button
                     onClick={() => {
                       setShowDoaForm(true);
-                      setDoaItems([{ orderItemId: "", quantity: 0, imageKeys: [], uploading: false, previews: [] }]);
+                      setDoaGroups([emptyGroup()]);
                     }}
                     className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 text-sm font-medium transition-all"
                   >

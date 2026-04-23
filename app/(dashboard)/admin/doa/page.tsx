@@ -22,17 +22,17 @@ export default function AdminDoaPage() {
   const [reports, setReports] = useState<Record<string, DoaReportDetail>>({});
   const [reportPanelShipment, setReportPanelShipment] = useState<string | null>(null);
 
-  const fetchGroups = useCallback(async () => {
-    setLoading(true);
+  const fetchGroups = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setLoading(true);
     setError(false);
     try {
       const res = await fetch("/api/admin/doa");
       if (!res.ok) throw new Error();
       setGroups(await res.json());
     } catch {
-      setError(true);
+      if (!silent) setError(true);
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
@@ -72,7 +72,7 @@ export default function AdminDoaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ actions: [{ itemId, action }] }),
     });
-    await fetchGroups();
+    await fetchGroups({ silent: true });
     setActionLoading(null);
   };
 
@@ -83,7 +83,7 @@ export default function AdminDoaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approveAll: true }),
     });
-    await fetchGroups();
+    await fetchGroups({ silent: true });
     setActionLoading(null);
   };
 
@@ -102,7 +102,7 @@ export default function AdminDoaPage() {
         setReports((prev) => ({ ...prev, [shipmentId]: detail }));
         setReportPanelShipment(shipmentId);
       }
-      await fetchGroups();
+      await fetchGroups({ silent: true });
     }
     setActionLoading(null);
   };
@@ -121,7 +121,7 @@ export default function AdminDoaPage() {
         <h1 className="text-2xl font-bold text-white mb-8">DOA Claims</h1>
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load DOA claims</p>
-          <button onClick={fetchGroups} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
+          <button onClick={() => fetchGroups()} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
           </button>
         </div>

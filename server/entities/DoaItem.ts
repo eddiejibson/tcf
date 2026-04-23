@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { DoaClaim } from "./DoaClaim";
+import { DoaPhotoGroup } from "./DoaPhotoGroup";
 import { OrderItem } from "./OrderItem";
 
 @Entity("doa_items")
@@ -13,6 +14,13 @@ export class DoaItem extends BaseEntityWithUpdate {
   claim: Relation<DoaClaim>;
 
   @Column({ type: "uuid" })
+  photoGroupId: string;
+
+  @ManyToOne(() => DoaPhotoGroup, (group) => group.items)
+  @JoinColumn({ name: "photoGroupId" })
+  photoGroup: Relation<DoaPhotoGroup>;
+
+  @Column({ type: "uuid" })
   orderItemId: string;
 
   @ManyToOne(() => OrderItem)
@@ -22,9 +30,6 @@ export class DoaItem extends BaseEntityWithUpdate {
   @Column({ type: "int" })
   quantity: number;
 
-  @Column({ type: "simple-array" })
-  imageKeys: string[];
-
   @Column({ type: "boolean", default: false })
   approved: boolean;
 
@@ -32,4 +37,4 @@ export class DoaItem extends BaseEntityWithUpdate {
   denied: boolean;
 }
 
-export type DoaItemType = Omit<DoaItem, "claim" | "orderItem">;
+export type DoaItemType = Omit<DoaItem, "claim" | "orderItem" | "photoGroup">;

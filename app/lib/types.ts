@@ -224,8 +224,7 @@ export type DoaClaimDetail = SerializedDoaClaim & {
 export type DoaShipmentGroup = {
   shipment: { id: string; name: string };
   claims: DoaClaimDetail[];
-  hasReport: boolean;
-  reportId: string | null;
+  latestReportId: string | null;
 };
 
 export type DoaReportDetail = SerializedDoaReport & {

@@ -61,8 +61,7 @@ export async function getAllDoaClaimsGrouped() {
   const shipmentMap = new Map<string, {
     shipment: { id: string; name: string };
     claims: typeof claims;
-    hasReport: boolean;
-    reportId: string | null;
+    latestReportId: string | null;
   }>();
 
   for (const claim of claims) {
@@ -71,8 +70,7 @@ export async function getAllDoaClaimsGrouped() {
       shipmentMap.set(shipmentId, {
         shipment: { id: shipmentId, name: claim.order.shipment?.name || "Catalog Order" },
         claims: [],
-        hasReport: false,
-        reportId: null,
+        latestReportId: null,
       });
     }
     shipmentMap.get(shipmentId)!.claims.push(claim);
@@ -81,9 +79,11 @@ export async function getAllDoaClaimsGrouped() {
   const reportRepo = db.getRepository(DoaReport);
   for (const [shipmentId, group] of shipmentMap) {
     if (shipmentId === "catalog") continue;
-    const report = await reportRepo.findOne({ where: { shipmentId } });
-    group.hasReport = !!report;
-    group.reportId = report?.id ?? null;
+    const report = await reportRepo.findOne({
+      where: { shipmentId },
+      order: { createdAt: "DESC" },
+    });
+    group.latestReportId = report?.id ?? null;
   }
 
   return Array.from(shipmentMap.values());
@@ -137,7 +137,7 @@ export async function generateDoaReport(shipmentId: string) {
     relations: ["items", "items.orderItem", "order", "order.user", "order.items"],
   });
 
-  const approvedItems: {
+  const reportableItems: {
     itemName: string;
     quantity: number;
     imageKeys: string[];
@@ -146,7 +146,7 @@ export async function generateDoaReport(shipmentId: string) {
   for (const claim of claims) {
     for (const item of claim.items) {
       if (!item.denied) {
-        approvedItems.push({
+        reportableItems.push({
           itemName: item.orderItem.name,
           quantity: item.quantity,
           imageKeys: item.imageKeys || [],
@@ -159,25 +159,25 @@ export async function generateDoaReport(shipmentId: string) {
   reportText += `Generated: ${new Date().toLocaleString("en-GB")}\n`;
   reportText += `${"=".repeat(50)}\n\n`;
 
-  if (approvedItems.length === 0) {
+  if (reportableItems.length === 0) {
     reportText += "No DOA items for this shipment.\n";
   } else {
-    for (const item of approvedItems) {
+    for (const item of reportableItems) {
       reportText += `Item: ${item.itemName}\n`;
       reportText += `Quantity DOA: ${item.quantity}\n`;
       reportText += `Images: ${(item.imageKeys || []).map((k) => k.split("/").pop()).join(", ")}\n`;
       reportText += `${"-".repeat(30)}\n`;
     }
-    reportText += `\nTotal DOA items: ${approvedItems.length}\n`;
+    reportText += `\nTotal DOA items: ${reportableItems.length}\n`;
   }
 
   let zipKey: string | null = null;
 
-  if (approvedItems.length > 0) {
+  if (reportableItems.length > 0) {
     const zip = new JSZip();
     zip.file("report.txt", reportText);
 
-    for (const item of approvedItems) {
+    for (const item of reportableItems) {
       for (const key of item.imageKeys || []) {
         try {
           const buffer = await getObjectBuffer(key);

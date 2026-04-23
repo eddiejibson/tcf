@@ -46,14 +46,14 @@ export default function AdminDoaPage() {
     }
   }, []);
 
-  const toggleShipment = (id: string, hasReport: boolean, reportId: string | null) => {
+  const toggleShipment = (id: string, latestReportId: string | null) => {
     setExpandedShipments((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-    if (hasReport && reportId && !reports[id]) {
-      loadReportDetail(id, reportId);
+    if (latestReportId && !reports[id]) {
+      loadReportDetail(id, latestReportId);
     }
   };
 
@@ -143,7 +143,7 @@ export default function AdminDoaPage() {
             <AnimatedListItem key={group.shipment.id}>
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
               <div
-                onClick={() => toggleShipment(group.shipment.id, group.hasReport, group.reportId)}
+                onClick={() => toggleShipment(group.shipment.id, group.latestReportId)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
@@ -159,18 +159,13 @@ export default function AdminDoaPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {group.hasReport && (
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-400">Report sent</span>
-                  )}
-                  {!group.hasReport && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleGenerateReport(group.shipment.id); }}
-                      disabled={actionLoading === `report-${group.shipment.id}`}
-                      className="px-3 py-1.5 bg-[#0984E3]/10 text-[#0984E3] rounded-lg text-xs font-medium hover:bg-[#0984E3]/20 transition-all disabled:opacity-50"
-                    >
-                      {actionLoading === `report-${group.shipment.id}` ? "Generating..." : "Send to Exporter"}
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleGenerateReport(group.shipment.id); }}
+                    disabled={actionLoading === `report-${group.shipment.id}`}
+                    className="px-3 py-1.5 bg-[#0984E3]/10 text-[#0984E3] rounded-lg text-xs font-medium hover:bg-[#0984E3]/20 transition-all disabled:opacity-50"
+                  >
+                    {actionLoading === `report-${group.shipment.id}` ? "Generating..." : "Generate Report"}
+                  </button>
                 </div>
               </div>
 

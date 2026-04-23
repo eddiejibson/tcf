@@ -7,6 +7,7 @@ import { useAuth } from "@/app/lib/auth-context";
 import { userHasPermission, Permission } from "@/app/lib/permissions";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import PaymentSection from "@/app/components/PaymentSection";
+import DoaItemPicker, { type DoaPickerOption } from "@/app/components/DoaItemPicker";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -486,21 +487,26 @@ export default function OrderDetailPage() {
                     </div>
 
                     <div className="space-y-2">
-                      {group.items.map((item, iIndex) => (
+                      {group.items.map((item, iIndex) => {
+                        const options: DoaPickerOption[] = order.items
+                          .map((oi) => {
+                            const used = doaGroups.reduce((sum, g, gi) => sum + g.items.reduce((s, it, ii) => {
+                              if (gi === gIndex && ii === iIndex) return s;
+                              return it.orderItemId === oi.id ? s + (it.quantity || 0) : s;
+                            }, 0), 0);
+                            return { id: oi.id, name: oi.name, remaining: oi.quantity - used, total: oi.quantity };
+                          })
+                          .filter((o) => o.remaining > 0 || o.id === item.orderItemId);
+                        return (
                         <div key={iIndex} className="flex items-center gap-3">
-                          <select
+                          <DoaItemPicker
+                            options={options}
                             value={item.orderItemId}
-                            onChange={(e) => updateGroup(gIndex, (g) => ({
+                            onChange={(id) => updateGroup(gIndex, (g) => ({
                               ...g,
-                              items: g.items.map((it, i) => i === iIndex ? { ...it, orderItemId: e.target.value } : it),
+                              items: g.items.map((it, i) => i === iIndex ? { ...it, orderItemId: id } : it),
                             }))}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 [&>option]:bg-[#1a1f2e] [&>option]:text-white"
-                          >
-                            <option value="">Select item...</option>
-                            {order.items.map((oi) => (
-                              <option key={oi.id} value={oi.id}>{oi.name} (ordered: {oi.quantity})</option>
-                            ))}
-                          </select>
+                          />
                           <input
                             type="number"
                             min={1}
@@ -524,7 +530,8 @@ export default function OrderDetailPage() {
                             </button>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                       <button
                         onClick={() => updateGroup(gIndex, (g) => ({ ...g, items: [...g.items, { orderItemId: "", quantity: 0 }] }))}
                         className="text-white/50 hover:text-white text-xs transition-colors"

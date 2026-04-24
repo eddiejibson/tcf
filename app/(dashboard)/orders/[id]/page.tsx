@@ -330,7 +330,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      {canManagePayments && order.status === "ACCEPTED" && user && user.creditBalance > 0 && Number(order.creditApplied) === 0 && (
+      {canManagePayments && order.status === "ACCEPTED" && Number(order.applicableCredit) > 0 && Number(order.creditApplied) === 0 && (
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -342,7 +342,7 @@ export default function OrderDetailPage() {
             />
             <div>
               <p className="text-emerald-400 font-medium text-sm">Use account credit</p>
-              <p className="text-emerald-400/60 text-xs">{formatPrice(user.creditBalance)} available - will be applied against this order</p>
+              <p className="text-emerald-400/60 text-xs">{formatPrice(Number(order.applicableCredit))} available - will be applied against this order</p>
             </div>
             {creditLoading && <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin ml-auto" />}
           </label>

@@ -205,6 +205,7 @@ export type UserOrderDetail = SerializedOrder & {
   payments: SerializedOrderPayment[];
   totals: OrderTotals;
   remainingBalance: number;
+  applicableCredit: number;
 };
 
 export type DoaItemInGroup = SerializedDoaItem & {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder } from "@/server/middleware/auth";
 import { getOrderById, updateOrderItems, submitOrder, calculateOrderTotals, getOrderRemainingBalance } from "@/server/services/order.service";
+import { getCompanyIdForUser, getCreditApplicableToOrder } from "@/server/services/credit.service";
 import { getDb } from "@/server/db/data-source";
 import { Order } from "@/server/entities/Order";
 import { isUuid } from "@/server/utils";
@@ -23,7 +24,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
   }));
-  return NextResponse.json({ ...order, items, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order) });
+  const companyId = order.userId ? await getCompanyIdForUser(order.userId) : null;
+  const applicableCredit = companyId ? await getCreditApplicableToOrder(companyId, id) : 0;
+  return NextResponse.json({ ...order, items, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order), applicableCredit });
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

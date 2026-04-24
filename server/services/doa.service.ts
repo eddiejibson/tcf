@@ -7,7 +7,8 @@ import { Order } from "../entities/Order";
 import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
-import { addDoaCredit, getCompanyIdForUser } from "./credit.service";
+import { syncDoaCredit, getCompanyIdForUser } from "./credit.service";
+import { Company } from "../entities/Company";
 import { generateDoaReportPdfBuffer, type DoaPdfGroup } from "./doa-pdf.service";
 import JSZip from "jszip";
 
@@ -155,6 +156,8 @@ export async function updateDoaItemStates(
 
   await claimRepo.update(claimId, { status: DoaClaimStatus.REVIEWED });
 
+  await syncDoaCreditForClaim(claimId);
+
   return getDoaClaimById(claimId);
 }
 
@@ -166,7 +169,53 @@ export async function approveAllItemsForClaim(claimId: string) {
   await itemRepo.update({ claimId }, { approved: true, denied: false });
   await claimRepo.update(claimId, { status: DoaClaimStatus.REVIEWED });
 
+  await syncDoaCreditForClaim(claimId);
+
   return getDoaClaimById(claimId);
+}
+
+/**
+ * Reconciles the company's DOA credit for this claim against the currently
+ * approved items. Idempotent — posts only the delta vs. prior DOA_CREDIT
+ * transactions. Safe to call every time item approval state changes.
+ */
+export async function syncDoaCreditForClaim(claimId: string) {
+  const claim = await getDoaClaimById(claimId);
+  if (!claim || !claim.order?.userId) return;
+
+  // Credit must reflect what the company actually paid.
+  // Use the higher of order.discountPercent (snapshot at order time) and the
+  // company's current discount — some older orders have 0 snapshots where
+  // the company's standard discount should have applied.
+  const db = await getDb();
+  const companyId = await getCompanyIdForUser(claim.order.userId);
+  const company = companyId ? await db.getRepository(Company).findOneBy({ id: companyId }) : null;
+  const orderDiscountPct = Number(claim.order.discountPercent) || 0;
+  const companyDiscountPct = Number(company?.discount) || 0;
+  const discountPct = Math.max(orderDiscountPct, companyDiscountPct);
+  const discountFactor = 1 - discountPct / 100;
+  let desired = 0;
+  for (const group of claim.photoGroups || []) {
+    for (const item of group.items || []) {
+      if (item.approved) {
+        const base = item.quantity * Number(item.orderItem.unitPrice);
+        const surchargePct = Number(item.orderItem.surcharge) || 0;
+        desired += base * (1 + surchargePct / 100) * discountFactor;
+      }
+    }
+  }
+  desired = Number(desired.toFixed(2));
+
+  try {
+    if (!companyId) {
+      log.error(`Cannot sync DOA credit for claim ${claimId}: user has no company`, new Error("no company"));
+      return;
+    }
+    const shipmentName = claim.order.shipment?.name || "DOA";
+    await syncDoaCredit(companyId, claimId, desired, `DOA credit: ${shipmentName}`);
+  } catch (e) {
+    log.error(`Failed to sync DOA credit for claim ${claimId}`, e);
+  }
 }
 
 type ReportableGroup = {
@@ -263,30 +312,7 @@ export async function generateDoaReport(shipmentId: string) {
 
   for (const claim of claims) {
     await claimRepo.update(claim.id, { status: DoaClaimStatus.REPORTED });
-
-    // Auto-credit user for approved DOA items (item value only, no freight/VAT)
-    let creditAmount = 0;
-    for (const group of claim.photoGroups || []) {
-      for (const item of group.items || []) {
-        if (item.approved) {
-          creditAmount += item.quantity * Number(item.orderItem.unitPrice);
-        }
-      }
-    }
-    if (creditAmount > 0 && claim.order.userId) {
-      try {
-        const companyId = await getCompanyIdForUser(claim.order.userId);
-        if (!companyId) throw new Error("User has no company — cannot credit");
-        await addDoaCredit(
-          companyId,
-          creditAmount,
-          `DOA credit: ${shipment.name}`,
-          claim.id
-        );
-      } catch (e) {
-        log.error(`Failed to add DOA credit for claim ${claim.id}`, e);
-      }
-    }
+    await syncDoaCreditForClaim(claim.id);
   }
 
   return report;

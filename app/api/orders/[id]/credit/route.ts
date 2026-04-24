@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
 import { getOrderById, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
-import { applyCredit, removeAppliedCredit, getCreditBalance, getCompanyIdForUser } from "@/server/services/credit.service";
+import { applyCredit, removeAppliedCredit, getCreditBalance, getCompanyIdForUser, getCreditApplicableToOrder } from "@/server/services/credit.service";
 import { OrderStatus } from "@/server/entities/Order";
 import { Permission } from "@/server/lib/permissions";
 import { isUuid } from "@/server/utils";
@@ -34,13 +34,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ ...updated, totals, creditBalance: balance });
   }
 
-  // Apply credit
+  // Apply credit — cap by credit earned from this order (can't apply DOA credit from X back to X).
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0, order.discountPercent);
-  const balance = await getCreditBalance(companyId);
-  const toApply = Math.min(balance, totals.total);
+  const applicable = await getCreditApplicableToOrder(companyId, id);
+  const toApply = Math.min(applicable, totals.total);
 
   if (toApply <= 0) {
-    return NextResponse.json({ error: "No credit available to apply" }, { status: 400 });
+    return NextResponse.json({ error: "No credit available to apply to this order" }, { status: 400 });
   }
 
   const result = await applyCredit(id, companyId, toApply);

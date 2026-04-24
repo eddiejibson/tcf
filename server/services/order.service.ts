@@ -261,7 +261,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
       }
     }
 
-    // Auto-apply credit if user opted in at submission
+    // Auto-apply credit if user opted in at submission. applyCredit internally
+    // caps by credit-applicable-to-this-order, so DOA credit earned from this
+    // order cannot be applied back to it.
     if (order.useCredit && !Number(order.creditApplied) && order.userId) {
       const companyId = await getCompanyIdForUser(order.userId);
       if (companyId) {

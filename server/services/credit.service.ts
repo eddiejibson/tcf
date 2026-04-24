@@ -135,10 +135,32 @@ export async function getCreditEarnedFromOrder(companyId: string, orderId: strin
   return Number(row?.total) || 0;
 }
 
+/**
+ * Sum of positive manual credit grants that were posted AFTER the order was
+ * created. Manual credit only applies to orders placed from that point on.
+ */
+export async function getManualCreditAfter(companyId: string, orderCreatedAt: Date): Promise<number> {
+  const db = await getDb();
+  const row = await db.getRepository(CreditTransaction)
+    .createQueryBuilder("ct")
+    .where("ct.companyId = :companyId", { companyId })
+    .andWhere("ct.type = :type", { type: CreditType.MANUAL_ADJUSTMENT })
+    .andWhere("ct.amount > 0")
+    .andWhere("ct.createdAt > :createdAt", { createdAt: orderCreatedAt })
+    .select("COALESCE(SUM(ct.amount), 0)", "total")
+    .getRawOne<{ total: string }>();
+  return Number(row?.total) || 0;
+}
+
 export async function getCreditApplicableToOrder(companyId: string, orderId: string): Promise<number> {
+  const db = await getDb();
+  const order = await db.getRepository(Order).findOneBy({ id: orderId });
+  if (!order) return 0;
+
   const balance = await getCreditBalance(companyId);
-  const excluded = await getCreditEarnedFromOrder(companyId, orderId);
-  return Math.max(0, balance - excluded);
+  const doaFromThisOrder = await getCreditEarnedFromOrder(companyId, orderId);
+  const manualAfterOrder = await getManualCreditAfter(companyId, order.createdAt);
+  return Math.max(0, balance - doaFromThisOrder - manualAfterOrder);
 }
 
 export async function applyCredit(orderId: string, companyId: string, amount: number) {

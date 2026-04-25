@@ -1,22 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getDb } from "@/server/db/data-source";
 import { Order, OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPayment, OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { User, UserRole } from "@/server/entities/User";
+import { WebhookEvent } from "@/server/entities/WebhookEvent";
 import { log } from "@/server/logger";
 import { sendOrderPaidNotification } from "@/server/services/email.service";
 import { calculateOrderTotals, formatPrice, getOrderById, confirmOrderPayment, checkOrderFullyPaid } from "@/server/services/order.service";
 
 const OK = NextResponse.json({ ok: true });
+const PROVIDER = "square";
 
 function verifySignature(body: string, signature: string, url: string): boolean {
   const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
   if (!key) return false;
-  const hmac = createHmac("sha256", key)
+  const expected = createHmac("sha256", key)
     .update(url + body)
     .digest("base64");
-  return hmac === signature;
+  // Constant-time compare to avoid leaking timing info on signature checks.
+  if (expected.length !== signature.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns true on first observation of this event ID; false if it's a replay.
+ * Square is allowed to retry webhooks (per their docs) — we must not double-apply.
+ */
+async function recordEventIfNew(eventId: string, eventType: string | null): Promise<boolean> {
+  if (!eventId) return true;
+  const db = await getDb();
+  try {
+    await db.getRepository(WebhookEvent).insert({
+      provider: PROVIDER,
+      eventId,
+      eventType,
+    });
+    return true;
+  } catch (e) {
+    // Unique constraint violation = already processed
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("UQ_webhook_events_provider_eventId") || msg.includes("duplicate key")) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 async function findOrderPayment(paymentId: string): Promise<OrderPayment | null> {
@@ -168,10 +200,24 @@ export async function POST(request: NextRequest) {
   }
 
   const eventType = event.type as string | undefined;
+  const eventId = event.event_id as string | undefined;
   const data = (event.data as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
+
+  // Idempotency: short-circuit replays before doing any work.
+  if (eventId) {
+    const isNew = await recordEventIfNew(eventId, eventType || null);
+    if (!isNew) {
+      log.info("Square webhook: replay ignored", { route: R, meta: { eventId, eventType } });
+      return OK;
+    }
+  }
 
   try {
     switch (eventType) {
+      // payment.created fires when a payment is first created; payment.updated
+      // fires on each state transition. Either can arrive first depending on
+      // network timing — handle both with the same status-based dispatch.
+      case "payment.created":
       case "payment.updated": {
         const payment = data?.payment as Record<string, unknown> | undefined;
         if (!payment) break;
@@ -191,11 +237,28 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "dispute.created":
+      case "dispute.state.updated":
+      case "dispute.evidence.created":
+      case "dispute.evidence.updated": {
+        // Surface chargeback events so the team is notified — handled via logs
+        // (and Logtail alerts), no automatic state changes.
+        log.warn("Square webhook: dispute event", {
+          route: R,
+          meta: { eventType, eventId, dispute: data?.dispute as Record<string, unknown> | undefined },
+        });
+        break;
+      }
+
       default:
+        log.info("Square webhook: ignored event type", { route: R, meta: { eventType } });
         break;
     }
   } catch (e) {
-    log.error("Square webhook processing failed", e, { route: R, meta: { eventType } });
+    log.error("Square webhook processing failed", e, { route: R, meta: { eventType, eventId } });
+    // Returning 500 lets Square retry — but only when our processing failed,
+    // not on parse/signature problems (those return early above).
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return OK;

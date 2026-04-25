@@ -3,7 +3,7 @@ import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/
 import { getOrderById, addOrderPayment, confirmOrderPayment, checkOrderFullyPaid, getOrderRemainingBalance } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
-import { processCardPayment } from "@/server/services/payment.service";
+import { processCardPayment, SquareApiError, squareErrorMessage } from "@/server/services/payment.service";
 import { Permission } from "@/server/lib/permissions";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Order must be accepted before payment" }, { status: 400 });
   }
 
-  const { sourceId, amount: rawAmount } = await request.json();
+  const { sourceId, verificationToken, amount: rawAmount } = await request.json();
   if (!sourceId) return NextResponse.json({ error: "Missing sourceId" }, { status: 400 });
 
   const remaining = getOrderRemainingBalance(order);
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const totalPence = Math.round(amount * 100);
 
   try {
-    const result = await processCardPayment(sourceId, totalPence, id);
+    const result = await processCardPayment(sourceId, totalPence, id, verificationToken);
 
     if (result.status === "COMPLETED") {
       const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId, OrderPaymentStatus.COMPLETED);
@@ -42,7 +42,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await checkOrderFullyPaid(id);
     return NextResponse.json({ status: result.status, paymentId: payment.id });
   } catch (e) {
-    log.error("Square card payment failed", e, { route: "/api/orders/[id]/payment/charge", method: "POST", meta: { orderId: id } });
+    log.error("Square card payment failed", e, { route: "/api/orders/[id]/payment/charge", method: "POST", meta: { orderId: id, code: e instanceof SquareApiError ? e.code : null } });
+    if (e instanceof SquareApiError) {
+      return NextResponse.json({
+        error: squareErrorMessage(e),
+        code: e.code,
+        verificationRequired: e.code === "CARD_DECLINED_VERIFICATION_REQUIRED",
+      }, { status: 400 });
+    }
     const message = e instanceof Error ? e.message : "Payment failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }

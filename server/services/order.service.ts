@@ -12,7 +12,7 @@ import type { InvoiceData } from "../../app/lib/generate-invoice";
 import { applyCredit, refundCredit, getCompanyIdForUser } from "./credit.service";
 import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
-import { getUserDiscount, applyDiscount } from "../lib/discount";
+import { getUserDiscount } from "../lib/discount";
 import { OrderPayment, OrderPaymentStatus, OrderPaymentMethod } from "../entities/OrderPayment";
 
 const SHIPPING_COST = 30;
@@ -121,11 +121,12 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
     userId,
     shipmentId,
     status: OrderStatus.DRAFT,
+    discountPercent: discountPct,
     items: items.map((item) => ({
       productId: item.productId,
       name: item.name,
       quantity: item.quantity,
-      unitPrice: applyDiscount(item.unitPrice, discountPct),
+      unitPrice: item.unitPrice,
       substituteProductId: item.substituteProductId || null,
       substituteName: item.substituteName || null,
     })),
@@ -139,6 +140,9 @@ export async function createCatalogOrder(userId: string, items: { catalogProduct
   const orderRepo = db.getRepository(Order);
   const catalogRepo = db.getRepository(CatalogProduct);
 
+  // Discount stays at order level (Order.discountPercent). Item unitPrice
+  // holds the raw catalog price so the admin UI shows the breakdown and
+  // can't accidentally re-apply the discount on top.
   const discountPct = await getUserDiscount(userId);
 
   const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number }[] = [];
@@ -150,7 +154,7 @@ export async function createCatalogOrder(userId: string, items: { catalogProduct
       catalogProductId: product.id,
       name: product.name,
       quantity: item.quantity,
-      unitPrice: applyDiscount(Number(product.price), discountPct),
+      unitPrice: Number(product.price),
     });
   }
 
@@ -158,6 +162,7 @@ export async function createCatalogOrder(userId: string, items: { catalogProduct
     userId,
     shipmentId: null,
     status: OrderStatus.DRAFT,
+    discountPercent: discountPct,
     items: orderItems.map((item) => ({
       productId: null,
       catalogProductId: item.catalogProductId,
@@ -542,7 +547,7 @@ export async function createAdminOrder(
       latinName: product.latinName || null,
       categoryName: product.category?.name || null,
       quantity: item.quantity,
-      unitPrice: applyDiscount(Number(product.price), discountPct),
+      unitPrice: Number(product.price),
       surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }
@@ -554,6 +559,7 @@ export async function createAdminOrder(
     status: OrderStatus.ACCEPTED,
     notes: notes || null,
     includeShipping: includeShipping || false,
+    discountPercent: discountPct,
   });
   const savedOrder = await orderRepo.save(order);
 
@@ -651,7 +657,7 @@ export async function createAdminDraftOrder(
       catalogProductId: product.id,
       name: product.name,
       quantity: item.quantity,
-      unitPrice: applyDiscount(Number(product.price), discountPct),
+      unitPrice: Number(product.price),
       surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }
@@ -662,6 +668,7 @@ export async function createAdminDraftOrder(
     status: OrderStatus.DRAFT,
     notes: notes || null,
     includeShipping: includeShipping || false,
+    discountPercent: discountPct,
   } as Partial<Order>);
   const savedOrder = await orderRepo.save(order);
 
@@ -715,6 +722,13 @@ export async function updateAdminDraftOrder(
   const effectiveUserId = (userId !== undefined ? userId : order.userId) || null;
   const discountPct = effectiveUserId ? await getUserDiscount(effectiveUserId) : 0;
 
+  // Keep order.discountPercent in sync with the customer's company discount
+  // so the admin breakdown stays correct across customer reassignment.
+  if (Number(order.discountPercent) !== discountPct) {
+    order.discountPercent = discountPct;
+    await orderRepo.save(order);
+  }
+
   const orderItems: { catalogProductId: string; name: string; quantity: number; unitPrice: number; surcharge: number }[] = [];
   for (const item of items) {
     const product = await catalogRepo.findOneBy({ id: item.catalogProductId });
@@ -723,7 +737,7 @@ export async function updateAdminDraftOrder(
       catalogProductId: product.id,
       name: product.name,
       quantity: item.quantity,
-      unitPrice: applyDiscount(Number(product.price), discountPct),
+      unitPrice: Number(product.price),
       surcharge: item.surcharge ?? (Number(product.surcharge) || 0),
     });
   }

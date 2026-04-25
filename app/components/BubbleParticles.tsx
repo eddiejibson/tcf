@@ -1,23 +1,37 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 interface BubbleParticlesProps {
   mobile?: boolean;
 }
 
+interface Bubble {
+  size: number;
+  left: number;
+  duration: number;
+  delay: number;
+  drift: number;
+  key: number;
+}
+
 export default function BubbleParticles({ mobile = false }: BubbleParticlesProps) {
   const count = mobile ? 10 : 18;
+  // Generate bubble positions on the client only — Math.random() during SSR
+  // and the initial client render would mismatch and break hydration.
+  const [bubbles, setBubbles] = useState<Bubble[]>([]);
 
-  const bubbles = useMemo(() => {
-    return Array.from({ length: count }, (_, i) => {
-      const size = 3 + Math.random() * 9;
-      const left = Math.random() * 100;
-      const duration = 8 + Math.random() * 12;
-      const delay = Math.random() * duration;
-      const drift = -20 + Math.random() * 40;
-      return { size, left, duration, delay, drift, key: i };
-    });
+  useEffect(() => {
+    setBubbles(
+      Array.from({ length: count }, (_, i) => {
+        const size = 3 + Math.random() * 9;
+        const left = Math.random() * 100;
+        const duration = 8 + Math.random() * 12;
+        const delay = Math.random() * duration;
+        const drift = -20 + Math.random() * 40;
+        return { size, left, duration, delay, drift, key: i };
+      })
+    );
   }, [count]);
 
   return (

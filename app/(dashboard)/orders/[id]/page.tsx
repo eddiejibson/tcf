@@ -372,6 +372,7 @@ export default function OrderDetailPage() {
         <PaymentSection
           orderId={order.id}
           order={order}
+          buyer={user ? { email: user.email, country: "GB" } : null}
           apiBasePath={`/api/orders/${order.id}/payment`}
           canManagePayments={canManagePayments}
           canViewPayments={canViewPayments}

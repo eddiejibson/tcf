@@ -2,33 +2,75 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export interface BuyerContact {
+  givenName?: string | null;
+  familyName?: string | null;
+  email?: string | null;
+  country?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postalCode?: string | null;
+  addressLines?: string[] | null;
+  phone?: string | null;
+}
+
 interface SquareCardFormProps {
   orderId: string;
   total: string;
+  amount: number; // in major units (£), used for 3DS verifyBuyer
+  buyer?: BuyerContact | null;
   onSuccess: () => void;
   onCancel: () => void;
   chargeUrl?: string;
 }
 
+interface SquareVerifyBuyerDetails {
+  amount: string;
+  currencyCode: string;
+  intent: "CHARGE" | "STORE";
+  customerInitiated: boolean;
+  sellerKeyedIn: boolean;
+  billingContact: {
+    givenName?: string;
+    familyName?: string;
+    email?: string;
+    country?: string;
+    city?: string;
+    region?: string;
+    postalCode?: string;
+    addressLines?: string[];
+    phone?: string;
+  };
+}
+
+interface SquarePayments {
+  card: (options?: Record<string, unknown>) => Promise<SquareCard>;
+  verifyBuyer: (
+    sourceId: string,
+    details: SquareVerifyBuyerDetails
+  ) => Promise<{ token: string }>;
+}
+
+interface SquareCard {
+  attach: (selector: string) => Promise<void>;
+  tokenize: () => Promise<{ status: string; token?: string; errors?: { message: string }[] }>;
+  destroy: () => void;
+}
+
 declare global {
   interface Window {
     Square?: {
-      payments: (appId: string, locationId: string) => Promise<{
-        card: (options?: Record<string, unknown>) => Promise<{
-          attach: (selector: string) => Promise<void>;
-          tokenize: () => Promise<{ status: string; token?: string; errors?: { message: string }[] }>;
-          destroy: () => void;
-        }>;
-      }>;
+      payments: (appId: string, locationId: string) => Promise<SquarePayments>;
     };
   }
 }
 
-export default function SquareCardForm({ orderId, total, onSuccess, onCancel, chargeUrl }: SquareCardFormProps) {
+export default function SquareCardForm({ orderId, total, amount, buyer, onSuccess, onCancel, chargeUrl }: SquareCardFormProps) {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const cardRef = useRef<{ tokenize: () => Promise<{ status: string; token?: string; errors?: { message: string }[] }>; destroy: () => void } | null>(null);
+  const cardRef = useRef<SquareCard | null>(null);
+  const paymentsRef = useRef<SquarePayments | null>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
@@ -60,6 +102,7 @@ export default function SquareCardForm({ orderId, total, onSuccess, onCancel, ch
         if (!window.Square) throw new Error("Payment SDK not available");
 
         const payments = await window.Square.payments(config.appId, config.locationId);
+        paymentsRef.current = payments;
         const card = await payments.card({
           style: {
             ".input-container": {
@@ -109,7 +152,7 @@ export default function SquareCardForm({ orderId, total, onSuccess, onCancel, ch
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!cardRef.current || processing) return;
+    if (!cardRef.current || !paymentsRef.current || processing) return;
 
     setProcessing(true);
     setError(null);
@@ -123,10 +166,45 @@ export default function SquareCardForm({ orderId, total, onSuccess, onCancel, ch
         return;
       }
 
+      // 3DS / SCA buyer verification (Strong Customer Authentication).
+      // Required by Square for many UK/EU cards — the bank may pop a challenge.
+      // We must surface any thrown error and pass the resulting token to the
+      // server so Square treats the payment as authenticated.
+      let verificationToken: string | undefined;
+      try {
+        const billing = buyer || {};
+        const billingContact: SquareVerifyBuyerDetails["billingContact"] = {};
+        if (billing.givenName) billingContact.givenName = billing.givenName;
+        if (billing.familyName) billingContact.familyName = billing.familyName;
+        if (billing.email) billingContact.email = billing.email;
+        if (billing.country) billingContact.country = billing.country;
+        if (billing.city) billingContact.city = billing.city;
+        if (billing.region) billingContact.region = billing.region;
+        if (billing.postalCode) billingContact.postalCode = billing.postalCode;
+        if (billing.phone) billingContact.phone = billing.phone;
+        if (billing.addressLines && billing.addressLines.length) {
+          billingContact.addressLines = billing.addressLines;
+        }
+        const verification = await paymentsRef.current.verifyBuyer(result.token, {
+          amount: amount.toFixed(2),
+          currencyCode: "GBP",
+          intent: "CHARGE",
+          customerInitiated: true,
+          sellerKeyedIn: false,
+          billingContact,
+        });
+        verificationToken = verification.token;
+      } catch (verifyErr) {
+        const msg = verifyErr instanceof Error ? verifyErr.message : "Card verification was cancelled or failed";
+        setError(msg);
+        setProcessing(false);
+        return;
+      }
+
       const res = await fetch(chargeUrl || `/api/orders/${orderId}/payment/charge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId: result.token }),
+        body: JSON.stringify({ sourceId: result.token, verificationToken }),
       });
 
       const data = await res.json();
@@ -147,7 +225,7 @@ export default function SquareCardForm({ orderId, total, onSuccess, onCancel, ch
       setError("Something went wrong. Please try again.");
       setProcessing(false);
     }
-  }, [orderId, processing, onSuccess]);
+  }, [orderId, processing, onSuccess, amount, buyer, chargeUrl]);
 
   return (
     <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">

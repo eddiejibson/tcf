@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import SquareCardForm from "@/app/components/SquareCardForm";
+import SquareCardForm, { type BuyerContact } from "@/app/components/SquareCardForm";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -28,6 +28,7 @@ export interface PaymentSectionOrder {
 interface PaymentSectionProps {
   orderId: string;
   order: PaymentSectionOrder;
+  buyer?: BuyerContact | null;
   apiBasePath: string;
   canManagePayments: boolean;
   canViewPayments: boolean;
@@ -39,6 +40,7 @@ interface PaymentSectionProps {
 export default function PaymentSection({
   orderId,
   order,
+  buyer,
   apiBasePath,
   canManagePayments,
   canViewPayments,
@@ -254,6 +256,8 @@ export default function PaymentSection({
           <SquareCardForm
             orderId={orderId}
             total={formatPrice(order.totals.total)}
+            amount={getPaymentAmount() ?? order.remainingBalance}
+            buyer={buyer}
             chargeUrl={chargeUrl}
             onSuccess={() => { setShowCardForm(false); onPaymentChange(); }}
             onCancel={() => setShowCardForm(false)}

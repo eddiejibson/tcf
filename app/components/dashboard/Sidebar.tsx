@@ -4,9 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { useAuth } from "@/app/lib/auth-context";
 import { userHasPermission, Permission } from "@/app/lib/permissions";
 import FlipNumber from "@/app/components/FlipNumber";
+import CreditHistoryModal from "@/app/components/CreditHistoryModal";
 
 const adminLinks = [
   { href: "/admin/users", label: "Users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
@@ -59,6 +61,7 @@ function isCompanyAdmin(user: { role: string; companyRole?: string | null; compa
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [showCreditHistory, setShowCreditHistory] = useState(false);
 
   const isAdmin = user?.role === "ADMIN";
   const links = isAdmin ? adminLinks : user ? getUserLinks(user) : [];
@@ -109,13 +112,17 @@ export default function Sidebar() {
 
       <div className="p-4 border-t border-white/5">
         {user && user.creditBalance > 0 && (
-          <div className="px-3 py-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <button
+            onClick={() => setShowCreditHistory(true)}
+            className="w-full text-left px-3 py-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/15 transition-colors"
+          >
             <p className="text-emerald-400/60 text-[10px] uppercase tracking-wider font-medium">Account Credit</p>
             <p className="text-emerald-400 text-sm font-bold tabular-nums">
               <FlipNumber value={`£${Number(user.creditBalance).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             </p>
-          </div>
+          </button>
         )}
+        <CreditHistoryModal open={showCreditHistory} onClose={() => setShowCreditHistory(false)} />
         <div className="px-3 mb-3">
           <p className="text-white/80 text-sm font-medium truncate">{user?.email}</p>
           <p className="text-white/30 text-xs">{user ? getRoleDisplay(user) : ""}</p>

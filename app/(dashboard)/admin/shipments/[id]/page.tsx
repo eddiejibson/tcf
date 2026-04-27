@@ -264,6 +264,16 @@ export default function AdminShipmentDetailPage() {
     fetchShipment();
   }, [fetchShipment]);
 
+  // Default the session price-per-box to the shipment's freight cost so admins don't
+  // have to retype it for every packing-list import. Only sets when the field is blank
+  // — admin overrides stand.
+  useEffect(() => {
+    if (!shipment) return;
+    if (pricePerBox !== "") return;
+    const cost = Number(shipment.freightCost);
+    if (cost > 0) setPricePerBox(String(cost));
+  }, [shipment, pricePerBox]);
+
   // Preload admin-selectable users for the "create new order" flow in the mapping step.
   // The /api/admin/users endpoint clamps limit to 100, so we paginate to collect all users —
   // otherwise newer or older customers (past index 100) don't appear in the picker.
@@ -1216,7 +1226,11 @@ export default function AdminShipmentDetailPage() {
       items: ReviewItem[];
       freightCharge: number | null;
       includeShipping: boolean;
+      boxCount: number | null;
+      freightPerBox: number | null;
     }[] = [];
+    const sessionPpb = parseFloat(pricePerBox);
+    const sessionPpbValid = !isNaN(sessionPpb) && sessionPpb > 0;
     for (let i = 0; i < orderMappings.length; i++) {
       const entry = reviewedOrders.get(i);
       if (!entry || entry.decision !== "queued") continue;
@@ -1228,12 +1242,15 @@ export default function AdminShipmentDetailPage() {
         entry.freightCharge.trim() === ""
           ? null
           : parseFloat(entry.freightCharge);
+      const boxesNum = entry.boxes.trim() === "" ? null : parseInt(entry.boxes, 10);
       queued.push({
         mapping: orderMappings[i],
         items: active,
         freightCharge:
           freightNum != null && !isNaN(freightNum) ? freightNum : null,
         includeShipping: entry.includeShipping,
+        boxCount: boxesNum != null && !isNaN(boxesNum) && boxesNum > 0 ? boxesNum : null,
+        freightPerBox: sessionPpbValid ? sessionPpb : null,
       });
     }
     if (queued.length === 0) return;
@@ -1260,7 +1277,7 @@ export default function AdminShipmentDetailPage() {
     const accepted = new Set<string>();
 
     for (let i = 0; i < queued.length; i++) {
-      const { mapping, items, freightCharge, includeShipping } = queued[i];
+      const { mapping, items, freightCharge, includeShipping, boxCount, freightPerBox } = queued[i];
       // Customer discount is persisted as Order.discountPercent — the totals calculation
       // applies it at subtotal level, so unit prices go through untouched.
       const discountPct = applyDiscountToTotals ? getMappingDiscountPct(mapping) : 0;
@@ -1307,6 +1324,10 @@ export default function AdminShipmentDetailPage() {
             status: "ACCEPTED",
             freightCharge,
             includeShipping,
+            // Persist box count + per-box cost from the packing-list review so the customer's
+            // order breakdown can show "N boxes × £X" for the freight line.
+            boxCount,
+            freightPerBox,
             // Persist the discount % on the order so order detail / invoice views can show
             // "N% customer discount applied" — 0 when the toggle is off, customer's company
             // discount when on. Unit prices sent above are already the post-discount values.

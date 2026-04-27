@@ -205,6 +205,10 @@ export default function OrderDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-8 text-white/40">Order not found</div>;
 
+  const boxCount = order.boxCount != null ? Number(order.boxCount) : 0;
+  const freightPerBox = order.freightPerBox != null ? Number(order.freightPerBox) : 0;
+  const showBoxBreakdown = boxCount > 0 && freightPerBox > 0 && order.totals.freight > 0;
+
   const canManagePayments = user ? userHasPermission(user, Permission.MANAGE_PAYMENTS) : false;
   const canViewPayments = user ? userHasPermission(user, Permission.VIEW_PAYMENTS) : false;
   const canViewDoa = user ? userHasPermission(user, Permission.VIEW_DOA) : false;
@@ -272,26 +276,23 @@ export default function OrderDetailPage() {
         <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
-            <span className="tabular-nums">
-              {order.totals.discount > 0 ? (
-                <>
-                  <span className="line-through text-white/30 mr-2">{formatPrice(order.totals.grossSubtotal)}</span>
-                  <span>{formatPrice(order.totals.subtotal)}</span>
-                </>
-              ) : (
-                formatPrice(order.totals.subtotal)
-              )}
-            </span>
+            <span className="tabular-nums">{formatPrice(order.totals.grossSubtotal)}</span>
           </div>
           {order.totals.discount > 0 && (
-            <div className="flex items-center justify-between text-green-400 text-sm">
-              <span>Discount ({Number(order.discountPercent)}%)</span>
-              <span className="tabular-nums">-{formatPrice(order.totals.discount)}</span>
-            </div>
+            <>
+              <div className="flex items-center justify-between text-green-400 text-sm">
+                <span>Discount ({Number(order.discountPercent)}%)</span>
+                <span className="tabular-nums">-{formatPrice(order.totals.discount)}</span>
+              </div>
+              <div className="flex items-center justify-between text-white/60 text-sm">
+                <span>Subtotal after discount</span>
+                <span className="tabular-nums">{formatPrice(order.totals.subtotal)}</span>
+              </div>
+            </>
           )}
           {order.totals.freight > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
-              <span>Freight</span>
+              <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${formatPrice(freightPerBox)})` : ""}</span>
               <span className="tabular-nums">{formatPrice(order.totals.freight)}</span>
             </div>
           )}

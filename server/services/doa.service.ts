@@ -211,8 +211,12 @@ export async function syncDoaCreditForClaim(claimId: string) {
       log.error(`Cannot sync DOA credit for claim ${claimId}: user has no company`, new Error("no company"));
       return;
     }
-    const shipmentName = claim.order.shipment?.name || "DOA";
-    await syncDoaCredit(companyId, claimId, desired, `DOA credit: ${shipmentName}`);
+    const orderRef = claim.order.id.slice(0, 8).toUpperCase();
+    const shipmentName = claim.order.shipment?.name;
+    const description = shipmentName
+      ? `DOA credit for order #${orderRef} (${shipmentName})`
+      : `DOA credit for order #${orderRef}`;
+    await syncDoaCredit(companyId, claimId, desired, description);
   } catch (e) {
     log.error(`Failed to sync DOA credit for claim ${claimId}`, e);
   }

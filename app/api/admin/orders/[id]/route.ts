@@ -109,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     // Save freight/adminNotes/boxLimits/discount FIRST so the invoice gets the correct values
-    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined || body.discountPercent !== undefined) {
+    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined || body.discountPercent !== undefined || body.boxCount !== undefined || body.freightPerBox !== undefined) {
       const db = await getDb();
       const update: Record<string, unknown> = {};
       if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
@@ -118,6 +118,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body.minBoxes !== undefined) update.minBoxes = body.minBoxes;
       if (body.includeShipping !== undefined) update.includeShipping = body.includeShipping;
       if (body.discountPercent !== undefined) update.discountPercent = body.discountPercent;
+      if (body.boxCount !== undefined) update.boxCount = body.boxCount;
+      if (body.freightPerBox !== undefined) update.freightPerBox = body.freightPerBox;
       await db.getRepository(Order).update(id, update);
     }
 

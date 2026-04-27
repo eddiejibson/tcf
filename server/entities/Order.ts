@@ -50,6 +50,14 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
   freightCharge: number | null;
 
+  // Captured at packing-list review time. Used by the order breakdown to show
+  // "N boxes × £X" — the actual boxes shipped, not a heuristic from item qtyPerBox.
+  @Column({ type: "int", nullable: true })
+  boxCount: number | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  freightPerBox: number | null;
+
   @Column({ type: "text", nullable: true })
   adminNotes: string | null;
 

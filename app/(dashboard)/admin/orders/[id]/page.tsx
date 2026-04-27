@@ -108,7 +108,11 @@ export default function AdminOrderDetailPage() {
     if (res.ok) {
       const data = await res.json();
       if (data.status === "DRAFT") {
-        router.replace(`/admin/orders/${params.id}/edit`);
+        if (data.shipmentId) {
+          router.replace(`/admin/shipments/${data.shipmentId}/edit`);
+        } else {
+          router.replace(`/admin/orders/${params.id}/edit`);
+        }
         return;
       }
       applyOrderData(data);

@@ -66,6 +66,9 @@ export async function GET() {
           : null,
       sourceOrderId: tx.type === CreditType.DOA_CREDIT && sourceOrder ? sourceOrder.id : null,
       sourceOrderRef: tx.type === CreditType.DOA_CREDIT && sourceOrder ? sourceOrder.id.slice(0, 8).toUpperCase() : null,
+      items: tx.items && tx.items.length
+        ? tx.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) }))
+        : null,
     };
   });
 

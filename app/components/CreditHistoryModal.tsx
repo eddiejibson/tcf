@@ -5,6 +5,12 @@ import { createPortal } from "react-dom";
 
 type CreditTxType = "DOA_CREDIT" | "MANUAL_ADJUSTMENT" | "CREDIT_APPLIED" | "CREDIT_REFUND";
 
+type CreditTxItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
 type CreditTx = {
   id: string;
   type: CreditTxType;
@@ -16,6 +22,7 @@ type CreditTx = {
   availableFrom: string | null;
   sourceOrderId: string | null;
   sourceOrderRef: string | null;
+  items: CreditTxItem[] | null;
 };
 
 function formatPrice(n: number) {
@@ -101,6 +108,21 @@ export default function CreditHistoryModal({ open, onClose }: { open: boolean; o
                     {isPositive ? "+" : "-"}{formatPrice(tx.amount)}
                   </p>
                 </div>
+                {tx.items && tx.items.length > 0 && (
+                  <ul className="mt-3 space-y-1.5 border-t border-white/5 pt-3">
+                    {tx.items.map((item, i) => (
+                      <li key={i} className="flex items-baseline justify-between gap-3 text-xs">
+                        <span className="text-white/70 truncate">
+                          <span className="text-white/40 tabular-nums mr-2">{item.quantity}×</span>
+                          {item.name}
+                        </span>
+                        <span className="text-white/50 tabular-nums shrink-0">
+                          {formatPrice(item.quantity * item.unitPrice)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {/* Where the credit went / came from */}
                 {tx.type === "CREDIT_APPLIED" && tx.orderRef && (
                   <p className="text-white/40 text-xs mt-2">Used on order #{tx.orderRef}</p>

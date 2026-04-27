@@ -1,5 +1,5 @@
 import { getDb } from "../db/data-source";
-import { CreditTransaction, CreditType } from "../entities/CreditTransaction";
+import { CreditTransaction, CreditType, CreditTransactionItem } from "../entities/CreditTransaction";
 import { Company } from "../entities/Company";
 import { User } from "../entities/User";
 import { Order } from "../entities/Order";
@@ -32,7 +32,12 @@ export async function getCreditHistory(companyId: string): Promise<CreditTransac
   });
 }
 
-export async function addManualCredit(companyId: string, amount: number, description: string) {
+export async function addManualCredit(
+  companyId: string,
+  amount: number,
+  description: string,
+  items: CreditTransactionItem[] | null = null,
+) {
   const db = await getDb();
   const companyRepo = db.getRepository(Company);
   const txRepo = db.getRepository(CreditTransaction);
@@ -45,6 +50,7 @@ export async function addManualCredit(companyId: string, amount: number, descrip
     type: CreditType.MANUAL_ADJUSTMENT,
     amount,
     description: description || "Manual adjustment",
+    items,
   });
   await txRepo.save(tx);
 
@@ -54,7 +60,13 @@ export async function addManualCredit(companyId: string, amount: number, descrip
   return { transaction: tx, newBalance: Number(company.creditBalance) };
 }
 
-export async function addDoaCredit(companyId: string, amount: number, description: string, doaClaimId: string) {
+export async function addDoaCredit(
+  companyId: string,
+  amount: number,
+  description: string,
+  doaClaimId: string,
+  items: CreditTransactionItem[] | null = null,
+) {
   const db = await getDb();
   const companyRepo = db.getRepository(Company);
   const txRepo = db.getRepository(CreditTransaction);
@@ -68,6 +80,7 @@ export async function addDoaCredit(companyId: string, amount: number, descriptio
     amount,
     description,
     doaClaimId,
+    items,
   });
   await txRepo.save(tx);
 
@@ -87,7 +100,8 @@ export async function syncDoaCredit(
   companyId: string,
   doaClaimId: string,
   desiredAmount: number,
-  description: string
+  description: string,
+  items: CreditTransactionItem[] | null = null,
 ) {
   const db = await getDb();
   const companyRepo = db.getRepository(Company);
@@ -109,6 +123,7 @@ export async function syncDoaCredit(
     amount: delta,
     description,
     doaClaimId,
+    items,
   });
   await txRepo.save(tx);
 

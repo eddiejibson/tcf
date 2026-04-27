@@ -106,7 +106,7 @@ export async function getAllDoaClaimsGrouped() {
   const shipmentMap = new Map<string, {
     shipment: { id: string; name: string };
     claims: typeof claims;
-    latestReportId: string | null;
+    reports: { id: string; createdAt: string }[];
   }>();
 
   for (const claim of claims) {
@@ -115,7 +115,7 @@ export async function getAllDoaClaimsGrouped() {
       shipmentMap.set(shipmentId, {
         shipment: { id: shipmentId, name: claim.order.shipment?.name || "Catalog Order" },
         claims: [],
-        latestReportId: null,
+        reports: [],
       });
     }
     shipmentMap.get(shipmentId)!.claims.push(claim);
@@ -124,11 +124,15 @@ export async function getAllDoaClaimsGrouped() {
   const reportRepo = db.getRepository(DoaReport);
   for (const [shipmentId, group] of shipmentMap) {
     if (shipmentId === "catalog") continue;
-    const report = await reportRepo.findOne({
+    const reports = await reportRepo.find({
       where: { shipmentId },
       order: { createdAt: "DESC" },
+      select: { id: true, createdAt: true },
     });
-    group.latestReportId = report?.id ?? null;
+    group.reports = reports.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    }));
   }
 
   return Array.from(shipmentMap.values());
@@ -195,12 +199,20 @@ export async function syncDoaCreditForClaim(claimId: string) {
   const discountPct = Math.max(orderDiscountPct, companyDiscountPct);
   const discountFactor = 1 - discountPct / 100;
   let desired = 0;
+  const itemsSnapshot: { name: string; quantity: number; unitPrice: number }[] = [];
   for (const group of claim.photoGroups || []) {
     for (const item of group.items || []) {
       if (item.approved) {
-        const base = item.quantity * Number(item.orderItem.unitPrice);
         const surchargePct = Number(item.orderItem.surcharge) || 0;
-        desired += base * (1 + surchargePct / 100) * discountFactor;
+        const effectiveUnitPrice = Number(
+          (Number(item.orderItem.unitPrice) * (1 + surchargePct / 100) * discountFactor).toFixed(2),
+        );
+        desired += item.quantity * effectiveUnitPrice;
+        itemsSnapshot.push({
+          name: item.orderItem.name,
+          quantity: item.quantity,
+          unitPrice: effectiveUnitPrice,
+        });
       }
     }
   }
@@ -216,7 +228,7 @@ export async function syncDoaCreditForClaim(claimId: string) {
     const description = shipmentName
       ? `DOA credit for order #${orderRef} (${shipmentName})`
       : `DOA credit for order #${orderRef}`;
-    await syncDoaCredit(companyId, claimId, desired, description);
+    await syncDoaCredit(companyId, claimId, desired, description, itemsSnapshot.length ? itemsSnapshot : null);
   } catch (e) {
     log.error(`Failed to sync DOA credit for claim ${claimId}`, e);
   }

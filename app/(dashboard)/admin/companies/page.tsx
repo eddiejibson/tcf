@@ -28,7 +28,24 @@ export default function AdminCompaniesPage() {
   const [creditCompanyId, setCreditCompanyId] = useState<string | null>(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditDescription, setCreditDescription] = useState("");
+  const [creditItems, setCreditItems] = useState<{ name: string; quantity: string; unitPrice: string }[]>([]);
   const [creditSaving, setCreditSaving] = useState(false);
+
+  const resetCreditForm = () => {
+    setCreditCompanyId(null);
+    setCreditAmount("");
+    setCreditDescription("");
+    setCreditItems([]);
+  };
+
+  const itemsTotal = creditItems.reduce((sum, row) => {
+    const qty = Number(row.quantity);
+    const price = Number(row.unitPrice);
+    if (!Number.isFinite(qty) || !Number.isFinite(price)) return sum;
+    return sum + qty * price;
+  }, 0);
+  const hasItems = creditItems.length > 0;
+  const effectiveAmount = hasItems ? itemsTotal.toFixed(2) : creditAmount;
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -128,31 +145,115 @@ export default function AdminCompaniesPage() {
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Adjust Credit for {companies.find((c) => c.id === creditCompanyId)?.name}</p>
           <form onSubmit={async (e) => {
             e.preventDefault();
-            if (!creditCompanyId || !creditAmount) return;
+            if (!creditCompanyId) return;
+            const amountNum = parseFloat(effectiveAmount);
+            if (!Number.isFinite(amountNum)) return;
             setCreditSaving(true);
+            const items = creditItems
+              .map((row) => ({
+                name: row.name.trim(),
+                quantity: Number(row.quantity),
+                unitPrice: Number(row.unitPrice),
+              }))
+              .filter((row) => row.name && Number.isFinite(row.quantity) && Number.isFinite(row.unitPrice));
             const res = await fetch(`/api/admin/companies/${creditCompanyId}/credit`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ amount: parseFloat(creditAmount), description: creditDescription }),
+              body: JSON.stringify({
+                amount: amountNum,
+                description: creditDescription,
+                items: items.length ? items : undefined,
+              }),
             });
             if (res.ok) {
-              setCreditCompanyId(null);
-              setCreditAmount("");
-              setCreditDescription("");
+              resetCreditForm();
               fetchCompanies();
             }
             setCreditSaving(false);
-          }} className="flex flex-wrap items-end gap-3 md:gap-4">
-            <div className="w-36">
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Amount</label>
-              <input type="number" step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm" placeholder="10.00" required autoFocus />
+          }} className="space-y-4">
+            <div className="flex flex-wrap items-end gap-3 md:gap-4">
+              <div className="w-36">
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">
+                  Amount{hasItems && <span className="text-white/30 normal-case tracking-normal ml-1">(from items)</span>}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={effectiveAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  readOnly={hasItems}
+                  className={`w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm tabular-nums ${hasItems ? "cursor-not-allowed text-white/70" : ""}`}
+                  placeholder="10.00"
+                  required={!hasItems}
+                  autoFocus
+                />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Description</label>
+                <input type="text" value={creditDescription} onChange={(e) => setCreditDescription(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm" placeholder="Reason for adjustment..." />
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Description</label>
-              <input type="text" value={creditDescription} onChange={(e) => setCreditDescription(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm" placeholder="Reason for adjustment..." />
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium">Items (optional)</label>
+                <button
+                  type="button"
+                  onClick={() => setCreditItems((rows) => [...rows, { name: "", quantity: "1", unitPrice: "" }])}
+                  className="text-[#0984E3] hover:text-[#0984E3]/80 text-xs font-medium"
+                >
+                  + Add item
+                </button>
+              </div>
+              {creditItems.length > 0 && (
+                <div className="space-y-2">
+                  {creditItems.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={row.name}
+                        onChange={(e) => setCreditItems((rows) => rows.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))}
+                        placeholder="Item name"
+                        className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm"
+                      />
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={row.quantity}
+                        onChange={(e) => setCreditItems((rows) => rows.map((r, idx) => idx === i ? { ...r, quantity: e.target.value } : r))}
+                        placeholder="Qty"
+                        className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm tabular-nums"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={row.unitPrice}
+                        onChange={(e) => setCreditItems((rows) => rows.map((r, idx) => idx === i ? { ...r, unitPrice: e.target.value } : r))}
+                        placeholder="Unit £"
+                        className="w-28 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 text-sm tabular-nums"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCreditItems((rows) => rows.filter((_, idx) => idx !== i))}
+                        className="text-white/40 hover:text-white/80 transition-colors p-2"
+                        aria-label="Remove item"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <button type="submit" disabled={creditSaving || !creditAmount} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all">{creditSaving ? "Saving..." : "Apply"}</button>
-            <button type="button" onClick={() => { setCreditCompanyId(null); setCreditAmount(""); setCreditDescription(""); }} className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors">Cancel</button>
+
+            <div className="flex items-center gap-3">
+              <button type="submit" disabled={creditSaving || !effectiveAmount || !Number.isFinite(parseFloat(effectiveAmount))} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 text-white text-sm font-medium rounded-xl transition-all">{creditSaving ? "Saving..." : "Apply"}</button>
+              <button type="button" onClick={resetCreditForm} className="px-4 py-2.5 text-white/40 hover:text-white text-sm transition-colors">Cancel</button>
+            </div>
           </form>
         </div>
       )}

@@ -231,7 +231,7 @@ export type DoaClaimDetail = SerializedDoaClaim & {
 export type DoaShipmentGroup = {
   shipment: { id: string; name: string };
   claims: DoaClaimDetail[];
-  latestReportId: string | null;
+  reports: { id: string; createdAt: string }[];
 };
 
 export type DoaReportDetail = SerializedDoaReport & {

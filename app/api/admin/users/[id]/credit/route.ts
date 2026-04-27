@@ -34,12 +34,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Cannot adjust credit for admin users" }, { status: 400 });
   }
 
-  const { amount, description } = await request.json();
+  const { amount, description, items } = await request.json();
 
   if (amount === undefined || amount === null || isNaN(Number(amount))) {
     return NextResponse.json({ error: "Valid amount is required" }, { status: 400 });
   }
 
-  const result = await addManualCredit(id, Number(amount), description || "Manual adjustment");
+  const cleanedItems = parseCreditItems(items);
+  const result = await addManualCredit(id, Number(amount), description || "Manual adjustment", cleanedItems);
   return NextResponse.json(result);
+}
+
+function parseCreditItems(input: unknown) {
+  if (!Array.isArray(input)) return null;
+  const cleaned = input
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const r = row as { name?: unknown; quantity?: unknown; unitPrice?: unknown };
+      const name = typeof r.name === "string" ? r.name.trim() : "";
+      const quantity = Number(r.quantity);
+      const unitPrice = Number(r.unitPrice);
+      if (!name || !Number.isFinite(quantity) || !Number.isFinite(unitPrice)) return null;
+      return { name, quantity, unitPrice };
+    })
+    .filter((r): r is { name: string; quantity: number; unitPrice: number } => r !== null);
+  return cleaned.length ? cleaned : null;
 }

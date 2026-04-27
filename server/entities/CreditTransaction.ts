@@ -50,6 +50,15 @@ export class CreditTransaction extends BaseEntity {
   @ManyToOne(() => DoaClaim, { nullable: true })
   @JoinColumn({ name: "doaClaimId" })
   doaClaim: Relation<DoaClaim> | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  items: CreditTransactionItem[] | null;
 }
+
+export type CreditTransactionItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
 
 export type CreditTransactionType = Omit<CreditTransaction, "user" | "order" | "doaClaim">;

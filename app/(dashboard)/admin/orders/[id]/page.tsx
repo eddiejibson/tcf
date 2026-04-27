@@ -306,6 +306,7 @@ export default function AdminOrderDetailPage() {
       includeShipping: order.includeShipping,
       paymentMethod: order.paymentMethod,
       paymentReference: order.paymentReference,
+      discountPercent: Number(order.discountPercent) || 0,
     });
   };
 

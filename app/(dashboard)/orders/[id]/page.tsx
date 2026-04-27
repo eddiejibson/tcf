@@ -104,6 +104,7 @@ export default function OrderDetailPage() {
       includeShipping: order.includeShipping,
       paymentMethod: order.paymentMethod,
       paymentReference: order.paymentReference,
+      discountPercent: Number(order.discountPercent) || 0,
     });
   };
 
@@ -271,8 +272,23 @@ export default function OrderDetailPage() {
         <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
-            <span className="tabular-nums">{formatPrice(order.totals.subtotal)}</span>
+            <span className="tabular-nums">
+              {order.totals.discount > 0 ? (
+                <>
+                  <span className="line-through text-white/30 mr-2">{formatPrice(order.totals.grossSubtotal)}</span>
+                  <span>{formatPrice(order.totals.subtotal)}</span>
+                </>
+              ) : (
+                formatPrice(order.totals.subtotal)
+              )}
+            </span>
           </div>
+          {order.totals.discount > 0 && (
+            <div className="flex items-center justify-between text-green-400 text-sm">
+              <span>Discount ({Number(order.discountPercent)}%)</span>
+              <span className="tabular-nums">-{formatPrice(order.totals.discount)}</span>
+            </div>
+          )}
           {order.totals.freight > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Freight</span>

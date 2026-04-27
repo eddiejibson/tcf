@@ -262,6 +262,11 @@ export default function OrderDetailPage() {
                       : <span>{item.categoryName}</span>}
                   </p>
                 )}
+                {(item.size || item.variant) && (
+                  <p className="text-white/40 text-xs mt-0.5">
+                    {[item.variant, item.size].filter(Boolean).join(" / ")}
+                  </p>
+                )}
               </div>
               <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p></div>
               <div className="w-16 text-center"><p className="text-white/60 text-sm">{item.quantity}</p></div>

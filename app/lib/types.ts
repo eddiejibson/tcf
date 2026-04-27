@@ -158,11 +158,15 @@ export type AdminOrderListItem = Pick<SerializedOrder, "id" | "status" | "create
 export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "name" | "quantity" | "unitPrice" | "surcharge" | "substituteProductId" | "substituteName" | "catalogProductId"> & {
   latinName?: string | null;
   categoryName?: string | null;
+  size?: string | null;
+  variant?: string | null;
 };
 
 export type OrderItemWithMeta = SerializedOrderItem & {
   latinName?: string | null;
   categoryName?: string | null;
+  size?: string | null;
+  variant?: string | null;
 };
 
 export type AddressSummary = {

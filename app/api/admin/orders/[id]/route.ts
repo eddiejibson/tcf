@@ -28,6 +28,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
+    size: i.product?.size || null,
+    variant: i.product?.variant || null,
   }));
 
   // Fetch shipping/billing address from company addresses or application
@@ -156,6 +158,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 ...i,
                 latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
                 categoryName: i.catalogProduct?.category?.name || null,
+                size: i.product?.size || null,
+                variant: i.product?.variant || null,
               }));
               return NextResponse.json({ ...accepted, items: resultItems, totals });
             }
@@ -176,6 +180,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 ...i,
                 latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
                 categoryName: i.catalogProduct?.category?.name || null,
+                size: i.product?.size || null,
+                variant: i.product?.variant || null,
               }));
               return NextResponse.json({ ...accepted, items: resultItems, totals });
             }
@@ -260,6 +266,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...i,
       latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
       categoryName: i.catalogProduct?.category?.name || null,
+      size: i.product?.size || null,
+      variant: i.product?.variant || null,
     }));
     return NextResponse.json({ ...order, items: patchItems, payments: order.payments || [], totals, remainingBalance: getOrderRemainingBalance(order) });
   } catch (e) {

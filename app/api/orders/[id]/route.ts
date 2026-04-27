@@ -23,6 +23,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
+    size: i.product?.size || null,
+    variant: i.product?.variant || null,
   }));
   const companyId = order.userId ? await getCompanyIdForUser(order.userId) : null;
   const applicableCredit = companyId ? await getCreditApplicableToOrder(companyId, id) : 0;
@@ -67,6 +69,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
     categoryName: i.catalogProduct?.category?.name || null,
+    size: i.product?.size || null,
+    variant: i.product?.variant || null,
   }));
   return NextResponse.json({ ...updated, items: updatedItems, payments: updated.payments || [], totals, remainingBalance: getOrderRemainingBalance(updated) });
 }

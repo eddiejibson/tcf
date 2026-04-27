@@ -648,6 +648,11 @@ export default function AdminOrderDetailPage() {
                     : <span>{item.categoryName}</span>}
                 </p>
               )}
+              {(item.size || item.variant) && (
+                <p className="text-white/40 text-xs mt-0.5">
+                  {[item.variant, item.size].filter(Boolean).join(" / ")}
+                </p>
+              )}
             </div>
             <div className="w-28">
               {isEditable ? (

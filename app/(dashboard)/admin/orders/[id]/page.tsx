@@ -107,12 +107,8 @@ export default function AdminOrderDetailPage() {
     const res = await fetch(`/api/admin/orders/${params.id}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
-      if (data.status === "DRAFT") {
-        if (data.shipmentId) {
-          router.replace(`/admin/shipments/${data.shipmentId}/edit`);
-        } else {
-          router.replace(`/admin/orders/${params.id}/edit`);
-        }
+      if (data.status === "DRAFT" && !data.shipmentId) {
+        router.replace(`/admin/orders/${params.id}/edit`);
         return;
       }
       applyOrderData(data);

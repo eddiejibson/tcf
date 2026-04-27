@@ -128,6 +128,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body.draftItems) {
         await updateAdminDraftOrder(id, body.draftItems, body.notes, body.userId !== undefined ? (body.userId || null) : undefined);
       }
+      // Shipment DRAFTs are edited from the order detail page (which sends `items`),
+      // not the catalog OrderBuilder. Persist their item edits when not transitioning status.
+      if (currentOrder.shipmentId && body.items && body.status !== OrderStatus.ACCEPTED) {
+        await updateOrderItems(id, body.items);
+      }
       // DRAFT → ACCEPTED transition: run the full createAdminOrder flow
       if (body.status === OrderStatus.ACCEPTED) {
         // Get the current items to pass to createAdminOrder

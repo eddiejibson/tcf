@@ -344,7 +344,7 @@ export default function AdminOrderDetailPage() {
   const vat = (subtotal + shipping + freight) * 0.2;
   const credit = Number(order?.creditApplied) || 0;
   const total = subtotal + shipping + freight + vat - credit;
-  const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED"].includes(order.status);
+  const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED"].includes(order.status) || (order.status === "DRAFT" && !!order.shipmentId);
   // Items on this order that have neither productId nor catalogProductId — these are the
   // legacy free-text rows where latin name / category can't resolve.
   const unlinkedItemCount = items.filter((i) => !i.productId && !i.catalogProductId).length;

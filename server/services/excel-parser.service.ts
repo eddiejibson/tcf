@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { ParsedShipment, ParsedProduct, ColumnMapping } from "@/app/lib/types";
+import { extractSizeVariant } from "./size-variant-extract";
 
 const NAME_PATTERNS = [
   /english[\s_-]*name/i, /common[\s_-]*name/i, /como?n[\s_-]*name/i,
@@ -37,6 +38,10 @@ const SIZE_PATTERNS = [
 
 const VARIANT_PATTERNS = [
   /^variant$/i, /^colour$/i, /^color$/i, /^morph$/i, /^form$/i,
+];
+
+const CHINESE_NAME_PATTERNS = [
+  /中文/, /chinese[\s_-]*name/i, /^chinese$/i,
 ];
 
 const QTY_PER_BOX_PATTERNS = [
@@ -527,6 +532,8 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
 
   let stockColIndex = columnOverrides?.stock !== undefined ? columnOverrides.stock : matchColumn(headers, STOCK_PATTERNS, [qtyPerBoxColIndex, nameColIndex, priceColIndex, sizeColIndex, latinNameColIndex, variantColIndex].filter((c) => c !== -1));
 
+  const chineseNameColIndex = matchColumn(headers, CHINESE_NAME_PATTERNS, [nameColIndex, priceColIndex, sizeColIndex, latinNameColIndex, variantColIndex, qtyPerBoxColIndex, stockColIndex].filter((c) => c !== -1));
+
   if (priceColIndex === -1 && columnOverrides?.price === undefined) {
     for (let col = 0; col < headers.length; col++) {
       if (reservedCols.includes(col) || col === stockColIndex) continue;
@@ -613,7 +620,20 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       }
     }
     const latinName = latinNameColIndex !== -1 ? (row[latinNameColIndex] ? String(row[latinNameColIndex]).trim() || null : null) : null;
-    const variant = variantColIndex !== -1 ? (row[variantColIndex] ? String(row[variantColIndex]).trim() || null : null) : null;
+    let variant = variantColIndex !== -1 ? (row[variantColIndex] ? String(row[variantColIndex]).trim() || null : null) : null;
+
+    // Pull size/variant out of stock cell, name, or chinese name when no
+    // dedicated column gave us a value. Stock cells like "4-5cm" or "S"
+    // beat the parens in names like "Black Tang(L)(Hawaii)15~20cm".
+    let extractedSize: string | null = null;
+    if (!size || !variant) {
+      const stockCell = stockColIndex !== -1 && !stockIsTextMarker ? row[stockColIndex] : (stockColIndex !== -1 ? row[stockColIndex] : null);
+      const chineseCell = chineseNameColIndex !== -1 ? row[chineseNameColIndex] : null;
+      const ext = extractSizeVariant({ stock: stockCell, english: rawName, chinese: chineseCell });
+      if (!size) extractedSize = ext.size;
+      if (!variant) variant = ext.variant;
+    }
+    const finalSize = size || extractedSize;
 
     if (price === null && priceColIndex !== -1) continue;
     if (price === null) itemWarnings.push("Missing price");
@@ -623,7 +643,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       if (header && row[idx] !== undefined) originalRow[header] = row[idx];
     });
 
-    items.push({ name: rawName, latinName, variant, price, size, qtyPerBox, availableQty, originalRow, warnings: itemWarnings });
+    items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, availableQty, originalRow, warnings: itemWarnings });
   }
 
   const rawRows = data.slice(headerRowIndex + 1);

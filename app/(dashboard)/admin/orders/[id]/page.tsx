@@ -387,7 +387,7 @@ export default function AdminOrderDetailPage() {
           ) : (
             <>
               <span className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[order.status] || "bg-white/10 text-white/60"}`}>{statusLabels[order.status] || order.status}</span>
-              {order.status === "SUBMITTED" && (
+              {(order.status === "SUBMITTED" || (order.status === "DRAFT" && !!order.shipmentId)) && (
                 <>
                   <button onClick={() => handleStatusChange("AWAITING_FULFILLMENT")} className="px-2.5 py-1 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Fulfillment</button>
                   <button onClick={() => handleStatusChange("ACCEPTED")} className="px-2.5 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium rounded-lg transition-all whitespace-nowrap">Accept</button>

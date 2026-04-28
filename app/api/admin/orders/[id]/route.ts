@@ -135,6 +135,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (currentOrder.shipmentId && body.items && body.status !== OrderStatus.ACCEPTED) {
         await updateOrderItems(id, body.items);
       }
+      // DRAFT shipment orders can also be moved to AWAITING_FULFILLMENT or REJECTED
+      // directly from the detail page, since the admin builds these on the customer's behalf.
+      if (currentOrder.shipmentId && body.status && body.status !== OrderStatus.ACCEPTED && body.status !== OrderStatus.DRAFT) {
+        await updateOrderStatus(id, body.status, body.includeShipping, body.skipEmail);
+      }
       // DRAFT → ACCEPTED transition: run the full createAdminOrder flow
       if (body.status === OrderStatus.ACCEPTED) {
         // Get the current items to pass to createAdminOrder

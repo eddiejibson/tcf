@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { sendWithRetry, from } from "@/server/services/email.service";
 import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
@@ -30,17 +30,6 @@ export async function POST(request: NextRequest) {
     const ampm = hour >= 12 ? "PM" : "AM";
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     const formattedTime = `${displayHour}:${minutes} ${ampm}`;
-
-    // Create SMTP transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
 
     // Email content
     const emailHtml = `
@@ -91,20 +80,21 @@ The Coral Farm Bot xoxo
     `;
 
     // Send email
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-
+    await sendWithRetry({
+      from: from(),
       to: "gav@thecoralfarm.co.uk",
       cc: ["info@thecoralfarm.co.uk"],
       subject: `Appointment Request - ${name} from ${company}`,
       text: emailText,
+      html: emailHtml,
     });
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    await sendWithRetry({
+      from: from(),
       to: "jibson@tuta.io",
       subject: `Appointment Request - ${name} from ${company}`,
       text: emailText,
+      html: emailHtml,
     });
 
     return NextResponse.json({ success: true });

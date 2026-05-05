@@ -28,11 +28,17 @@ function isValidRedirectPath(path: string): boolean {
   return path.startsWith("/") && !path.startsWith("//") && !path.includes("://");
 }
 
-export async function requestMagicLink(email: string, redirectTo?: string): Promise<boolean> {
+// Does the DB work for a magic-link request (lookup user, mint token, save it),
+// and returns the prepared { email, url } so the caller can choose how to send
+// (e.g. via `after()` to keep the request fast). Returns null if no such user.
+export async function prepareMagicLink(
+  email: string,
+  redirectTo?: string,
+): Promise<{ email: string; url: string } | null> {
   const db = await getDb();
   const userRepo = db.getRepository(User);
   const user = await userRepo.findOneBy({ email: email.toLowerCase().trim() });
-  if (!user) return false;
+  if (!user) return null;
 
   const linkRepo = db.getRepository(MagicLink);
   const token = randomUUID();
@@ -45,8 +51,13 @@ export async function requestMagicLink(email: string, redirectTo?: string): Prom
   if (redirectTo && isValidRedirectPath(redirectTo)) {
     url += `&to=${encodeURIComponent(redirectTo)}`;
   }
-  await sendMagicLink(user.email, url);
+  return { email: user.email, url };
+}
 
+export async function requestMagicLink(email: string, redirectTo?: string): Promise<boolean> {
+  const prepared = await prepareMagicLink(email, redirectTo);
+  if (!prepared) return false;
+  await sendMagicLink(prepared.email, prepared.url);
   return true;
 }
 

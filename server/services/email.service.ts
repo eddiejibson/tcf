@@ -23,6 +23,7 @@ export interface MailOptions {
   from?: string;
   to: string | string[];
   cc?: string | string[];
+  replyTo?: string;
   subject: string;
   text?: string;
   html?: string;
@@ -64,6 +65,8 @@ async function sendOne(recipient: string, opts: MailOptions): Promise<void> {
     text: opts.text,
     html: opts.html,
   };
+
+  if (opts.replyTo) body.reply_to = opts.replyTo;
 
   if (opts.attachments && opts.attachments.length > 0) {
     body.attachments = opts.attachments.map((a) => ({

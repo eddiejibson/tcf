@@ -42,10 +42,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!hasPermission(user, Permission.CREATE_DOA)) return NextResponse.json({ error: "No permission to submit DOA claims" }, { status: 403 });
     const doaAllowed =
       order.status === "PAID" ||
+      order.status === "AWAITING_PAYMENT" ||
       (order.status === "ACCEPTED" && !!order.shipmentId);
     if (!doaAllowed) {
       return NextResponse.json(
-        { error: "Order must be paid, or accepted with a shipment attached, to report DOA" },
+        { error: "Order must be paid, awaiting payment, or accepted with a shipment attached, to report DOA" },
         { status: 400 }
       );
     }

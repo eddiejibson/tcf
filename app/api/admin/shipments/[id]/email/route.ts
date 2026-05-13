@@ -40,8 +40,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const introText = intro || (type === "announcement"
-      ? "Hi guys,\n\nWe've got a new shipment landing soon with some great stock \uD83D\uDC20 head over to the portal via the button below to check it out and get your orders in before the deadline.\n\nAny problems let me know via WhatsApp.\n\nCheers!\nGav"
-      : "Hi guys,\n\nJust a quick heads up. The deadline for this shipment is coming up fast \u23F0 so make sure you've got your orders in if you haven't already.\n\nAny problems let me know via WhatsApp.\n\nCheers!\nGav");
+      ? "Hi guys,\n\nWe've got a new shipment landing soon with some great stock \uD83D\uDC20 the current available list is attached as a PDF \u2014 or hit the button below to view it online and get your orders in before the deadline.\n\nAny problems let me know via WhatsApp.\n\nCheers!\nGav"
+      : "Hi guys,\n\nJust a quick heads up. The deadline for this shipment is coming up fast \u23F0 the latest available list is attached, or use the button below to order online if you haven't already.\n\nAny problems let me know via WhatsApp.\n\nCheers!\nGav");
 
     const images: string[] = Array.isArray(imageUrls) ? imageUrls.filter(Boolean) : [];
 

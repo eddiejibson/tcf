@@ -5,6 +5,7 @@ import { Shipment } from "../entities/Shipment";
 import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
 import { sendWithRetry, from } from "./email.service";
+import { generateShipmentListPdfBuffer, getShipmentListPdfData } from "./shipment-list-pdf.service";
 import { log } from "../logger";
 
 export interface ShipmentEmailData {
@@ -158,11 +159,21 @@ function renderAnnouncementMjml(data: ShipmentEmailData, intro: string, baseUrl:
 
         ${topPicks}
 
+        <!-- Attachment notice -->
+        <mj-section background-color="#161B22" padding="0 24px 20px 24px">
+          <mj-column>
+            <mj-text font-size="13px" color="#E6EDF3" padding="16px 16px 16px 16px" css-class="attach-box" background-color="#0D1A26">
+              <span style="display:inline-block;background-color:#0984E3;color:#FFFFFF;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;letter-spacing:1px;margin-right:8px;">PDF</span>
+              The full available list is attached — or tap the button below to view online.
+            </mj-text>
+          </mj-column>
+        </mj-section>
+
         <!-- CTA -->
         <mj-section background-color="#0D1117" padding="28px 24px">
           <mj-column>
             <mj-button background-color="#0984E3" color="#FFFFFF" font-size="15px" font-weight="600" border-radius="12px" padding="0" inner-padding="14px 36px" href="${baseUrl}/login?to=/shipments/${shipmentId}">
-              View Shipment &amp; Order
+              View Online &amp; Order
             </mj-button>
             <mj-text font-size="12px" color="#484F58" padding="14px 0 0 0" align="center">Log in to the trade portal to browse all products and place your order.</mj-text>
           </mj-column>
@@ -235,11 +246,21 @@ function renderReminderMjml(data: ShipmentEmailData, intro: string, baseUrl: str
 
         ${topPicks}
 
+        <!-- Attachment notice -->
+        <mj-section background-color="#161B22" padding="0 24px 20px 24px">
+          <mj-column>
+            <mj-text font-size="13px" color="#E6EDF3" padding="16px 16px 16px 16px" css-class="attach-box" background-color="#0D1A26">
+              <span style="display:inline-block;background-color:#F59E0B;color:#000000;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;letter-spacing:1px;margin-right:8px;">PDF</span>
+              The latest available list is attached \u2014 or tap the button below to view online.
+            </mj-text>
+          </mj-column>
+        </mj-section>
+
         <!-- CTA -->
         <mj-section background-color="#0D1117" padding="28px 24px">
           <mj-column>
             <mj-button background-color="#F59E0B" color="#000000" font-size="15px" font-weight="700" border-radius="12px" padding="0" inner-padding="14px 36px" href="${baseUrl}/login?to=/shipments/${shipmentId}">
-              Place Your Order Now
+              View Online &amp; Order
             </mj-button>
             <mj-text font-size="12px" color="#484F58" padding="14px 0 0 0" align="center">Don't miss out \u2014 log in now to secure your order before the deadline.</mj-text>
           </mj-column>
@@ -314,6 +335,23 @@ export async function sendShipmentEmail(
   const { html, subject } = renderShipmentEmail(type, data, intro, shipmentId, imageUrls);
   const finalSubject = subjectOverride || subject;
 
+  // Generate available-list PDF once, reuse for every recipient
+  let pdfAttachment: { filename: string; content: Buffer; contentType: string } | null = null;
+  try {
+    const pdfData = await getShipmentListPdfData(shipmentId);
+    if (pdfData.products.length > 0) {
+      const buf = await generateShipmentListPdfBuffer(pdfData);
+      const safeName = pdfData.shipmentName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "-");
+      pdfAttachment = {
+        filename: `TCF-${safeName}-Available-List.pdf`,
+        content: buf,
+        contentType: "application/pdf",
+      };
+    }
+  } catch (e) {
+    log.error("Shipment list PDF generation failed", e, { meta: { shipmentId } });
+  }
+
   let recipients: string[];
   if (testEmails && testEmails.length > 0) {
     recipients = testEmails;
@@ -334,7 +372,8 @@ export async function sendShipmentEmail(
         to: email,
         subject: finalSubject,
         html,
-        text: `${data.shipmentName} \u2014 ${intro}\n\nView shipment: ${process.env.MAGIC_LINK_BASE_URL}/login?to=/shipments/${shipmentId}`,
+        text: `${data.shipmentName} \u2014 ${intro}\n\nThe latest available list is attached as a PDF.\nView online: ${process.env.MAGIC_LINK_BASE_URL}/login?to=/shipments/${shipmentId}`,
+        attachments: pdfAttachment ? [pdfAttachment] : undefined,
       })
         .then(() => { sent++; })
         .catch((e) => {

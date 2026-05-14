@@ -537,32 +537,7 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      {/* Autolink banner — only when the order has legacy free-text items that could be
-          linked to catalog products. Shows a preview modal with proposed matches before writing. */}
-      {isEditable && unlinkedItemCount > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-6 flex items-start gap-3">
-          <svg className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-          <div className="flex-1">
-            <p className="text-amber-400 text-sm font-medium">
-              {unlinkedItemCount} item{unlinkedItemCount !== 1 ? "s" : ""} not linked to a catalog product — latin name and category won&apos;t show until linked.
-            </p>
-            <p className="text-amber-400/60 text-xs mt-0.5">
-              Auto-match by name + price (surcharge-aware). Admin confirms matches before writing.
-            </p>
-          </div>
-          <button
-            onClick={handleAutolinkPreview}
-            disabled={autolinkRunning}
-            className="px-3 py-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-40 text-xs font-medium rounded-lg transition-colors"
-          >
-            {autolinkRunning ? "Scanning..." : "Auto-link items"}
-          </button>
-        </div>
-      )}
-
-      {/* Autolink preview modal */}
+{/* Autolink preview modal */}
       {autolinkPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !autolinkRunning && setAutolinkPreview(null)}>
           <div className="bg-[#1a1f2e] border border-white/10 rounded-[20px] max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>

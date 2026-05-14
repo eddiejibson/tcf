@@ -361,7 +361,7 @@ export async function updateAcceptedOrderItems(
   const itemRepo = db.getRepository(OrderItem);
 
   const order = await getOrderById(orderId);
-  if (!order || (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_FULFILLMENT)) return null;
+  if (!order || (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_FULFILLMENT && order.status !== OrderStatus.AWAITING_PAYMENT)) return null;
 
   const oldItems = order.items;
   const changes: string[] = [];

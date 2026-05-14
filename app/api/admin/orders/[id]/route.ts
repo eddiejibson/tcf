@@ -193,7 +193,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           }
         }
       }
-    } else if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT)) {
+    } else if (body.items && (currentOrder.status === OrderStatus.ACCEPTED || currentOrder.status === OrderStatus.AWAITING_FULFILLMENT || currentOrder.status === OrderStatus.AWAITING_PAYMENT)) {
       await updateAcceptedOrderItems(id, body.items, body.includeShipping, body.skipEmail);
       if (body.status && body.status !== currentOrder.status) {
         await updateOrderStatus(id, body.status, body.includeShipping, body.skipEmail);

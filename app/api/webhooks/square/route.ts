@@ -241,8 +241,8 @@ export async function POST(request: NextRequest) {
       case "dispute.state.updated":
       case "dispute.evidence.created":
       case "dispute.evidence.updated": {
-        // Surface chargeback events so the team is notified — handled via logs
-        // (and Logtail alerts), no automatic state changes.
+        // Surface chargeback events so the team is notified — handled via logs,
+        // no automatic state changes.
         log.warn("Square webhook: dispute event", {
           route: R,
           meta: { eventType, eventId, dispute: data?.dispute as Record<string, unknown> | undefined },

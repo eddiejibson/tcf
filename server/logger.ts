@@ -1,6 +1,3 @@
-const LOGTAIL_HOST = "https://s2306988.eu-fsn-3.betterstackdata.com";
-const LOGTAIL_TOKEN = process.env.LOGTAIL_SOURCE_TOKEN;
-
 type LogLevel = "info" | "warn" | "error";
 
 interface LogPayload {
@@ -16,29 +13,12 @@ interface LogPayload {
 }
 
 function send(payload: LogPayload) {
-  if (!LOGTAIL_TOKEN) {
-    // Fallback to console in dev / when token is missing
-    const fn = payload.level === "error" ? console.error : payload.level === "warn" ? console.warn : console.log;
-    fn(`[${payload.level.toUpperCase()}] ${payload.message}`, {
-      route: payload.route,
-      error: payload.error,
-      stack: payload.stack,
-      meta: payload.meta,
-    });
-    return;
-  }
-
-  // Fire-and-forget — don't await in request path
-  fetch(LOGTAIL_HOST, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOGTAIL_TOKEN}`,
-    },
-    body: JSON.stringify(payload),
-  }).catch(() => {
-    // If Logtail itself fails, at least write to stdout so the platform captures it
-    console.error("[logger] Failed to send to Logtail:", payload.message);
+  const fn = payload.level === "error" ? console.error : payload.level === "warn" ? console.warn : console.log;
+  fn(`[${payload.level.toUpperCase()}] ${payload.message}`, {
+    route: payload.route,
+    error: payload.error,
+    stack: payload.stack,
+    meta: payload.meta,
   });
 }
 

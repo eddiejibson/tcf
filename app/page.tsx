@@ -146,11 +146,11 @@ export default function Home() {
 
             {/* CTA Buttons */}
             <FadeIn delay={0.65}>
-              <div className="flex flex-row gap-2 lg:gap-3 mt-5">
+              <div className="flex flex-row items-center gap-2 lg:gap-3 mt-5">
                 <MagneticButton>
                   <Link
                     href="/gallery"
-                    className="bg-[#0984E3] text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
+                    className="bg-[#0984E3] border-2 border-transparent text-white font-bold text-xs lg:text-sm xl:text-base px-4 lg:px-6 py-2.5 lg:py-3 rounded-[12px] lg:rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
                   >
                     VIEW GALLERY
                   </Link>
@@ -158,7 +158,7 @@ export default function Home() {
                 {/* Mobile fallback for non-magnetic */}
                 <Link
                   href="/gallery"
-                  className="md:hidden bg-[#0984E3] text-white font-bold text-xs px-4 py-2.5 rounded-[12px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
+                  className="md:hidden bg-[#0984E3] border-2 border-transparent text-white font-bold text-xs px-4 py-2.5 rounded-[12px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95 shadow-lg whitespace-nowrap inline-flex items-center justify-center leading-none"
                 >
                   VIEW GALLERY
                 </Link>
@@ -742,26 +742,26 @@ export default function Home() {
             </p>
           </SwipeReveal>
           <SwipeReveal delay={0.2}>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
               <MagneticButton>
-                <BookAppointmentButton className="bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95">
+                <BookAppointmentButton className="bg-[#0984E3] border-2 border-transparent text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] hover:scale-105 active:scale-95 inline-flex items-center justify-center leading-none">
                   BOOK AN APPOINTMENT
                 </BookAppointmentButton>
               </MagneticButton>
-              <BookAppointmentButton className="md:hidden bg-[#0984E3] text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95">
+              <BookAppointmentButton className="md:hidden bg-[#0984E3] border-2 border-transparent text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-[#0770c4] active:scale-95 inline-flex items-center justify-center leading-none">
                 BOOK AN APPOINTMENT
               </BookAppointmentButton>
               <MagneticButton>
                 <Link
                   href="/gallery"
-                  className="bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 hover:scale-105 active:scale-95"
+                  className="bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 hover:scale-105 active:scale-95 inline-flex items-center justify-center leading-none"
                 >
                   VIEW OUR STOCK
                 </Link>
               </MagneticButton>
               <Link
                 href="/gallery"
-                className="md:hidden bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 active:scale-95"
+                className="md:hidden bg-transparent border-2 border-white/40 text-white font-bold text-base px-8 py-4 rounded-[14px] cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/60 active:scale-95 inline-flex items-center justify-center leading-none"
               >
                 VIEW OUR STOCK
               </Link>

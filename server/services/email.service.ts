@@ -1,16 +1,13 @@
+import nodemailer from "nodemailer";
 import { log } from "../logger";
 
 /**
- * Sends transactional emails via Cloudflare's Email Sending HTTP API.
+ * Sends transactional emails via SMTP using nodemailer.
  *
- *   POST https://api.cloudflare.com/client/v4/accounts/<id>/email/sending/send
- *   Authorization: Bearer <api-token>
+ * Configured from env: SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.
+ * The sending identity comes from EMAIL_FROM / EMAIL_NAME.
  *
- * Mirrors the transport used by okari/leads/api. The sending domain is
- * mail.thecoralfarm.co.uk.
- *
- * When credentials are absent (typical local-dev) or NODE_ENV=test, sends are
- * logged and skipped so devs don't need real credentials.
+ * In test (NODE_ENV=test) sends are skipped so suites don't need credentials.
  */
 
 export interface MailAttachment {
@@ -30,91 +27,66 @@ export interface MailOptions {
   attachments?: MailAttachment[];
 }
 
-function endpoint(): string | null {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_EMAIL_API_TOKEN;
-  if (!accountId || !apiToken) return null;
-  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`;
-}
+let _transporter: nodemailer.Transporter | null = null;
 
-function toList(v: string | string[] | undefined): string[] {
-  if (!v) return [];
-  return Array.isArray(v) ? v : [v];
+function getTransporter() {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      pool: true,
+      maxConnections: 3,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+    });
+  }
+  return _transporter;
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function sendOne(recipient: string, opts: MailOptions): Promise<void> {
-  const url = endpoint();
-  const apiToken = process.env.CLOUDFLARE_EMAIL_API_TOKEN;
-  const fromHeader = opts.from || from();
-
-  if (!url || !apiToken) {
-    log.warn("Email send skipped — Cloudflare credentials missing", {
-      meta: { to: recipient, subject: opts.subject },
-    });
-    return;
-  }
-
-  const body: Record<string, unknown> = {
-    to: recipient,
-    from: fromHeader,
-    subject: opts.subject,
-    text: opts.text,
-    html: opts.html,
-  };
-
-  if (opts.replyTo) body.reply_to = opts.replyTo;
-
-  if (opts.attachments && opts.attachments.length > 0) {
-    body.attachments = opts.attachments.map((a) => ({
-      filename: a.filename,
-      content: a.content.toString("base64"),
-      type: a.contentType || "application/octet-stream",
-    }));
-  }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  const bodyText = await response.text();
-
-  if (!response.ok) {
-    log.error(`Cloudflare email send failed`, undefined, {
-      meta: { to: recipient, subject: opts.subject, status: response.status, body: bodyText },
-    });
-    throw new Error(`Cloudflare email send failed (${response.status}): ${bodyText}`);
-  }
-
-  log.info("Email sent successfully", {
-    meta: { to: recipient, subject: opts.subject, response: bodyText },
-  });
-}
-
 export async function sendWithRetry(mailOptions: MailOptions, retries = 2) {
   if (process.env.NODE_ENV === "test") return;
 
-  const recipients = [...toList(mailOptions.to), ...toList(mailOptions.cc)];
-  const summary = recipients.join(", ");
+  const summary = [
+    ...(Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to]),
+    ...(mailOptions.cc ? (Array.isArray(mailOptions.cc) ? mailOptions.cc : [mailOptions.cc]) : []),
+  ].join(", ");
+
+  const payload: nodemailer.SendMailOptions = {
+    from: mailOptions.from || from(),
+    to: mailOptions.to,
+    cc: mailOptions.cc,
+    replyTo: mailOptions.replyTo,
+    subject: mailOptions.subject,
+    text: mailOptions.text,
+    html: mailOptions.html,
+    attachments: mailOptions.attachments?.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentType: a.contentType,
+    })),
+  };
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      for (const recipient of recipients) {
-        await sendOne(recipient, mailOptions);
-      }
+      const transporter = getTransporter();
+      await transporter.sendMail(payload);
+      log.info("Email sent successfully", { meta: { to: summary, subject: mailOptions.subject } });
       return;
     } catch (err) {
       log.error(`Email send failed (attempt ${attempt + 1}/${retries + 1})`, err, {
         meta: { to: summary, subject: mailOptions.subject },
       });
+      // Reset transporter on connection errors so next attempt gets a fresh one
+      _transporter = null;
       if (attempt === retries) throw err;
       await sleep(1000 * (attempt + 1));
     }

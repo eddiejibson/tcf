@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     // DB work runs synchronously so we know the user exists before responding.
-    // The actual Cloudflare email send (slow) is deferred via after() so the
+    // The actual SMTP email send (slow) is deferred via after() so the
     // user gets the "check your email" response immediately.
     const prepared = await prepareMagicLink(email, to);
     if (prepared) {

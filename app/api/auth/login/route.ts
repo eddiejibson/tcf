@@ -5,10 +5,27 @@ import { log } from "@/server/logger";
 
 export async function POST(request: NextRequest) {
   const R = "/api/auth/login";
+  let rawBody = "";
   try {
-    const { email, to } = await request.json();
+    rawBody = await request.text();
+    log.info("Magic link request received", { route: R, meta: { body: rawBody } });
+
+    let parsed: { email?: unknown; to?: unknown } = {};
+    try {
+      parsed = rawBody ? JSON.parse(rawBody) : {};
+    } catch (parseErr) {
+      log.warn("Magic link request rejected — body is not valid JSON", {
+        route: R,
+        meta: { body: rawBody, error: String(parseErr) },
+      });
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const email = typeof parsed.email === "string" ? parsed.email : undefined;
+    const to = typeof parsed.to === "string" ? parsed.to : undefined;
+
     if (!email) {
-      log.warn("Magic link request rejected — no email in body", { route: R });
+      log.warn("Magic link request rejected — no email in body", { route: R, meta: { body: rawBody } });
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
@@ -42,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: "If an account exists, a login link has been sent." });
   } catch (e) {
-    log.error("Login magic link request failed", e, { route: R, method: "POST" });
+    log.error("Login magic link request failed", e, { route: R, method: "POST", meta: { body: rawBody } });
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

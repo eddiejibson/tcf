@@ -22,6 +22,7 @@ export async function GET() {
     companies.map((c) => ({
       id: c.id,
       name: c.name,
+      trafficLight: c.trafficLight,
       discount: Number(c.discount) || 0,
       creditBalance: Number(c.creditBalance) || 0,
       userCount: c.users?.length || 0,

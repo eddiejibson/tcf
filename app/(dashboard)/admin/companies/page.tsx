@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { TrafficLightPicker, TrafficLightDot, TRAFFIC_LIGHTS, type TrafficLightValue } from "@/app/components/TrafficLight";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -10,6 +11,7 @@ function formatPrice(n: number) {
 interface CompanyRow {
   id: string;
   name: string;
+  trafficLight: TrafficLightValue;
   discount: number;
   creditBalance: number;
   userCount: number;
@@ -30,6 +32,7 @@ export default function AdminCompaniesPage() {
   const [creditDescription, setCreditDescription] = useState("");
   const [creditItems, setCreditItems] = useState<{ name: string; quantity: string; unitPrice: string }[]>([]);
   const [creditSaving, setCreditSaving] = useState(false);
+  const [trafficFilter, setTrafficFilter] = useState<"ALL" | TrafficLightValue>("ALL");
 
   const resetCreditForm = () => {
     setCreditCompanyId(null);
@@ -95,6 +98,26 @@ export default function AdminCompaniesPage() {
     }
     setSaving(false);
   };
+
+  const updateTrafficLight = async (id: string, trafficLight: TrafficLightValue) => {
+    const previous = companies;
+    // optimistic — the dot updates instantly, revert if the request fails
+    setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, trafficLight } : c)));
+    try {
+      const res = await fetch(`/api/admin/companies/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trafficLight }),
+      });
+      if (!res.ok) setCompanies(previous);
+    } catch {
+      setCompanies(previous);
+    }
+  };
+
+  const counts: Record<TrafficLightValue, number> = { RED: 0, AMBER: 0, GREEN: 0 };
+  for (const c of companies) counts[c.trafficLight] = (counts[c.trafficLight] ?? 0) + 1;
+  const visibleCompanies = trafficFilter === "ALL" ? companies : companies.filter((c) => c.trafficLight === trafficFilter);
 
   if (loading) {
     return (
@@ -258,6 +281,28 @@ export default function AdminCompaniesPage() {
         </div>
       )}
 
+      {/* Traffic light filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button
+          onClick={() => setTrafficFilter("ALL")}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === "ALL" ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+        >
+          All
+          <span className="text-white/40 tabular-nums">{companies.length}</span>
+        </button>
+        {TRAFFIC_LIGHTS.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTrafficFilter(t.value)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === t.value ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+          >
+            <TrafficLightDot value={t.value} size="sm" />
+            {t.label}
+            <span className="text-white/40 tabular-nums">{counts[t.value]}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
         {/* Table header */}
         <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_120px_80px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
@@ -269,23 +314,29 @@ export default function AdminCompaniesPage() {
           <div></div>
         </div>
 
-        {companies.length === 0 ? (
+        {visibleCompanies.length === 0 ? (
           <div className="px-6 py-12 text-center text-white/30 text-sm">
-            No companies found
+            {companies.length === 0 ? "No companies found" : "No companies match this filter"}
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {companies.map((company) => (
+            {visibleCompanies.map((company) => (
               <div
                 key={company.id}
                 className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
               >
-                <Link href={`/admin/companies/${company.id}`} className="block hover:opacity-80 transition-opacity">
-                  <p className="text-white/90 text-sm font-semibold">{company.name}</p>
-                  <p className="text-white/30 text-xs md:hidden mt-0.5">
-                    {company.userCount} user{company.userCount !== 1 ? "s" : ""}
-                  </p>
-                </Link>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <TrafficLightPicker
+                    value={company.trafficLight}
+                    onChange={(v) => updateTrafficLight(company.id, v)}
+                  />
+                  <Link href={`/admin/companies/${company.id}`} className="block min-w-0 hover:opacity-80 transition-opacity">
+                    <p className="text-white/90 text-sm font-semibold truncate">{company.name}</p>
+                    <p className="text-white/30 text-xs md:hidden mt-0.5">
+                      {company.userCount} user{company.userCount !== 1 ? "s" : ""}
+                    </p>
+                  </Link>
+                </div>
                 <p className="hidden md:block text-white/50 text-sm">{company.userCount}</p>
                 <div>
                   {editingId === company.id ? (

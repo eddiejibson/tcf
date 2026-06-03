@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
-import { Company } from "@/server/entities/Company";
+import { Company, TrafficLight } from "@/server/entities/Company";
 import { User } from "@/server/entities/User";
 import { Address } from "@/server/entities/Address";
 import { sendApplicationApproved } from "@/server/services/email.service";
@@ -26,6 +26,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     id: company.id,
     name: company.name,
     companyNumber: company.companyNumber,
+    trafficLight: company.trafficLight,
     discount: Number(company.discount) || 0,
     creditBalance: Number(company.creditBalance) || 0,
     createdAt: company.createdAt,
@@ -81,6 +82,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const num = Number(body.discount);
     if (!isNaN(num) && num >= 0 && num <= 100) company.discount = num;
   }
+  if (body.trafficLight !== undefined && Object.values(TrafficLight).includes(body.trafficLight)) {
+    company.trafficLight = body.trafficLight;
+  }
   await repo.save(company);
 
   // Update addresses
@@ -105,5 +109,5 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await db.getRepository(User).update({ companyId: id }, { companyName: body.name });
   }
 
-  return NextResponse.json({ id: company.id, name: company.name, discount: Number(company.discount) });
+  return NextResponse.json({ id: company.id, name: company.name, discount: Number(company.discount), trafficLight: company.trafficLight });
 }

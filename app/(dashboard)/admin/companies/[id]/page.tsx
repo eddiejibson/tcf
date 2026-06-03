@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { TrafficLightPicker, type TrafficLightValue } from "@/app/components/TrafficLight";
 
 interface AddressData {
   id: string;
@@ -19,6 +20,7 @@ interface CompanyDetail {
   id: string;
   name: string;
   companyNumber: string | null;
+  trafficLight: TrafficLightValue;
   discount: number;
   createdAt: string;
   users: { id: string; email: string; companyRole: string | null; lastLogin: string | null }[];
@@ -82,6 +84,22 @@ export default function CompanyDetailPage() {
     setSaving(false);
   };
 
+  const updateTrafficLight = async (trafficLight: TrafficLightValue) => {
+    if (!company) return;
+    const previous = company;
+    setCompany({ ...company, trafficLight }); // optimistic, instant save
+    try {
+      const res = await fetch(`/api/admin/companies/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trafficLight }),
+      });
+      if (!res.ok) setCompany(previous);
+    } catch {
+      setCompany(previous);
+    }
+  };
+
   const handleResend = async () => {
     setResending(true);
     const res = await fetch(`/api/admin/companies/${params.id}`, {
@@ -111,9 +129,12 @@ export default function CompanyDetailPage() {
       </button>
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">{company.name}</h1>
-          {company.companyNumber && <p className="text-white/40 text-sm mt-1">Company #{company.companyNumber}</p>}
+        <div className="flex items-center gap-3">
+          <TrafficLightPicker value={company.trafficLight} onChange={updateTrafficLight} size="lg" className="mt-1" />
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-white">{company.name}</h1>
+            {company.companyNumber && <p className="text-white/40 text-sm mt-1">Company #{company.companyNumber}</p>}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -167,6 +188,10 @@ export default function CompanyDetailPage() {
                   <span className="text-white/40 text-sm">%</span>
                 </div>
               ) : <p className={`text-sm font-medium ${company.discount > 0 ? "text-[#0984E3]" : "text-white/40"}`}>{company.discount}%</p>}
+            </div>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Traffic Light</p>
+              <TrafficLightPicker value={company.trafficLight} onChange={updateTrafficLight} variant="full" />
             </div>
           </div>
         </div>

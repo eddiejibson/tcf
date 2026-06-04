@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { TrafficLightPicker, type TrafficLightValue } from "@/app/components/TrafficLight";
+import { CompanyTags, type TagLite } from "@/app/components/CompanyTags";
 
 interface AddressData {
   id: string;
@@ -23,6 +24,7 @@ interface CompanyDetail {
   trafficLight: TrafficLightValue;
   discount: number;
   createdAt: string;
+  tags: TagLite[];
   users: { id: string; email: string; companyRole: string | null; lastLogin: string | null }[];
   addresses: AddressData[];
 }
@@ -38,6 +40,7 @@ export default function CompanyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [allTags, setAllTags] = useState<TagLite[]>([]);
 
   const [editName, setEditName] = useState("");
   const [editNumber, setEditNumber] = useState("");
@@ -54,6 +57,13 @@ export default function CompanyDetailPage() {
   }, [params.id]);
 
   useEffect(() => { fetchCompany(); }, [fetchCompany]);
+
+  useEffect(() => {
+    fetch("/api/admin/tags")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setAllTags)
+      .catch(() => {});
+  }, []);
 
   const startEditing = () => {
     if (!company) return;
@@ -192,6 +202,19 @@ export default function CompanyDetailPage() {
             <div>
               <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Traffic Light</p>
               <TrafficLightPicker value={company.trafficLight} onChange={updateTrafficLight} variant="full" />
+            </div>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-2">Tags</p>
+              <CompanyTags
+                variant="inline"
+                companyId={company.id}
+                tags={company.tags}
+                allTags={allTags}
+                onChange={(next) => setCompany((prev) => (prev ? { ...prev, tags: next } : prev))}
+                onTagCreated={(tag) =>
+                  setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name))))
+                }
+              />
             </div>
           </div>
         </div>

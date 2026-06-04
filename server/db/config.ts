@@ -20,12 +20,13 @@ import { Company } from "../entities/Company";
 import { Address } from "../entities/Address";
 import { OrderPayment } from "../entities/OrderPayment";
 import { WebhookEvent } from "../entities/WebhookEvent";
+import { Tag } from "../entities/Tag";
 
 const ca = fs.readFileSync(
   path.join(process.cwd(), "server", "db", "ca-certificate.crt")
 ).toString();
 
-export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem, OrderPayment, DoaClaim, DoaItem, DoaPhotoGroup, DoaReport, CreditTransaction, Category, CatalogProduct, CatalogProductImage, Application, Company, Address, WebhookEvent];
+export const entities = [User, MagicLink, Shipment, Product, Order, OrderItem, OrderPayment, DoaClaim, DoaItem, DoaPhotoGroup, DoaReport, CreditTransaction, Category, CatalogProduct, CatalogProductImage, Application, Company, Address, WebhookEvent, Tag];
 
 export const baseDbConfig: DataSourceOptions = {
   type: "postgres",

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { TrafficLightPicker, TrafficLightDot, TRAFFIC_LIGHTS, type TrafficLightValue } from "@/app/components/TrafficLight";
+import { CompanyTags, type TagLite } from "@/app/components/CompanyTags";
 
 function formatPrice(n: number) {
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -15,6 +16,7 @@ interface CompanyRow {
   discount: number;
   creditBalance: number;
   userCount: number;
+  tags: TagLite[];
   createdAt: string;
 }
 
@@ -33,6 +35,11 @@ export default function AdminCompaniesPage() {
   const [creditItems, setCreditItems] = useState<{ name: string; quantity: string; unitPrice: string }[]>([]);
   const [creditSaving, setCreditSaving] = useState(false);
   const [trafficFilter, setTrafficFilter] = useState<"ALL" | TrafficLightValue>("ALL");
+  const [allTags, setAllTags] = useState<TagLite[]>([]);
+  const [query, setQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
+  const [tagFilterQuery, setTagFilterQuery] = useState("");
 
   const resetCreditForm = () => {
     setCreditCompanyId(null);
@@ -66,6 +73,13 @@ export default function AdminCompaniesPage() {
   useEffect(() => {
     fetchCompanies();
   }, [fetchCompanies]);
+
+  useEffect(() => {
+    fetch("/api/admin/tags")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setAllTags)
+      .catch(() => {});
+  }, []);
 
   const startEdit = (company: CompanyRow) => {
     setEditingId(company.id);
@@ -117,7 +131,14 @@ export default function AdminCompaniesPage() {
 
   const counts: Record<TrafficLightValue, number> = { RED: 0, AMBER: 0, GREEN: 0 };
   for (const c of companies) counts[c.trafficLight] = (counts[c.trafficLight] ?? 0) + 1;
-  const visibleCompanies = trafficFilter === "ALL" ? companies : companies.filter((c) => c.trafficLight === trafficFilter);
+  const nameQuery = query.trim().toLowerCase();
+  const visibleCompanies = companies.filter((c) => {
+    if (trafficFilter !== "ALL" && c.trafficLight !== trafficFilter) return false;
+    if (nameQuery && !c.name.toLowerCase().includes(nameQuery)) return false;
+    if (tagFilter.length > 0 && !c.tags.some((t) => tagFilter.includes(t.id))) return false;
+    return true;
+  });
+  const tagFilterMatches = allTags.filter((t) => t.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase()));
 
   if (loading) {
     return (
@@ -281,6 +302,87 @@ export default function AdminCompaniesPage() {
         </div>
       )}
 
+      {/* Search + tag filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <svg className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search companies…"
+            className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50"
+          />
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setTagFilterOpen((o) => !o)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${tagFilter.length ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+            </svg>
+            Tags
+            {tagFilter.length > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#0984E3] text-white text-[10px] font-semibold tabular-nums">{tagFilter.length}</span>
+            )}
+            <svg className={`w-4 h-4 text-white/30 transition-transform ${tagFilterOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {tagFilterOpen && (
+            <>
+              <div className="fixed inset-0 z-[120]" onClick={() => setTagFilterOpen(false)} />
+              <div className="absolute right-0 mt-2 w-[240px] z-[121] bg-[#1a1f26] border border-white/10 rounded-xl shadow-2xl shadow-black/60 overflow-hidden">
+                <div className="p-2 border-b border-white/10">
+                  <input
+                    value={tagFilterQuery}
+                    onChange={(e) => setTagFilterQuery(e.target.value)}
+                    placeholder="Search tags…"
+                    className="w-full px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50"
+                  />
+                </div>
+                <div className="max-h-[220px] overflow-y-auto py-1">
+                  {allTags.length === 0 ? (
+                    <p className="text-white/30 text-xs px-3 py-2">No tags created yet</p>
+                  ) : tagFilterMatches.length === 0 ? (
+                    <p className="text-white/30 text-xs px-3 py-2">No matches</p>
+                  ) : (
+                    tagFilterMatches.map((t) => {
+                      const active = tagFilter.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setTagFilter((prev) => (active ? prev.filter((id) => id !== t.id) : [...prev, t.id]))}
+                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors ${active ? "bg-white/[0.06]" : "hover:bg-white/5"}`}
+                        >
+                          <span className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${active ? "bg-[#0984E3] border-[#0984E3]" : "border-white/20"}`}>
+                            {active && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className="text-sm text-white/80 truncate">{t.name}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {tagFilter.length > 0 && (
+                  <button onClick={() => setTagFilter([])} className="w-full px-3 py-2 text-left border-t border-white/10 text-white/50 hover:text-white hover:bg-white/5 text-xs transition-colors">
+                    Clear selection
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Traffic light filter */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <button
@@ -305,13 +407,14 @@ export default function AdminCompaniesPage() {
 
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
         {/* Table header */}
-        <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_120px_80px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
+        <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_120px_80px_56px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Company</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Users</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Discount</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Credit</p>
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p>
           <div></div>
+          <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium text-right">Tags</p>
         </div>
 
         {visibleCompanies.length === 0 ? (
@@ -323,7 +426,7 @@ export default function AdminCompaniesPage() {
             {visibleCompanies.map((company) => (
               <div
                 key={company.id}
-                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
+                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px_56px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <TrafficLightPicker
@@ -441,6 +544,20 @@ export default function AdminCompaniesPage() {
                       </>
                     )}
                   </button>
+                </div>
+                <div className="hidden md:flex justify-end items-center">
+                  <CompanyTags
+                    variant="icon"
+                    companyId={company.id}
+                    tags={company.tags}
+                    allTags={allTags}
+                    onChange={(next) =>
+                      setCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, tags: next } : c)))
+                    }
+                    onTagCreated={(tag) =>
+                      setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name))))
+                    }
+                  />
                 </div>
               </div>
             ))}

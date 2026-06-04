@@ -14,7 +14,7 @@ export async function GET() {
 
   const db = await getDb();
   const companies = await db.getRepository(Company).find({
-    relations: ["users"],
+    relations: ["users", "tags"],
     order: { createdAt: "DESC" },
   });
 
@@ -26,6 +26,7 @@ export async function GET() {
       discount: Number(c.discount) || 0,
       creditBalance: Number(c.creditBalance) || 0,
       userCount: c.users?.length || 0,
+      tags: (c.tags ?? []).map((t) => ({ id: t.id, name: t.name })),
       createdAt: c.createdAt,
     }))
   );

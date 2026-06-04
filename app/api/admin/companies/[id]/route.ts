@@ -7,6 +7,8 @@ import { Address } from "@/server/entities/Address";
 import { sendApplicationApproved } from "@/server/services/email.service";
 import { log } from "@/server/logger";
 import { isUuid } from "@/server/utils";
+import { Tag } from "@/server/entities/Tag";
+import { In } from "typeorm";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -16,7 +18,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const db = await getDb();
-  const company = await db.getRepository(Company).findOneBy({ id });
+  const company = await db.getRepository(Company).findOne({ where: { id }, relations: { tags: true } });
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
   const users = await db.getRepository(User).find({ where: { companyId: id } });
@@ -30,6 +32,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     discount: Number(company.discount) || 0,
     creditBalance: Number(company.creditBalance) || 0,
     createdAt: company.createdAt,
+    tags: (company.tags ?? []).map((t) => ({ id: t.id, name: t.name })),
     users: users.map((u) => ({
       id: u.id,
       email: u.email,
@@ -59,7 +62,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const db = await getDb();
   const repo = db.getRepository(Company);
-  const company = await repo.findOneBy({ id });
+  const company = await repo.findOne({
+    where: { id },
+    relations: body.tagIds !== undefined ? { tags: true } : undefined,
+  });
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
   // Resend welcome emails
@@ -85,6 +91,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.trafficLight !== undefined && Object.values(TrafficLight).includes(body.trafficLight)) {
     company.trafficLight = body.trafficLight;
   }
+  if (Array.isArray(body.tagIds)) {
+    const tagRepo = db.getRepository(Tag);
+    company.tags = body.tagIds.length ? await tagRepo.findBy({ id: In(body.tagIds as string[]) }) : [];
+  }
   await repo.save(company);
 
   // Update addresses
@@ -109,5 +119,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await db.getRepository(User).update({ companyId: id }, { companyName: body.name });
   }
 
-  return NextResponse.json({ id: company.id, name: company.name, discount: Number(company.discount), trafficLight: company.trafficLight });
+  return NextResponse.json({
+    id: company.id,
+    name: company.name,
+    discount: Number(company.discount),
+    trafficLight: company.trafficLight,
+    ...(body.tagIds !== undefined ? { tags: (company.tags ?? []).map((t) => ({ id: t.id, name: t.name })) } : {}),
+  });
 }

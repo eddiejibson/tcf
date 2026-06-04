@@ -24,3 +24,5 @@ export { Category } from "./Category";
 export type { CategoryType } from "./Category";
 export { CatalogProduct, CatalogProductType, StockMode, StockLevel } from "./CatalogProduct";
 export type { CatalogProductRecord } from "./CatalogProduct";
+export { Tag } from "./Tag";
+export type { TagType } from "./Tag";

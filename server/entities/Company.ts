@@ -1,7 +1,8 @@
-import { Entity, Column, OneToMany, Relation } from "typeorm";
+import { Entity, Column, OneToMany, ManyToMany, JoinTable, Relation } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Address } from "./Address";
 import { User } from "./User";
+import { Tag } from "./Tag";
 
 export enum TrafficLight {
   RED = "RED",
@@ -31,4 +32,12 @@ export class Company extends BaseEntityWithUpdate {
 
   @OneToMany(() => User, (user) => user.company)
   users: Relation<User[]>;
+
+  @ManyToMany(() => Tag, (tag) => tag.companies)
+  @JoinTable({
+    name: "company_tags",
+    joinColumn: { name: "companyId", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "tagId", referencedColumnName: "id" },
+  })
+  tags: Relation<Tag[]>;
 }

@@ -81,8 +81,20 @@ export default function SquareCardForm({ orderId, total, amount, buyer, onSucces
       try {
         // Fetch config
         const configRes = await fetch("/api/square/config");
-        if (!configRes.ok) throw new Error("Failed to load payment config");
+        if (!configRes.ok) {
+          // The route returns a precise reason (missing/mismatched Square
+          // config) — show that rather than a generic failure.
+          let msg = "Failed to load payment config";
+          try {
+            const body = await configRes.json();
+            if (body?.error) msg = body.error;
+          } catch {
+            /* non-JSON error body — keep the generic message */
+          }
+          throw new Error(msg);
+        }
         const config = await configRes.json();
+        if (!config.appId) throw new Error("Card payments are not configured. Please contact support.");
 
         // Load SDK script
         const scriptUrl = config.environment === "production"
@@ -101,7 +113,17 @@ export default function SquareCardForm({ orderId, total, amount, buyer, onSucces
 
         if (!window.Square) throw new Error("Payment SDK not available");
 
-        const payments = await window.Square.payments(config.appId, config.locationId);
+        let payments: SquarePayments;
+        try {
+          payments = await window.Square.payments(config.appId, config.locationId);
+        } catch (sdkErr) {
+          // The SDK throws an opaque WebKit DOMException ("The string did not
+          // match the expected pattern.") when appId/locationId are malformed
+          // or from a different environment than the loaded SDK build. Log the
+          // real error and show the buyer something actionable.
+          console.error("[SquareCardForm] Square.payments() init failed:", sdkErr);
+          throw new Error("Card payments are currently unavailable. Please try bank transfer or contact support.");
+        }
         paymentsRef.current = payments;
         const card = await payments.card({
           style: {
@@ -177,7 +199,12 @@ export default function SquareCardForm({ orderId, total, amount, buyer, onSucces
         if (billing.givenName) billingContact.givenName = billing.givenName;
         if (billing.familyName) billingContact.familyName = billing.familyName;
         if (billing.email) billingContact.email = billing.email;
-        if (billing.country) billingContact.country = billing.country;
+        // Square requires an ISO 3166-1 alpha-2 country code (e.g. "GB"); a full
+        // name like "United Kingdom" triggers the same "string did not match the
+        // expected pattern" error. Only forward a valid code, otherwise omit it.
+        if (billing.country && /^[A-Za-z]{2}$/.test(billing.country)) {
+          billingContact.country = billing.country.toUpperCase();
+        }
         if (billing.city) billingContact.city = billing.city;
         if (billing.region) billingContact.region = billing.region;
         if (billing.postalCode) billingContact.postalCode = billing.postalCode;

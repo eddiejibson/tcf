@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/middleware/auth";
 import { getLocationId } from "@/server/services/payment.service";
 
+// Public endpoint. The Square Application ID and Location ID are publishable,
+// client-side identifiers — the browser Web Payments SDK needs them to render
+// the card form — so this must be reachable WITHOUT a session. The public
+// /pay/[id] link page has no logged-in user; gating this behind auth made the
+// middleware redirect the request to the HTML login page, and the resulting
+// `response.json()` on HTML throws Safari's opaque "The string did not match
+// the expected pattern." The secret SQUARE_ACCESS_TOKEN stays server-side.
 export async function GET() {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const appId = process.env.SQUARE_APP_ID;
 
   // The Square Web Payments SDK rejects a missing or wrong-environment
-  // application ID with the opaque WebKit error "The string did not match the
-  // expected pattern." Catch the misconfiguration here and return a clear
-  // message instead of letting the browser SDK throw it at the buyer.
+  // application ID with that same opaque WebKit error. Catch the
+  // misconfiguration here and return a clear message instead.
   if (!appId) {
     console.error("[square/config] SQUARE_APP_ID is not set");
     return NextResponse.json(

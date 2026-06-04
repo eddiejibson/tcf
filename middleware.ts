@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   "/api/applications",
   "/pay",
   "/api/pay",
+  "/api/square/config",
 ];
 
 function isPublicPath(pathname: string): boolean {

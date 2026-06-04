@@ -79,17 +79,23 @@ export default function SquareCardForm({ orderId, total, amount, buyer, onSucces
 
     async function init() {
       try {
-        // Fetch config
+        // Fetch config. This endpoint must be publicly reachable: the public
+        // /pay page has no session, and if auth middleware redirects the
+        // request to the HTML login page (HTTP 200), calling response.json()
+        // on that HTML throws Safari's opaque "The string did not match the
+        // expected pattern." Detect a redirected/non-JSON response explicitly
+        // and fail with a clear message instead of letting .json() throw.
         const configRes = await fetch("/api/square/config");
-        if (!configRes.ok) {
-          // The route returns a precise reason (missing/mismatched Square
-          // config) — show that rather than a generic failure.
-          let msg = "Failed to load payment config";
-          try {
-            const body = await configRes.json();
-            if (body?.error) msg = body.error;
-          } catch {
-            /* non-JSON error body — keep the generic message */
+        const isJson = (configRes.headers.get("content-type") || "").includes("application/json");
+        if (!configRes.ok || configRes.redirected || !isJson) {
+          let msg = "Could not load payment configuration. Please refresh and try again.";
+          if (isJson) {
+            try {
+              const body = await configRes.json();
+              if (body?.error) msg = body.error; // surface the route's precise reason
+            } catch {
+              /* keep the generic message */
+            }
           }
           throw new Error(msg);
         }

@@ -7,6 +7,7 @@ import { generateInvoice } from "@/app/lib/generate-invoice";
 import { estimateFreight } from "@/app/lib/freight";
 import ProductSearch, { type ProductSearchItem } from "@/app/components/ProductSearch";
 import CustomerPicker from "@/app/components/CustomerPicker";
+import Toast, { useToast } from "@/app/components/Toast";
 
 interface CatalogOption extends ProductSearchItem {
   latinName: string | null;
@@ -70,6 +71,7 @@ export default function AdminOrderDetailPage() {
   const [duplicating, setDuplicating] = useState(false);
   // Customers for the DRAFT customer picker (e.g. assigning a customer to a duplicated order).
   const [users, setUsers] = useState<UserListItem[]>([]);
+  const { toast, showToast } = useToast();
 
   const applyOrderData = useCallback((data: AdminOrderDetail) => {
     setOrder(data);
@@ -200,14 +202,24 @@ export default function AdminOrderDetailPage() {
     setNewItemQty("1");
   };
 
-  const patchOrder = async (body: Record<string, unknown>) => {
-    const res = await fetch(`/api/admin/orders/${params.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      applyOrderData(await res.json());
+  const patchOrder = async (body: Record<string, unknown>, successMessage = "Changes saved") => {
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        applyOrderData(await res.json());
+        showToast(successMessage, "success");
+        return true;
+      }
+      const data = await res.json().catch(() => null);
+      showToast(data?.error || "Save failed", "error");
+      return false;
+    } catch {
+      showToast("Save failed — network error", "error");
+      return false;
     }
   };
 
@@ -355,9 +367,11 @@ export default function AdminOrderDetailPage() {
         const data = await res.json();
         router.push(`/admin/orders/${data.id}`);
       } else {
+        showToast("Duplicate failed", "error");
         setDuplicating(false);
       }
     } catch {
+      showToast("Duplicate failed", "error");
       setDuplicating(false);
     }
   };
@@ -958,6 +972,8 @@ export default function AdminOrderDetailPage() {
           </button>
         </div>
       )}
+
+      <Toast toast={toast} />
     </div>
   );
 }

@@ -759,6 +759,81 @@ export async function updateAdminDraftOrder(
   return getOrderById(orderId);
 }
 
+// Assigns (or clears, with null) the customer on a DRAFT order. Used by the order detail
+// page for shipment / duplicated drafts, which send `items`+`userId` rather than the
+// catalog `draftItems` payload that updateAdminDraftOrder handles. Keeps discountPercent in
+// sync with the customer's company discount, matching the catalog draft flow.
+export async function assignDraftOrderCustomer(orderId: string, userId: string | null) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+
+  const order = await orderRepo.findOneBy({ id: orderId });
+  if (!order) throw new Error("Order not found");
+  if (order.status !== OrderStatus.DRAFT) throw new Error("Can only assign a customer to DRAFT orders");
+
+  order.userId = userId || null;
+  order.discountPercent = userId ? await getUserDiscount(userId) : 0;
+  await orderRepo.save(order);
+
+  return getOrderById(orderId);
+}
+
+// Clones an existing order (catalog OR shipment) into a fresh DRAFT with NO customer assigned,
+// so an admin can reassign a customer and re-accept it. Copies the line items and the
+// order-shaping fields (freight, shipping, box limits, notes); resets everything
+// customer-, payment-, or lifecycle-specific. The shipmentId is preserved so a duplicated
+// shipment order stays a shipment order (its items reference shipment products via productId,
+// and the detail page only edits productId items when shipmentId is set).
+export async function duplicateOrder(sourceOrderId: string) {
+  const db = await getDb();
+  const orderRepo = db.getRepository(Order);
+  const itemRepo = db.getRepository(OrderItem);
+
+  const source = await orderRepo.findOne({ where: { id: sourceOrderId }, relations: ["items"] });
+  if (!source) throw new Error("Order not found");
+
+  const duplicate = orderRepo.create({
+    userId: null,
+    shipmentId: source.shipmentId,
+    status: OrderStatus.DRAFT,
+    notes: source.notes,
+    adminNotes: source.adminNotes,
+    includeShipping: source.includeShipping,
+    freightCharge: source.freightCharge,
+    maxBoxes: source.maxBoxes,
+    minBoxes: source.minBoxes,
+    // Reset customer-/payment-/lifecycle-specific fields — a duplicate starts clean.
+    discountPercent: 0, // resynced when a customer is assigned
+    creditApplied: 0,
+    useCredit: false,
+    paymentMethod: null,
+    paymentReference: null,
+    boxCount: null, // packing-time artifacts, recomputed at review
+    freightPerBox: null,
+  } as Partial<Order>);
+  const savedOrder = await orderRepo.save(duplicate);
+
+  if (source.items.length > 0) {
+    await itemRepo.save(
+      source.items.map((item) =>
+        itemRepo.create({
+          orderId: savedOrder.id,
+          productId: item.productId,
+          catalogProductId: item.catalogProductId,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          surcharge: item.surcharge,
+          substituteProductId: item.substituteProductId,
+          substituteName: item.substituteName,
+        })
+      )
+    );
+  }
+
+  return getOrderById(savedOrder.id);
+}
+
 // ─── SPLIT PAYMENT HELPERS ────────────────────────────────────────────
 
 export function getOrderPaidAmount(order: { payments?: { status: string; amount: number }[] }): number {

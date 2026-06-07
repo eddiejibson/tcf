@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
-import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, createAdminOrder, formatPrice, getOrderRemainingBalance } from "@/server/services/order.service";
+import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, assignDraftOrderCustomer, createAdminOrder, formatPrice, getOrderRemainingBalance } from "@/server/services/order.service";
 import { getUserDiscount } from "@/server/lib/discount";
 import { Order, OrderStatus } from "@/server/entities/Order";
 import { OrderItem } from "@/server/entities/OrderItem";
@@ -129,6 +129,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (currentOrder.status === OrderStatus.DRAFT) {
       if (body.draftItems) {
         await updateAdminDraftOrder(id, body.draftItems, body.notes, body.userId !== undefined ? (body.userId || null) : undefined);
+      } else if (body.userId !== undefined) {
+        // Shipment / duplicated drafts assign a customer from the detail page, which sends
+        // `items`+`userId` (not the catalog `draftItems` payload). Syncs the order discount.
+        await assignDraftOrderCustomer(id, body.userId || null);
       }
       // Shipment DRAFTs are edited from the order detail page (which sends `items`),
       // not the catalog OrderBuilder. Persist their item edits when not transitioning status.

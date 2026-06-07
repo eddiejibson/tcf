@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { AdminOrderDetail, EditableOrderItem } from "@/app/lib/types";
+import type { AdminOrderDetail, EditableOrderItem, UserListItem } from "@/app/lib/types";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import { estimateFreight } from "@/app/lib/freight";
 import ProductSearch, { type ProductSearchItem } from "@/app/components/ProductSearch";
+import CustomerPicker from "@/app/components/CustomerPicker";
 
 interface CatalogOption extends ProductSearchItem {
   latinName: string | null;
@@ -66,6 +67,9 @@ export default function AdminOrderDetailPage() {
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  // Customers for the DRAFT customer picker (e.g. assigning a customer to a duplicated order).
+  const [users, setUsers] = useState<UserListItem[]>([]);
 
   const applyOrderData = useCallback((data: AdminOrderDetail) => {
     setOrder(data);
@@ -135,6 +139,17 @@ export default function AdminOrderDetailPage() {
       })
       .catch(() => {});
   }, []);
+
+  // DRAFT orders (incl. duplicated ones) can have a customer assigned from this page.
+  // Load the customer list only when relevant so the page stays light for normal orders.
+  useEffect(() => {
+    if (order?.status !== "DRAFT") return;
+    if (users.length > 0) return;
+    fetch("/api/admin/users?role=USER&limit=100")
+      .then((r) => (r.ok ? r.json() : { users: [] }))
+      .then((data: { users?: UserListItem[] }) => setUsers(data.users || []))
+      .catch(() => {});
+  }, [order?.status, users.length]);
 
   const updateItem = (index: number, field: string, value: string | number) => {
     const updated = [...items];
@@ -329,6 +344,43 @@ export default function AdminOrderDetailPage() {
     }
   };
 
+  // Duplicate this order into a fresh no-customer DRAFT, then open it so the admin can
+  // assign a customer and re-accept. Navigating to the new order lets the detail page route
+  // catalog drafts to the OrderBuilder edit view and keep shipment drafts here.
+  const handleDuplicate = async () => {
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/duplicate`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/admin/orders/${data.id}`);
+      } else {
+        setDuplicating(false);
+      }
+    } catch {
+      setDuplicating(false);
+    }
+  };
+
+  // Assign (or clear) the customer on a DRAFT. Saves the current item edits alongside the
+  // userId so nothing in the table is lost, and lets the backend resync the order discount.
+  const handleAssignCustomer = async (userId: string) => {
+    setSaving(true);
+    try {
+      await patchOrder({
+        userId: userId || null,
+        items: items.map((i) => ({ productId: i.productId, catalogProductId: i.catalogProductId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, surcharge: i.surcharge || 0 })),
+        includeShipping,
+        freightCharge: freightCharge ? parseFloat(freightCharge) : null,
+        adminNotes: adminNotes || null,
+        maxBoxes: maxBoxes ? parseInt(maxBoxes) : null,
+        minBoxes: minBoxes ? parseInt(minBoxes) : null,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
   if (!order) return <div className="p-4 md:p-8 text-white/40">Order not found</div>;
 
@@ -381,6 +433,21 @@ export default function AdminOrderDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             Invoice
+          </button>
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+            title="Duplicate"
+          >
+            {duplicating ? (
+              <div className="w-3.5 h-3.5 border border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+              </svg>
+            )}
+            Duplicate
           </button>
           {saving ? (
             <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -456,6 +523,13 @@ export default function AdminOrderDetailPage() {
           )}
         </div>
       </div>
+
+      {order.status === "DRAFT" && (
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6 overflow-visible relative z-20">
+          <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Customer</label>
+          <CustomerPicker users={users} value={order.userId || ""} onChange={handleAssignCustomer} />
+        </div>
+      )}
 
       {(order.payments?.length > 0 || order.paymentMethod) && (
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6">

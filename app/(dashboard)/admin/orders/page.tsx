@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { AdminOrderListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
@@ -27,10 +28,12 @@ function formatPrice(n: number) {
 }
 
 export default function AdminOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<AdminOrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -56,6 +59,23 @@ export default function AdminOrdersPage() {
       setOrders((prev) => prev.filter((o) => o.id !== id));
     }
     setDeleting(null);
+  };
+
+  // Clone the order into a no-customer DRAFT and open it, ready for a customer to be
+  // assigned and the copy re-accepted. Works for shipment orders too.
+  const handleDuplicate = async (id: string) => {
+    setDuplicating(id);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/duplicate`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/admin/orders/${data.id}`);
+        return;
+      }
+    } catch {
+      // fall through to reset the spinner
+    }
+    setDuplicating(null);
   };
 
   return (
@@ -93,7 +113,7 @@ export default function AdminOrdersPage() {
             <div className="w-24 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
             <div className="w-36 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
             <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
-            <div className="w-10"></div>
+            <div className="w-20"></div>
           </div>
           <AnimatedList>
           {orders.map((o) => (
@@ -113,6 +133,20 @@ export default function AdminOrdersPage() {
                 </div>
                 <div className="w-24"><p className="text-white/40 text-xs">{new Date(o.createdAt).toLocaleDateString("en-GB")}</p></div>
               </Link>
+              <button
+                onClick={() => handleDuplicate(o.id)}
+                disabled={duplicating === o.id}
+                className="w-10 p-2 rounded-lg text-white/30 hover:text-[#0984E3] hover:bg-[#0984E3]/10 transition-colors disabled:opacity-50"
+                title="Duplicate"
+              >
+                {duplicating === o.id ? (
+                  <div className="w-5 h-5 border-2 border-[#0984E3]/30 border-t-[#0984E3] rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                  </svg>
+                )}
+              </button>
               <button
                 onClick={() => handleDelete(o.id)}
                 disabled={deleting === o.id}

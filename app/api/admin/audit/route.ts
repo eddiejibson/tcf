@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const repo = db.getRepository(AuditLog);
   const [actions, entityTypes, actors] = await Promise.all([
     repo.createQueryBuilder("a").select("DISTINCT a.action", "action").orderBy("action").getRawMany(),
-    repo.createQueryBuilder("a").select("DISTINCT a.entityType", "entityType").orderBy("entityType").getRawMany(),
+    repo.createQueryBuilder("a").select("DISTINCT a.entityType", "entityType").orderBy('"entityType"').getRawMany(),
     repo
       .createQueryBuilder("a")
       .select(['a.actorId AS "actorId"', 'a.actorEmail AS "actorEmail"'])

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getOrderById, updateOrderItems, submitOrder, calculateOrderTotals, getOrderRemainingBalance } from "@/server/services/order.service";
 import { getCompanyIdForUser, getCreditApplicableToOrder } from "@/server/services/credit.service";
 import { getDb } from "@/server/db/data-source";
@@ -60,6 +61,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   if (body.action === "submit") {
     await submitOrder(id);
+    await audit(user, "order.submit", "order", id, { useCredit: body.useCredit ?? order.useCredit });
+  } else {
+    await audit(user, "order.update", "order", id, {
+      ...(body.items ? {
+        itemsChanged: true,
+        beforeItems: order.items.map((i) => ({ name: i.name, quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
+      } : {}),
+      ...(body.useCredit !== undefined ? { useCredit: body.useCredit } : {}),
+      ...(body.includeShipping !== undefined ? { includeShipping: body.includeShipping } : {}),
+    });
   }
 
   const updated = await getOrderById(id);

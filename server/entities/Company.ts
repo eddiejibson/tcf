@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany, ManyToMany, JoinTable, Relation } from "typeorm";
+import { Entity, Column, OneToMany, ManyToMany, JoinTable, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Address } from "./Address";
 import { User } from "./User";
@@ -12,6 +12,9 @@ export enum TrafficLight {
 
 @Entity("companies")
 export class Company extends BaseEntityWithUpdate {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "varchar" })
   name: string;
 

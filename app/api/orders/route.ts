@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, hasPermission } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getUserOrders, getCompanyOrders, createOrder, createCatalogOrder, calculateOrderTotals, getOrderById, getOrderCustomerEmails } from "@/server/services/order.service";
 import { sendOrderCreatedForUser } from "@/server/services/email.service";
 import { Permission } from "@/server/lib/permissions";
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
       catalogProductId: i.catalogProductId,
       quantity: i.quantity,
     })));
+    if (order) await audit(user, "order.create", "order", order.id, { kind: "catalog", itemCount: items.length });
     return NextResponse.json(order);
   }
 
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
       substituteProductId: i.substituteProductId || null,
       substituteName: i.substituteName || null,
     })), { skipDiscount: !!skipDiscount });
+    if (order) await audit(user, "order.create", "order", order.id, { kind: "shipment", shipmentId, forUserId: forUserId || null, itemCount: items.length });
 
     // Send email to customer when admin creates order on their behalf
     // (skipEmail lets flows like packing-list import suppress notifications until the admin

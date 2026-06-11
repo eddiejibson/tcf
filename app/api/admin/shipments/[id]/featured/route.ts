@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { Product } from "@/server/entities/Product";
 import { isUuid } from "@/server/utils";
@@ -21,6 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
   await db.getRepository(Product).update(productId, { featured });
+  await audit(admin, "shipment.product_featured", "shipment", id, { productId, productName: product.name, featured });
 
   return NextResponse.json({ id: productId, featured });
 }

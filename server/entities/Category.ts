@@ -1,8 +1,11 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("categories")
 export class Category extends BaseEntity {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "varchar" })
   name: string;
 

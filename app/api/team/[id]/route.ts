@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { User, CompanyRole } from "@/server/entities/User";
 import { ALL_PERMISSIONS } from "@/server/lib/permissions";
@@ -39,6 +40,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     : member.permissions;
 
   await userRepo.update(id, { permissions: validPerms });
+  await audit(user, "team.permissions_update", "user", id, {
+    memberEmail: member.email,
+    before: member.permissions,
+    after: validPerms,
+  });
 
   const updated = await userRepo.findOneBy({ id });
   return NextResponse.json({
@@ -76,6 +82,10 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
     companyId: null,
     companyRole: null,
     permissions: null,
+  });
+  await audit(user, "team.remove", "user", id, {
+    memberEmail: member.email,
+    companyId: member.companyId,
   });
 
   return NextResponse.json({ ok: true });

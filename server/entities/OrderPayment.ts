@@ -1,4 +1,4 @@
-import { Entity, Column } from "typeorm";
+import { Entity, Column, DeleteDateColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 
 export enum OrderPaymentStatus {
@@ -15,6 +15,9 @@ export enum OrderPaymentMethod {
 
 @Entity("order_payments")
 export class OrderPayment extends BaseEntity {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "uuid" })
   orderId: string;
 

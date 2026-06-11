@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getShipmentEmailData, renderShipmentEmail, sendShipmentEmail } from "@/server/services/shipment-email.service";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole } from "@/server/entities/User";
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const result = await sendShipmentEmail(id, type, introText, subject || undefined, testEmails, images);
+    await audit(admin, "shipment.email_send", "shipment", id, { type, subject: subject || null, test: !!testEmails?.length });
     return NextResponse.json(result);
   } catch (e) {
     log.error("Shipment email error", e, { meta: { shipmentId: id } });

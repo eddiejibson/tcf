@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { Application, ApplicationStatus } from "@/server/entities/Application";
 import { User, UserRole, CompanyRole } from "@/server/entities/User";
@@ -160,6 +161,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       status: ApplicationStatus.APPROVED,
       userId,
     });
+    await audit(admin, "application.approve", "application", id, {
+      companyName: application.companyName,
+      contactEmail: application.contactEmail,
+      companyId: company.id,
+    });
 
     try {
       await sendApplicationApproved(application.contactEmail, application.companyName);
@@ -186,6 +192,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   await repo.update(id, {
     status: ApplicationStatus.REJECTED,
     rejectionReason: rejectionReason || null,
+  });
+  await audit(admin, "application.reject", "application", id, {
+    companyName: application.companyName,
+    contactEmail: application.contactEmail,
+    reason: rejectionReason || null,
   });
 
   try {

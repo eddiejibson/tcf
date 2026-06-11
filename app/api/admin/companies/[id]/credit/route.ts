@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getCreditBalance, getCreditHistory, addManualCredit } from "@/server/services/credit.service";
 import { isUuid } from "@/server/utils";
 
@@ -32,6 +33,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const cleanedItems = parseCreditItems(items);
   const result = await addManualCredit(id, Number(amount), description || "Manual adjustment", cleanedItems);
+  await audit(admin, "company.credit_adjust", "company", id, {
+    amount: Number(amount),
+    description: description || "Manual adjustment",
+  });
   return NextResponse.json(result);
 }
 

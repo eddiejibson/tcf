@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getOrderById, addOrderPayment, confirmOrderPayment, checkOrderFullyPaid, getOrderRemainingBalance } from "@/server/services/order.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
@@ -35,11 +36,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (result.status === "COMPLETED") {
       const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId, OrderPaymentStatus.COMPLETED);
       await checkOrderFullyPaid(id);
+      await audit(user, "payment.card_charge", "order", id, { amount, squarePaymentId: result.paymentId, status: "COMPLETED" });
       return NextResponse.json({ status: "PAID", paymentId: payment.id });
     }
 
     const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId);
     await checkOrderFullyPaid(id);
+    await audit(user, "payment.card_charge", "order", id, { amount, squarePaymentId: result.paymentId, status: result.status });
     return NextResponse.json({ status: result.status, paymentId: payment.id });
   } catch (e) {
     log.error("Square card payment failed", e, { route: "/api/orders/[id]/payment/charge", method: "POST", meta: { orderId: id, code: e instanceof SquareApiError ? e.code : null } });

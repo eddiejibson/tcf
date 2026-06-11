@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Order } from "./Order";
 import { Shipment } from "./Shipment";
@@ -18,6 +18,9 @@ export enum CompanyRole {
 
 @Entity("users")
 export class User extends BaseEntityWithUpdate {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "varchar", unique: true })
   email: string;
 

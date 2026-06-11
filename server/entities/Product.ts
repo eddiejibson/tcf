@@ -1,9 +1,12 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Shipment } from "./Shipment";
 
 @Entity("products")
 export class Product extends BaseEntityWithUpdate {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "uuid" })
   shipmentId: string;
 

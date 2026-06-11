@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getOrderById } from "@/server/services/order.service";
 import { createDoaClaim, getDoaClaimByOrderId } from "@/server/services/doa.service";
 import { claimWithGroupUrls } from "@/server/services/doa-serialize";
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const claim = await createDoaClaim(id, groups);
+    await audit(user, "doa.submit", "doa_claim", claim.id, { orderId: id, groupCount: groups.length });
     return NextResponse.json(claim, { status: 201 });
   } catch (e) {
     log.error("Failed to create DOA claim", e, { route: "/api/orders/[id]/doa", method: "POST" });

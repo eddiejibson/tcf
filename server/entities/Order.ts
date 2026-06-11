@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { User } from "./User";
 import { Shipment } from "./Shipment";
@@ -24,6 +24,9 @@ export enum PaymentMethod {
 
 @Entity("orders")
 export class Order extends BaseEntityWithUpdate {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "uuid", nullable: true })
   userId: string | null;
 

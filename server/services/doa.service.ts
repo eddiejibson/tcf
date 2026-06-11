@@ -3,7 +3,6 @@ import { DoaClaim, DoaClaimStatus } from "../entities/DoaClaim";
 import { DoaItem } from "../entities/DoaItem";
 import { DoaPhotoGroup } from "../entities/DoaPhotoGroup";
 import { DoaReport } from "../entities/DoaReport";
-import { Order } from "../entities/Order";
 import { log } from "../logger";
 import { Shipment } from "../entities/Shipment";
 import { getObjectBuffer, uploadBuffer, getDownloadUrl } from "./storage.service";
@@ -53,14 +52,9 @@ export async function createDoaClaim(orderId: string, groups: DoaGroupInput[]) {
 
 export async function deleteDoaClaim(claimId: string) {
   const db = await getDb();
-  const claimRepo = db.getRepository(DoaClaim);
-  const itemRepo = db.getRepository(DoaItem);
-  const groupRepo = db.getRepository(DoaPhotoGroup);
-
-  // FKs cascade, but explicit deletes keep this resilient if cascade is ever stripped.
-  await itemRepo.delete({ claimId });
-  await groupRepo.delete({ claimId });
-  await claimRepo.delete({ id: claimId });
+  // Soft delete the claim only; its items and photo groups stay attached and
+  // are only reachable through the claim.
+  await db.getRepository(DoaClaim).softDelete(claimId);
 }
 
 const claimRelations = [

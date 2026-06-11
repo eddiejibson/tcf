@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { Company, TrafficLight } from "@/server/entities/Company";
 import { User } from "@/server/entities/User";
@@ -118,6 +119,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (body.name !== undefined) {
     await db.getRepository(User).update({ companyId: id }, { companyName: body.name });
   }
+
+  await audit(admin, "company.update", "company", id, {
+    name: company.name,
+    changes: {
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.companyNumber !== undefined ? { companyNumber: body.companyNumber } : {}),
+      ...(body.discount !== undefined ? { discount: body.discount } : {}),
+      ...(body.trafficLight !== undefined ? { trafficLight: body.trafficLight } : {}),
+      ...(body.tagIds !== undefined ? { tagIds: body.tagIds } : {}),
+      ...(body.addresses ? { addressesUpdated: true } : {}),
+    },
+  });
 
   return NextResponse.json({
     id: company.id,

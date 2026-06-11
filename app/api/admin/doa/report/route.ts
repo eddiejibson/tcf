@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { generateDoaReport } from "@/server/services/doa.service";
 import { log } from "@/server/logger";
 
@@ -12,6 +13,7 @@ export async function POST(request: NextRequest) {
     if (!shipmentId) return NextResponse.json({ error: "shipmentId is required" }, { status: 400 });
 
     const report = await generateDoaReport(shipmentId);
+    await audit(admin, "doa.report_generate", "shipment", shipmentId);
     return NextResponse.json(report, { status: 201 });
   } catch (e) {
     log.error("Failed to generate DOA report", e, { route: "/api/admin/doa/report", method: "POST" });

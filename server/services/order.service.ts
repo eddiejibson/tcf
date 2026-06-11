@@ -897,5 +897,5 @@ export async function deleteOrderPayment(paymentId: string): Promise<void> {
   const db = await getDb();
   const payment = await db.getRepository(OrderPayment).findOneByOrFail({ id: paymentId });
   if (payment.status === OrderPaymentStatus.COMPLETED) throw new Error("Cannot delete a completed payment");
-  await db.getRepository(OrderPayment).delete(paymentId);
+  await db.getRepository(OrderPayment).softDelete(paymentId);
 }

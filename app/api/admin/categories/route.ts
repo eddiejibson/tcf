@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getCategoryTree, createCategory } from "@/server/services/category.service";
 
 export async function GET() {
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
     parentId: body.parentId || null,
     sortOrder: body.sortOrder ?? 0,
   });
+  await audit(admin, "category.create", "category", category.id, { name: category.name });
 
   return NextResponse.json(category, { status: 201 });
 }

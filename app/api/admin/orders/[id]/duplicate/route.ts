@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { duplicateOrder, calculateOrderTotals } from "@/server/services/order.service";
 import { isUuid } from "@/server/utils";
 import { log } from "@/server/logger";
@@ -17,6 +18,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   try {
     const order = await duplicateOrder(id);
     if (!order) return NextResponse.json({ error: "Failed to duplicate order" }, { status: 500 });
+    await audit(admin, "order.duplicate", "order", order.id, { sourceOrderId: id });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     return NextResponse.json(

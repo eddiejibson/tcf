@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole, CompanyRole } from "@/server/entities/User";
+import { audit } from "@/server/services/audit.service";
 import { ILike } from "typeorm";
 
 export async function GET(request: NextRequest) {
@@ -72,9 +73,13 @@ export async function POST(request: NextRequest) {
 
   const db = await getDb();
   const repo = db.getRepository(User);
+  const cleanEmail = email.toLowerCase().trim();
 
-  const existing = await repo.findOneBy({ email: email.toLowerCase().trim() });
-  if (existing) return NextResponse.json({ error: "User already exists" }, { status: 409 });
+  // Look through soft-deleted users too: re-adding a deleted email restores
+  // the original account (with its order/credit history) instead of failing
+  // on the unique constraint.
+  const existing = await repo.findOne({ where: { email: cleanEmail }, withDeleted: true });
+  if (existing && !existing.deletedAt) return NextResponse.json({ error: "User already exists" }, { status: 409 });
 
   // Look up company name if companyId provided
   let resolvedCompanyName = (companyName || "").trim();
@@ -85,13 +90,27 @@ export async function POST(request: NextRequest) {
     resolvedCompanyName = company.name;
   }
 
+  if (existing) {
+    await repo.restore(existing.id);
+    await repo.update(existing.id, {
+      role: isAdmin ? UserRole.ADMIN : UserRole.USER,
+      companyName: resolvedCompanyName || null,
+      companyId: isAdmin ? null : (companyId || null),
+      companyRole: isAdmin ? null : CompanyRole.MEMBER,
+    });
+    await audit(admin, "user.restore", "user", existing.id, { email: cleanEmail, role: isAdmin ? "ADMIN" : "USER" });
+    const restored = await repo.findOneByOrFail({ id: existing.id });
+    return NextResponse.json({ id: restored.id, email: restored.email, role: restored.role, createdAt: restored.createdAt });
+  }
+
   const user = await repo.save({
-    email: email.toLowerCase().trim(),
+    email: cleanEmail,
     role: isAdmin ? UserRole.ADMIN : UserRole.USER,
     companyName: resolvedCompanyName || null,
     companyId: isAdmin ? null : (companyId || null),
     companyRole: isAdmin ? null : CompanyRole.MEMBER,
   });
+  await audit(admin, "user.create", "user", user.id, { email: user.email, role: user.role, companyId: user.companyId });
 
   return NextResponse.json({ id: user.id, email: user.email, role: user.role, createdAt: user.createdAt });
 }

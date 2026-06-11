@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getAllCatalogProducts, createCatalogProduct } from "@/server/services/catalog.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { getDb } from "@/server/db/data-source";
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
       stockLevel: stockLevel || null,
       wysiwyg: wysiwyg ?? false,
     });
+    await audit(admin, "catalog.create", "catalog_product", product.id, { name: product.name });
     return NextResponse.json(product, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal error" }, { status: 400 });
@@ -99,6 +101,8 @@ export async function PATCH(request: NextRequest) {
   } else {
     await repo.update({ active: true }, { surcharge: value });
   }
+
+  await audit(admin, "catalog.bulk_surcharge", "catalog_product", null, { surcharge: value, categoryIds: categoryIds || null });
 
   return NextResponse.json({ success: true });
 }

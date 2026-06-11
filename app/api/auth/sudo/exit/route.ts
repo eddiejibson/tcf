@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession } from "@/server/services/auth.service";
+import { audit } from "@/server/services/audit.service";
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -15,6 +16,14 @@ export async function POST() {
     if (payload.role !== "ADMIN") {
       return NextResponse.json({ error: "Invalid admin token" }, { status: 403 });
     }
+    const impersonated = cookieStore.get("tcf_session")?.value;
+    let impersonatedEmail: string | null = null;
+    if (impersonated) {
+      try {
+        impersonatedEmail = (await verifySession(impersonated)).email;
+      } catch { /* expired impersonation token — nothing to record */ }
+    }
+    await audit(payload, "auth.sudo_exit", "user", payload.userId, { impersonatedEmail });
   } catch {
     return NextResponse.json({ error: "Invalid admin token" }, { status: 403 });
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyMagicToken, createSession } from "@/server/services/auth.service";
 import { getDb } from "@/server/db/data-source";
 import { User } from "@/server/entities/User";
+import { audit } from "@/server/services/audit.service";
 import { Permission } from "@/server/lib/permissions";
 
 export async function GET(request: NextRequest) {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
   // Update last login timestamp
   const db = await getDb();
   await db.getRepository(User).update(user.id, { lastLogin: new Date() });
+  await audit({ userId: user.id, email: user.email }, "auth.login", "user", user.id, { method: "magic_link" });
 
   const jwt = await createSession(user);
 

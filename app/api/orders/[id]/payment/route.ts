@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getOrderById, deleteOrderPayment, getOrderRemainingBalance } from "@/server/services/order.service";
 import { Permission } from "@/server/lib/permissions";
 import { isUuid } from "@/server/utils";
@@ -18,6 +19,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const body = await request.json();
   const result = await handlePaymentAction(order, body, { redirectBasePath: `/orders/${id}` });
+  if (result.status < 400) {
+    await audit(user, "payment.record", "order", id, { action: body.action || null, method: body.method || null, amount: body.amount ?? null });
+  }
   return NextResponse.json(result.data, { status: result.status });
 }
 
@@ -36,6 +40,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const paymentId = url.searchParams.get("paymentId");
   if (paymentId) {
     await deleteOrderPayment(paymentId);
+    await audit(user, "payment.delete", "order", id, { paymentId });
     return NextResponse.json({ ok: true });
   }
 

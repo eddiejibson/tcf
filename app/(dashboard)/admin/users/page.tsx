@@ -94,17 +94,6 @@ export default function AdminUsersPage() {
     setCreating(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this user? This action cannot be undone.")) return;
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      fetchUsers();
-    } else {
-      const data = await res.json().catch(() => null);
-      alert(data?.error || "Failed to delete user");
-    }
-  };
-
   const handleSudo = async (id: string, email: string) => {
     if (!confirm(`Switch into ${email}'s account? You can return to admin from the banner at the top.`)) return;
     const res = await fetch(`/api/admin/users/${id}/sudo`, { method: "POST" });
@@ -361,7 +350,6 @@ export default function AdminUsersPage() {
               <div><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
               <div className="w-28 flex items-center justify-end gap-3">
                 <button onClick={() => handleSudo(u.id, u.email)} className="text-[#0984E3]/70 hover:text-[#0984E3] text-xs font-medium transition-colors">Sudo</button>
-                <button onClick={() => handleDelete(u.id)} className="text-red-400/60 hover:text-red-400 text-xs font-medium transition-colors">Delete</button>
               </div>
             </div>
             </AnimatedListItem>

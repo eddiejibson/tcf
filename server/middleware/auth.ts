@@ -10,16 +10,17 @@ export async function requireAuth(): Promise<JwtPayload | null> {
   if (!token) return null;
   try {
     const payload = await verifySession(token);
-    // Old JWTs won't have companyRole — hydrate from DB
-    if (payload.companyRole === undefined) {
-      const db = await getDb();
-      const dbUser = await db.getRepository(User).findOneBy({ id: payload.userId });
-      if (dbUser) {
-        payload.companyId = dbUser.companyId || null;
-        payload.companyRole = dbUser.companyRole || null;
-        payload.permissions = dbUser.permissions || null;
-      }
-    }
+    // Always re-check against the DB: soft-deleted users lose access immediately
+    // (findOneBy excludes them), and role/permission changes take effect without
+    // waiting for the JWT to expire.
+    const db = await getDb();
+    const dbUser = await db.getRepository(User).findOneBy({ id: payload.userId });
+    if (!dbUser) return null;
+    payload.email = dbUser.email;
+    payload.role = dbUser.role;
+    payload.companyId = dbUser.companyId || null;
+    payload.companyRole = dbUser.companyRole || null;
+    payload.permissions = dbUser.permissions || null;
     return payload;
   } catch {
     return null;

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { In } from "typeorm";
 import { requireAdmin } from "@/server/middleware/auth";
 import { getDb } from "@/server/db/data-source";
 import { Shipment } from "@/server/entities/Shipment";
 import { Product } from "@/server/entities/Product";
+import { Order } from "@/server/entities/Order";
+import { OrderPayment } from "@/server/entities/OrderPayment";
+import { DoaClaim } from "@/server/entities/DoaClaim";
+import { DoaReport } from "@/server/entities/DoaReport";
 import { calculateOrderTotals } from "@/server/services/order.service";
+import { audit } from "@/server/services/audit.service";
 import { isUuid } from "@/server/utils";
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,31 +23,27 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const shipment = await db.getRepository(Shipment).findOneBy({ id });
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
+  // Soft delete the shipment and everything that hangs off it. Order items and
+  // credit transactions are preserved — they're only reachable through their
+  // soft-deleted parents.
+  let orderCount = 0;
   await db.transaction(async (manager) => {
-    await manager.query(
-      `DELETE FROM credit_transactions WHERE "doaClaimId" IN (SELECT id FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1))`,
-      [id]
-    );
-    await manager.query(
-      `DELETE FROM doa_items WHERE "claimId" IN (SELECT id FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1))`,
-      [id]
-    );
-    await manager.query(
-      `DELETE FROM doa_claims WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
-      [id]
-    );
-    await manager.query(
-      `DELETE FROM credit_transactions WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
-      [id]
-    );
-    await manager.query(
-      `DELETE FROM order_items WHERE "orderId" IN (SELECT id FROM orders WHERE "shipmentId" = $1)`,
-      [id]
-    );
-    await manager.query(`DELETE FROM orders WHERE "shipmentId" = $1`, [id]);
-    await manager.query(`DELETE FROM products WHERE "shipmentId" = $1`, [id]);
-    await manager.query(`DELETE FROM doa_reports WHERE "shipmentId" = $1`, [id]);
-    await manager.query(`DELETE FROM shipments WHERE id = $1`, [id]);
+    const orders = await manager.getRepository(Order).find({ where: { shipmentId: id }, select: { id: true } });
+    const orderIds = orders.map((o) => o.id);
+    orderCount = orderIds.length;
+    if (orderIds.length > 0) {
+      await manager.getRepository(DoaClaim).softDelete({ orderId: In(orderIds) });
+      await manager.getRepository(OrderPayment).softDelete({ orderId: In(orderIds) });
+      await manager.getRepository(Order).softDelete({ shipmentId: id });
+    }
+    await manager.getRepository(Product).softDelete({ shipmentId: id });
+    await manager.getRepository(DoaReport).softDelete({ shipmentId: id });
+    await manager.getRepository(Shipment).softDelete(id);
+  });
+  await audit(admin, "shipment.delete", "shipment", id, {
+    name: shipment.name,
+    status: shipment.status,
+    orderCount,
   });
 
   return NextResponse.json({ success: true });
@@ -140,11 +142,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         products.filter((p: { id?: string }) => p.id).map((p: { id: string }) => p.id)
       );
 
-      // Delete products not in incoming list
+      // Soft-delete products not in incoming list. Order items keep their
+      // productId — the soft-deleted product stays around for history.
       const toDelete = existingProducts.filter((p) => !incomingIds.has(p.id));
       for (const p of toDelete) {
-        await manager.query(`UPDATE order_items SET "productId" = NULL WHERE "productId" = $1`, [p.id]);
-        await manager.remove(Product, p);
+        await manager.getRepository(Product).softDelete(p.id);
       }
 
       // Update existing and create new
@@ -177,6 +179,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   } else {
     await repo.save(shipment);
   }
+
+  await audit(admin, "shipment.update", "shipment", id, {
+    name: shipment.name,
+    changes: {
+      ...(name !== undefined ? { name } : {}),
+      ...(deadline !== undefined ? { deadline } : {}),
+      ...(shipmentDate !== undefined ? { shipmentDate } : {}),
+      ...(freightCost !== undefined ? { freightCost } : {}),
+      ...(margin !== undefined ? { margin } : {}),
+      ...(status !== undefined ? { status } : {}),
+      ...(products !== undefined ? { productsReplaced: true, productCount: Array.isArray(products) ? products.length : 0 } : {}),
+    },
+  });
 
   const updated = await repo.findOne({ where: { id }, relations: ["products"] });
   return NextResponse.json({

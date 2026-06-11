@@ -7,6 +7,7 @@ import { User, UserRole } from "@/server/entities/User";
 import { WebhookEvent } from "@/server/entities/WebhookEvent";
 import { log } from "@/server/logger";
 import { sendOrderPaidNotification } from "@/server/services/email.service";
+import { audit } from "@/server/services/audit.service";
 import { calculateOrderTotals, formatPrice, getOrderById, confirmOrderPayment, checkOrderFullyPaid } from "@/server/services/order.service";
 
 const OK = NextResponse.json({ ok: true });
@@ -78,6 +79,7 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
 
     await confirmOrderPayment(orderPayment.id);
     const fullyPaid = await checkOrderFullyPaid(orderPayment.orderId);
+    await audit({ email: "square-webhook" }, "payment.confirm", "order", orderPayment.orderId, { paymentId, fullyPaid });
 
     log.info("Square webhook: order payment completed", { route: "/api/webhooks/square", meta: { orderId: orderPayment.orderId, paymentId, fullyPaid } });
 
@@ -101,6 +103,7 @@ async function handlePaymentCompleted(payment: Record<string, unknown>) {
   order.paymentMethod = PaymentMethod.CARD;
   order.paymentReference = paymentId;
   await db.getRepository(Order).save(order);
+  await audit({ email: "square-webhook" }, "order.mark_paid", "order", order.id, { paymentId, legacy: true });
 
   log.info("Square webhook: order marked as paid (legacy)", { route: "/api/webhooks/square", meta: { orderId: order.id, paymentId } });
 

@@ -1,9 +1,12 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Shipment } from "./Shipment";
 
 @Entity("doa_reports")
 export class DoaReport extends BaseEntity {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "uuid" })
   shipmentId: string;
 

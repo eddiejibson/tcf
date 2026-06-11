@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { User, UserRole, CompanyRole } from "@/server/entities/User";
 import { Company } from "@/server/entities/Company";
@@ -115,6 +116,11 @@ export async function POST(request: NextRequest) {
     companyName: result.owner.companyName || null,
     permissions: validPerms,
     invitedById: user.userId,
+  });
+  await audit(user, "team.invite", "user", member.id, {
+    memberEmail: cleanEmail,
+    companyId: result.companyId,
+    permissions: validPerms,
   });
 
   // Send invite email with a login link

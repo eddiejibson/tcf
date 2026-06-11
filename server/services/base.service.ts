@@ -40,9 +40,6 @@ export abstract class BaseService<T extends ObjectLiteral> {
     return r.save(merged);
   }
 
-  async delete(id: string): Promise<boolean> {
-    const r = await this.repo();
-    const result = await r.delete(id);
-    return (result.affected ?? 0) > 0;
-  }
+  // Hard deletes are not allowed anywhere in this codebase. Deletable entities
+  // carry a @DeleteDateColumn and are removed via repository.softDelete().
 }

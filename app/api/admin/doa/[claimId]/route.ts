@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDoaClaimById, updateDoaItemStates, approveAllItemsForClaim, deleteDoaClaim } from "@/server/services/doa.service";
 import { claimWithGroupUrls } from "@/server/services/doa-serialize";
 import { log } from "@/server/logger";
@@ -34,6 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let claim;
     if (body.approveAll) {
       claim = await approveAllItemsForClaim(claimId);
+      await audit(admin, "doa.approve_all", "doa_claim", claimId);
     } else if (body.actions && Array.isArray(body.actions)) {
       for (const action of body.actions) {
         if (!action.itemId || !["approve", "deny", "pending"].includes(action.action)) {
@@ -41,6 +43,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
       }
       claim = await updateDoaItemStates(claimId, body.actions);
+      await audit(admin, "doa.review", "doa_claim", claimId, { actions: body.actions });
     } else {
       return NextResponse.json({ error: "Provide actions array or approveAll flag" }, { status: 400 });
     }
@@ -63,6 +66,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ cla
     if (!isUuid(claimId)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await deleteDoaClaim(claimId);
+    await audit(admin, "doa.delete", "doa_claim", claimId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     log.error("Failed to delete DOA claim", e, { route: "/api/admin/doa/[claimId]", method: "DELETE" });

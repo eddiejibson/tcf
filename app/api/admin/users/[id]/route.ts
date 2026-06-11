@@ -5,10 +5,7 @@ import { User, UserRole } from "@/server/entities/User";
 import { Application } from "@/server/entities/Application";
 import { Address } from "@/server/entities/Address";
 import { Company } from "@/server/entities/Company";
-import { MagicLink } from "@/server/entities/MagicLink";
-import { CreditTransaction } from "@/server/entities/CreditTransaction";
-import { Order } from "@/server/entities/Order";
-import { Shipment } from "@/server/entities/Shipment";
+import { audit } from "@/server/services/audit.service";
 import { isUuid } from "@/server/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -110,7 +107,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (role !== undefined) update.role = role === "ADMIN" ? UserRole.ADMIN : UserRole.USER;
   if (companyName !== undefined) update.companyName = companyName || null;
   if (email !== undefined) update.email = email.toLowerCase().trim();
-  if (Object.keys(update).length > 0) await userRepo.update(id, update);
+  if (Object.keys(update).length > 0) {
+    await userRepo.update(id, update);
+    await audit(admin, "user.update", "user", id, {
+      targetEmail: user.email,
+      changes: update,
+      before: { role: user.role, companyName: user.companyName, email: user.email },
+    });
+  }
 
   // Update company fields if provided
   if (body.companyNumber !== undefined && user.companyId) {
@@ -149,14 +153,14 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const user = await db.getRepository(User).findOneBy({ id });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  await db.transaction(async (em) => {
-    await em.getRepository(MagicLink).delete({ userId: id });
-    await em.getRepository(CreditTransaction).delete({ userId: id });
-    await em.getRepository(Order).update({ userId: id }, { userId: null });
-    await em.getRepository(Application).update({ userId: id }, { userId: null });
-    await em.getRepository(Shipment).update({ createdById: id }, { createdById: admin.userId });
-    await em.getRepository(User).update({ invitedById: id }, { invitedById: null });
-    await em.getRepository(User).delete(id);
+  // Soft delete only — orders, credit history, magic links and invitations are
+  // all preserved. The user simply stops authenticating and disappears from lists.
+  await db.getRepository(User).softDelete(id);
+  await audit(admin, "user.delete", "user", id, {
+    email: user.email,
+    role: user.role,
+    companyId: user.companyId,
+    companyName: user.companyName,
   });
 
   return NextResponse.json({ success: true });

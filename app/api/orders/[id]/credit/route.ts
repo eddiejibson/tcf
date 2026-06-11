@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, canAccessOrder, hasPermission } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getOrderById, calculateOrderTotals, markOrderPaid } from "@/server/services/order.service";
 import { applyCredit, removeAppliedCredit, getCreditBalance, getCompanyIdForUser, getCreditApplicableToOrder } from "@/server/services/credit.service";
 import { OrderStatus } from "@/server/entities/Order";
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (action === "remove") {
     await removeAppliedCredit(id, companyId);
+    await audit(user, "order.credit_remove", "order", id, { companyId });
     const updated = await getOrderById(id);
     if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent);
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const result = await applyCredit(id, companyId, toApply);
+  await audit(user, "order.credit_apply", "order", id, { companyId, amount: toApply });
 
   const updatedOrder = await getOrderById(id);
   if (!updatedOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });

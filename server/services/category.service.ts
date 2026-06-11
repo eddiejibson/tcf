@@ -86,5 +86,5 @@ export async function deleteCategory(id: string) {
   if (childCount > 0) {
     throw new Error("Cannot delete category with child categories");
   }
-  await db.getRepository(Category).delete(id);
+  await db.getRepository(Category).softDelete(id);
 }

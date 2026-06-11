@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { Company } from "@/server/entities/Company";
 import { User, UserRole, CompanyRole } from "@/server/entities/User";
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
   const company = await companyRepo.save({
     name: companyName.trim(),
     companyNumber: companyNumber?.trim() || null,
+  });
+  await audit(admin, "company.create", "company", company.id, {
+    name: company.name,
+    contactEmail: contactEmail.trim(),
   });
 
   if (billingAddress?.line1?.trim()) {

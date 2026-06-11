@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { Shipment, ShipmentStatus } from "@/server/entities/Shipment";
 
@@ -78,5 +79,6 @@ export async function POST(request: NextRequest) {
   });
 
   const saved = await repo.save(shipment);
+  await audit(admin, "shipment.create", "shipment", saved.id, { name: saved.name });
   return NextResponse.json({ id: saved.id, name: saved.name, status: saved.status });
 }

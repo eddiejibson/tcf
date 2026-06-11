@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getAllOrders, calculateOrderTotals, createAdminOrder, createAdminDraftOrder } from "@/server/services/order.service";
 
 export async function GET() {
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest) {
       ? await createAdminDraftOrder(admin.userId, userId || null, mappedItems, notes, includeShipping)
       : await createAdminOrder(admin.userId, userId, mappedItems, notes, includeShipping, skipEmail);
     if (!order) return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    await audit(admin, "order.create", "order", order.id, {
+      forUserId: userId || null,
+      asDraft: !!asDraft,
+      itemCount: mappedItems.length,
+    });
 
     const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
     return NextResponse.json({

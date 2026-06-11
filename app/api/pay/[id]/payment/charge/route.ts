@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderById, addOrderPayment, checkOrderFullyPaid, getOrderRemainingBalance } from "@/server/services/order.service";
+import { audit } from "@/server/services/audit.service";
 import { OrderStatus, PaymentMethod } from "@/server/entities/Order";
 import { OrderPaymentStatus } from "@/server/entities/OrderPayment";
 import { processCardPayment, SquareApiError, squareErrorMessage } from "@/server/services/payment.service";
@@ -29,11 +30,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (result.status === "COMPLETED") {
       const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId, OrderPaymentStatus.COMPLETED);
       await checkOrderFullyPaid(id);
+      await audit(null, "payment.card_charge", "order", id, { via: "quickpay", amount, squarePaymentId: result.paymentId, status: "COMPLETED" });
       return NextResponse.json({ status: "PAID", paymentId: payment.id });
     }
 
     const payment = await addOrderPayment(id, PaymentMethod.CARD, amount, result.paymentId);
     await checkOrderFullyPaid(id);
+    await audit(null, "payment.card_charge", "order", id, { via: "quickpay", amount, squarePaymentId: result.paymentId, status: result.status });
     return NextResponse.json({ status: result.status, paymentId: payment.id });
   } catch (e) {
     log.error("Square card payment failed (pay page)", e, { meta: { orderId: id, code: e instanceof SquareApiError ? e.code : null } });

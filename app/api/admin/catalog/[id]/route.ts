@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
+import { audit } from "@/server/services/audit.service";
 import { getCatalogProductById, updateCatalogProduct, softDeleteCatalogProduct } from "@/server/services/catalog.service";
 import { getDownloadUrl } from "@/server/services/storage.service";
 import { isUuid } from "@/server/utils";
@@ -53,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const product = await updateCatalogProduct(id, data);
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await audit(admin, "catalog.update", "catalog_product", id, { name: product.name, changes: Object.keys(data) });
     return NextResponse.json(product);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Internal error" }, { status: 400 });
@@ -67,5 +69,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!isUuid(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const product = await softDeleteCatalogProduct(id);
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await audit(admin, "catalog.delete", "catalog_product", id, { name: product.name });
   return NextResponse.json({ success: true });
 }

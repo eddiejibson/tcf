@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntityWithUpdate } from "./BaseEntity";
 import { Order } from "./Order";
 import { DoaPhotoGroup } from "./DoaPhotoGroup";
@@ -11,6 +11,9 @@ export enum DoaClaimStatus {
 
 @Entity("doa_claims")
 export class DoaClaim extends BaseEntityWithUpdate {
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
+
   @Column({ type: "uuid" })
   orderId: string;
 

@@ -74,8 +74,13 @@ export async function verifyMagicToken(token: string): Promise<User | null> {
   if (link.usedAt) return null;
   if (link.expiresAt < new Date()) return null;
 
+  // Resolve the user through the soft-delete filter so links issued before a
+  // user was deleted can no longer log them in.
+  const user = await db.getRepository(User).findOneBy({ id: link.userId });
+  if (!user) return null;
+
   await linkRepo.update(link.id, { usedAt: new Date() });
-  return link.user;
+  return user;
 }
 
 export async function createSession(user: User): Promise<string> {

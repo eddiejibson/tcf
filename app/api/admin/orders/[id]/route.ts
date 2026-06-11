@@ -3,8 +3,10 @@ import { requireAdmin } from "@/server/middleware/auth";
 import { getOrderById, updateOrderStatus, updateOrderItems, updateAcceptedOrderItems, calculateOrderTotals, markOrderPaid, updateAdminDraftOrder, assignDraftOrderCustomer, createAdminOrder, formatPrice, getOrderRemainingBalance } from "@/server/services/order.service";
 import { getUserDiscount } from "@/server/lib/discount";
 import { Order, OrderStatus } from "@/server/entities/Order";
-import { OrderItem } from "@/server/entities/OrderItem";
+import { OrderPayment } from "@/server/entities/OrderPayment";
+import { DoaClaim } from "@/server/entities/DoaClaim";
 import { Address } from "@/server/entities/Address";
+import { audit } from "@/server/services/audit.service";
 import { Application } from "@/server/entities/Application";
 import { User } from "@/server/entities/User";
 import { getDb } from "@/server/db/data-source";
@@ -77,20 +79,17 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const order = await db.getRepository(Order).findOneBy({ id });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
+  // Soft delete the order and its claims/payments. Items and credit
+  // transactions are preserved — they're only reachable through the order.
   await db.transaction(async (manager) => {
-    await manager.query(
-      `DELETE FROM credit_transactions WHERE "doaClaimId" IN (SELECT id FROM doa_claims WHERE "orderId" = $1)`,
-      [id]
-    );
-    await manager.query(
-      `DELETE FROM doa_items WHERE "claimId" IN (SELECT id FROM doa_claims WHERE "orderId" = $1)`,
-      [id]
-    );
-    await manager.query(`DELETE FROM doa_claims WHERE "orderId" = $1`, [id]);
-    await manager.query(`DELETE FROM credit_transactions WHERE "orderId" = $1`, [id]);
-    await manager.query(`DELETE FROM order_payments WHERE "orderId" = $1`, [id]);
-    await manager.query(`DELETE FROM order_items WHERE "orderId" = $1`, [id]);
-    await manager.query(`DELETE FROM orders WHERE id = $1`, [id]);
+    await manager.getRepository(DoaClaim).softDelete({ orderId: id });
+    await manager.getRepository(OrderPayment).softDelete({ orderId: id });
+    await manager.getRepository(Order).softDelete(id);
+  });
+  await audit(admin, "order.delete", "order", id, {
+    status: order.status,
+    userId: order.userId,
+    shipmentId: order.shipmentId,
   });
 
   return NextResponse.json({ success: true });
@@ -160,6 +159,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
               await updateOrderItems(id, body.items);
             }
             await updateOrderStatus(id, OrderStatus.ACCEPTED, body.includeShipping, body.skipEmail);
+            await audit(admin, "order.accept", "order", id, { from: "DRAFT", userId: draftOrder.userId });
             const accepted = await getOrderById(id);
             if (accepted) {
               const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
@@ -178,12 +178,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
               quantity: i.quantity,
               surcharge: Number(i.surcharge) || 0,
             })).filter((i) => i.catalogProductId);
-            // Delete the draft items then the draft order, then create as ACCEPTED
+            // Soft-delete the superseded draft (items stay attached to it), then create as ACCEPTED
             const db2 = await getDb();
-            await db2.getRepository(OrderItem).delete({ orderId: id });
-            await db2.getRepository(Order).delete(id);
+            await db2.getRepository(Order).softDelete(id);
             const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
             if (accepted) {
+              await audit(admin, "order.accept", "order", accepted.id, { from: "DRAFT", supersededDraftId: id, userId: draftOrder.userId });
               const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
               const resultItems = accepted.items.map((i) => ({
                 ...i,
@@ -266,6 +266,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         );
       }
     }
+
+    // One audit entry per PATCH, capturing what changed and the pre-edit item
+    // list so replaced items are always recoverable from the audit trail.
+    await audit(admin, "order.update", "order", id, {
+      beforeStatus: currentOrder.status,
+      ...(body.status ? { status: body.status } : {}),
+      ...(body.items || body.draftItems
+        ? {
+            itemsChanged: true,
+            beforeItems: currentOrder.items.map((i) => ({
+              name: i.name,
+              quantity: i.quantity,
+              unitPrice: Number(i.unitPrice),
+              surcharge: Number(i.surcharge) || 0,
+            })),
+          }
+        : {}),
+      ...(body.markPaid ? { markPaid: true } : {}),
+      ...(body.confirmPaymentId ? { confirmPaymentId: body.confirmPaymentId } : {}),
+      ...(body.resendEmail ? { resendEmail: true } : {}),
+      ...(body.freightCharge !== undefined ? { freightCharge: body.freightCharge } : {}),
+      ...(body.discountPercent !== undefined ? { discountPercent: body.discountPercent } : {}),
+    });
 
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });

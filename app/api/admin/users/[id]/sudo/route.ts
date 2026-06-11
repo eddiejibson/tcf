@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { requireAdmin } from "@/server/middleware/auth";
 import { createSession } from "@/server/services/auth.service";
+import { audit } from "@/server/services/audit.service";
 import { getDb } from "@/server/db/data-source";
 import { User } from "@/server/entities/User";
 import { isUuid } from "@/server/utils";
@@ -25,6 +26,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   if (!adminToken) return NextResponse.json({ error: "No session" }, { status: 401 });
 
   const targetJwt = await createSession(target);
+  await audit(admin, "auth.sudo", "user", target.id, { targetEmail: target.email });
 
   const response = NextResponse.json({ success: true });
   const isProd = process.env.NODE_ENV === "production";

@@ -10,6 +10,7 @@ export interface ProductItemBase {
   size: string | null;
   qtyPerBox: number | null;
   availableQty: number | null;
+  packOptions?: { fraction: string; headcount: number }[] | null;
 }
 
 interface ItemRowProps<T extends ProductItemBase> {
@@ -17,11 +18,12 @@ interface ItemRowProps<T extends ProductItemBase> {
   hasVariant: boolean;
   hasSize: boolean;
   hasStock: boolean;
+  hasBags?: boolean;
   onUpdate: (id: number, field: string, value: string) => void;
   onRemove: (id: number) => void;
 }
 
-export const ItemRow = memo(function ItemRow<T extends ProductItemBase>({ item, hasVariant, hasSize, hasStock, onUpdate, onRemove }: ItemRowProps<T>) {
+export const ItemRow = memo(function ItemRow<T extends ProductItemBase>({ item, hasVariant, hasSize, hasStock, hasBags, onUpdate, onRemove }: ItemRowProps<T>) {
   const id = item._id;
   return (
     <div className={`min-w-[500px] px-4 md:px-6 h-[49px] flex items-center gap-4 border-b border-white/5 ${item.availableQty !== null && item.availableQty !== undefined && item.availableQty <= 0 ? "opacity-40" : ""}`}>
@@ -67,6 +69,21 @@ export const ItemRow = memo(function ItemRow<T extends ProductItemBase>({ item, 
           className={`w-full px-3 py-1.5 bg-white/5 border rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${item.qtyPerBox === null ? "border-amber-500/50" : "border-white/10"}`}
         />
       </div>
+      {hasBags && (
+        <div className="w-28">
+          {item.packOptions && item.packOptions.length ? (
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight tabular-nums">
+              {item.packOptions.map((o) => (
+                <span key={o.fraction} className="text-white/50">
+                  <span className="text-white/30">{o.fraction}</span> {o.headcount}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-white/15 text-xs">no bags</span>
+          )}
+        </div>
+      )}
       {hasStock && (
         <div className="w-20">
           <input
@@ -88,11 +105,12 @@ export const ROW_H = 49;
 export const OVERSCAN = 5;
 export const LIST_H = 500;
 
-export function VirtualItemList<T extends ProductItemBase>({ items, hasVariant, hasSize, hasStock, onUpdate, onRemove, isPending = false, scrollRef }: {
+export function VirtualItemList<T extends ProductItemBase>({ items, hasVariant, hasSize, hasStock, hasBags = false, onUpdate, onRemove, isPending = false, scrollRef }: {
   items: T[];
   hasVariant: boolean;
   hasSize: boolean;
   hasStock: boolean;
+  hasBags?: boolean;
   onUpdate: (id: number, field: string, value: string) => void;
   onRemove: (id: number) => void;
   isPending?: boolean;
@@ -126,6 +144,7 @@ export function VirtualItemList<T extends ProductItemBase>({ items, hasVariant, 
               hasVariant={hasVariant}
               hasSize={hasSize}
               hasStock={hasStock}
+              hasBags={hasBags}
               onUpdate={onUpdate}
               onRemove={onRemove}
             />

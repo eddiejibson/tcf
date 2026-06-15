@@ -46,9 +46,13 @@ interface UserDetail {
   lastLogin: string | null;
   createdAt: string;
   orderCount: number;
-  company: { id: string; name: string; companyNumber: string | null; discount: number; users: CompanyUser[] } | null;
+  company: { id: string; name: string; companyNumber: string | null; phone: string | null; salesNotes: string | null; discount: number; users: CompanyUser[] } | null;
   addresses: AddressData[];
   application: ApplicationData | null;
+}
+
+function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
 function formatPrice(n: number) {
@@ -135,7 +139,7 @@ export default function AdminUserDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Account Details */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-4">Account Details</h3>
           <div className="space-y-4">
             <div>
@@ -161,7 +165,7 @@ export default function AdminUserDetailPage() {
 
         {/* Connected Company */}
         {user.company ? (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Company</h3>
               <Link href={`/admin/companies/${user.company.id}`} className="text-[#0984E3] text-xs font-medium hover:text-[#0984E3]/80 transition-colors flex items-center gap-1">
@@ -172,7 +176,18 @@ export default function AdminUserDetailPage() {
             <div className="space-y-3">
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Name</p>
-                <p className="text-white text-sm font-medium">{user.company.name}</p>
+                <Link href={`/admin/companies/${user.company.id}`} className="text-white text-sm font-medium hover:text-[#0984E3] transition-colors">{user.company.name}</Link>
+              </div>
+              <div>
+                <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Phone</p>
+                {user.company.phone ? (
+                  <a href={telHref(user.company.phone)} className="text-[#0984E3] text-sm font-medium hover:underline inline-flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                    {user.company.phone}
+                  </a>
+                ) : (
+                  <p className="inline-flex items-center gap-1.5 text-white/45 text-sm"><span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" />No phone number added</p>
+                )}
               </div>
               {user.company.companyNumber && (
                 <div>
@@ -184,6 +199,15 @@ export default function AdminUserDetailPage() {
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Discount</p>
                 <p className={`text-sm font-medium ${user.company.discount > 0 ? "text-[#0984E3]" : "text-white/40"}`}>{user.company.discount}%</p>
               </div>
+              {user.company.salesNotes && (
+                <div className="pt-3 border-t border-white/5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">Sales Notes</p>
+                    <span className="px-1.5 py-0.5 bg-white/[0.06] text-white/50 ring-1 ring-inset ring-white/10 text-[9px] font-medium rounded uppercase tracking-wider">Admin</span>
+                  </div>
+                  <p className="text-white/70 text-sm whitespace-pre-wrap">{user.company.salesNotes}</p>
+                </div>
+              )}
               {/* Team members */}
               <div className="pt-3 border-t border-white/5">
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-2">Team ({user.company.users.length})</p>
@@ -217,7 +241,7 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
         ) : user.role !== "ADMIN" ? (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
             <h3 className="text-white font-semibold mb-4">Company</h3>
             <p className="text-white/30 text-sm mb-3">No company linked to this user</p>
             <Link href={`/admin/companies/new?email=${encodeURIComponent(user.email)}&userId=${user.id}`} className="text-[#0984E3] text-sm font-medium hover:text-[#0984E3]/80 transition-colors">+ Add Company</Link>
@@ -226,14 +250,14 @@ export default function AdminUserDetailPage() {
 
         {/* Application Info */}
         {user.application && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 lg:col-span-2">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Application</h3>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                  user.application.status === "APPROVED" ? "bg-green-500/20 text-green-400" :
-                  user.application.status === "REJECTED" ? "bg-red-500/20 text-red-400" :
-                  "bg-amber-500/20 text-amber-400"
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ring-1 ring-inset ${
+                  user.application.status === "APPROVED" ? "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20" :
+                  user.application.status === "REJECTED" ? "bg-rose-400/10 text-rose-300 ring-rose-400/20" :
+                  "bg-amber-400/10 text-amber-300 ring-amber-400/20"
                 }`}>{user.application.status}</span>
                 <Link href={`/admin/applications/${user.application.id}`} className="text-[#0984E3] text-xs font-medium hover:text-[#0984E3]/80 transition-colors">View Full Application</Link>
               </div>
@@ -249,7 +273,11 @@ export default function AdminUserDetailPage() {
               </div>
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Phone</p>
-                <p className="text-white text-sm">{user.application.phone || "—"}</p>
+                {user.application.phone ? (
+                  <a href={telHref(user.application.phone)} className="text-[#0984E3] text-sm hover:underline">{user.application.phone}</a>
+                ) : (
+                  <p className="text-white text-sm">—</p>
+                )}
               </div>
               {user.application.accountsName && (
                 <div>

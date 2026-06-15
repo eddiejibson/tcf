@@ -44,12 +44,12 @@ export default function ShipmentsPage() {
       {loading ? (
         <SkeletonShipmentGrid />
       ) : forbidden ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50">You don&apos;t have permission to view shipments.</p>
           <p className="text-white/30 text-sm mt-2">Contact your company admin to request access.</p>
         </div>
       ) : error ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load shipments</p>
           <button onClick={fetchShipments} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
@@ -61,7 +61,7 @@ export default function ShipmentsPage() {
             const days = daysUntil(s.deadline);
             return (
               <AnimatedListItem key={s.id}>
-              <Link href={`/shipments/${s.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-all block">
+              <Link href={`/shipments/${s.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 block">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-[#0984E3]/20 flex items-center justify-center shrink-0">
@@ -72,7 +72,8 @@ export default function ShipmentsPage() {
                     <div>
                       <h3 className="text-white font-semibold">{s.name}</h3>
                       <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
-                        <span className={`text-sm font-medium ${days <= 3 ? "text-red-400" : days <= 7 ? "text-amber-400" : "text-green-400"}`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${days <= 3 ? "text-rose-300 bg-rose-400/10 ring-rose-400/20" : days <= 7 ? "text-amber-300 bg-amber-400/10 ring-amber-400/20" : "text-emerald-300 bg-emerald-400/10 ring-emerald-400/20"}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${days <= 3 ? "bg-rose-400" : days <= 7 ? "bg-amber-400" : "bg-emerald-400"}`} />
                           {days <= 0 ? "Due today" : `${days} day${days !== 1 ? "s" : ""} left`}
                         </span>
                         <span className="text-white/40 text-sm">{s.productCount} products</span>
@@ -89,7 +90,7 @@ export default function ShipmentsPage() {
             );
           })}
           {shipments.length === 0 && (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center text-white/40">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center text-white/40">
               No shipments available right now. Check back soon.
             </div>
           )}

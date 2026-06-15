@@ -115,7 +115,7 @@ export default function NewCompanyPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
         {/* Company Details */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-4">Company Details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -134,7 +134,7 @@ export default function NewCompanyPage() {
         </div>
 
         {/* Users */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-1">Users</h3>
           <p className="text-white/40 text-xs mb-5">These users will be created and linked to the company</p>
 
@@ -198,7 +198,7 @@ export default function NewCompanyPage() {
         </div>
 
         {/* Addresses */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-1">Addresses</h3>
           <p className="text-white/40 text-xs mb-5">Optional — can be added later</p>
 

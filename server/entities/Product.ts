@@ -35,6 +35,11 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "int", nullable: true })
   availableQty: number | null;
 
+  // Fractional-bag pack sizes parsed from the list, e.g. [{fraction:"1/6",headcount:100},
+  // {fraction:"1/12",headcount:50}]. Drives bag-based ordering when the shipment has it enabled.
+  @Column({ type: "jsonb", nullable: true })
+  packOptions: { fraction: string; headcount: number }[] | null;
+
   @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   surcharge: number;
 

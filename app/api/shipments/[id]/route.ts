@@ -13,5 +13,22 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const shipment = await getShipmentWithProducts(id);
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
-  return NextResponse.json(shipment);
+  // Only send the product fields the order UI actually uses. The full entity
+  // (timestamps, shipmentId, originalRow, …) roughly doubled the payload.
+  return NextResponse.json({
+    ...shipment,
+    products: shipment.products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      latinName: p.latinName,
+      price: p.price,
+      variant: p.variant,
+      size: p.size,
+      qtyPerBox: p.qtyPerBox,
+      availableQty: p.availableQty,
+      surcharge: p.surcharge,
+      featured: p.featured,
+      packOptions: p.packOptions,
+    })),
+  });
 }

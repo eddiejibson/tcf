@@ -302,7 +302,7 @@ function InvoiceBuilderContent() {
               </div>
 
               {/* Surcharge Controls */}
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 space-y-3">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
@@ -371,7 +371,7 @@ function InvoiceBuilderContent() {
                 {files.map((file, fileIndex) => (
                   <div
                     key={file.filename}
-                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden"
+                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden"
                   >
                     {/* Shipment Header */}
                     <button

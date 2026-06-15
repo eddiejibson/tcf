@@ -31,13 +31,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await audit(user, "order.credit_remove", "order", id, { companyId });
     const updated = await getOrderById(id);
     if (!updated) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent);
+    const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent, updated.deliveryCharge);
     const balance = await getCreditBalance(companyId);
     return NextResponse.json({ ...updated, totals, creditBalance: balance });
   }
 
   // Apply credit — cap by credit earned from this order (can't apply DOA credit from X back to X).
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0, order.discountPercent);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0, order.discountPercent, order.deliveryCharge);
   const applicable = await getCreditApplicableToOrder(companyId, id);
   const toApply = Math.min(applicable, totals.total);
 
@@ -50,13 +50,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const updatedOrder = await getOrderById(id);
   if (!updatedOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  const newTotals = calculateOrderTotals(updatedOrder.items, updatedOrder.includeShipping, updatedOrder.freightCharge, updatedOrder.creditApplied, updatedOrder.discountPercent);
+  const newTotals = calculateOrderTotals(updatedOrder.items, updatedOrder.includeShipping, updatedOrder.freightCharge, updatedOrder.creditApplied, updatedOrder.discountPercent, updatedOrder.deliveryCharge);
 
   if (newTotals.total <= 0) {
     await markOrderPaid(id, "CREDIT");
     const paidOrder = await getOrderById(id);
     if (!paidOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    const paidTotals = calculateOrderTotals(paidOrder.items, paidOrder.includeShipping, paidOrder.freightCharge, paidOrder.creditApplied, paidOrder.discountPercent);
+    const paidTotals = calculateOrderTotals(paidOrder.items, paidOrder.includeShipping, paidOrder.freightCharge, paidOrder.creditApplied, paidOrder.discountPercent, paidOrder.deliveryCharge);
     return NextResponse.json({ ...paidOrder, totals: paidTotals, creditBalance: result.newBalance });
   }
 

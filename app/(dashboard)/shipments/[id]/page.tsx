@@ -7,6 +7,9 @@ import { generateShipmentSheet, parseShipmentOrderSheet } from "@/app/lib/genera
 import type { SerializedProduct, ShipmentDetail, UserListItem } from "@/app/lib/types";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import CustomerPicker from "@/app/components/CustomerPicker";
+import ProductBagCard from "@/app/components/ProductBagCard";
+import BoxFillMeter from "@/app/components/BoxFillMeter";
+import { bagHeadcount, bagBoxFill, hasAnyBags } from "@/app/lib/bags";
 import React, {
   useCallback,
   useDeferredValue,
@@ -24,6 +27,10 @@ function formatPrice(n: number) {
 function toTitleCase(str: string) {
   return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+// How many product rows to render at a time. The list grows as the user scrolls
+// instead of mounting every row (potentially 1000s) on open.
+const VISIBLE_STEP = 60;
 
 function SubstitutePicker({
   products,
@@ -150,6 +157,8 @@ export default function ShipmentDetailPage() {
   const [adminUsers, setAdminUsers] = useState<UserListItem[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [cart, setCart] = useState<Map<string, number>>(new Map());
+  // Fractional-bag ordering: productId → { "1/12": bags, "1/6": bags }
+  const [bagCart, setBagCart] = useState<Map<string, Record<string, number>>>(new Map());
   const [substitutes, setSubstitutes] = useState<
     Map<string, { productId: string; name: string }>
   >(new Map());
@@ -168,6 +177,8 @@ export default function ShipmentDetailPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const fetchShipment = useCallback(async () => {
     const res = await fetch(`/api/shipments/${params.id}`);
@@ -193,15 +204,18 @@ export default function ShipmentDetailPage() {
     return () => observer.disconnect();
   }, [cart.size]);
 
+  // Stable display order: available items first (in the shipment's own order),
+  // with unavailable items pushed to the bottom. Deliberately NOT sorted by cart
+  // contents — re-ordering on every pick yanked the just-selected item to the top
+  // of a long list and lost the user's scroll position. Selecting now leaves each
+  // row exactly where it is. (Unavailability is based on stock, which doesn't
+  // change as you select, so this order stays stable throughout.)
   const sortedProducts = useMemo(() => {
     if (!shipment) return [];
-    const inCart: SerializedProduct[] = [];
     const available: SerializedProduct[] = [];
     const unavailable: SerializedProduct[] = [];
     for (const p of shipment.products) {
-      if (cart.has(p.id) && cart.get(p.id)! > 0) {
-        inCart.push(p);
-      } else if (
+      if (
         p.availableQty !== null &&
         p.availableQty !== undefined &&
         p.availableQty <= 0
@@ -211,8 +225,8 @@ export default function ShipmentDetailPage() {
         available.push(p);
       }
     }
-    return [...inCart, ...available, ...unavailable];
-  }, [shipment, cart]);
+    return [...available, ...unavailable];
+  }, [shipment]);
 
   const filteredProducts = useMemo(() => {
     if (!deferredSearch.trim()) return sortedProducts;
@@ -225,6 +239,28 @@ export default function ShipmentDetailPage() {
         (p.size && p.size.toLowerCase().includes(q)),
     );
   }, [sortedProducts, deferredSearch]);
+
+  // Reset the visible window whenever the (filtered) list changes from a search,
+  // so results always start from the top.
+  useEffect(() => {
+    setVisibleCount(VISIBLE_STEP);
+  }, [deferredSearch]);
+
+  // Grow the rendered window as the sentinel near the bottom comes into view.
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((c) => Math.min(c + VISIBLE_STEP, filteredProducts.length));
+        }
+      },
+      { rootMargin: "800px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [filteredProducts.length]);
 
   const getQty = (id: string) => cart.get(id) || 0;
 
@@ -263,24 +299,51 @@ export default function ShipmentDetailPage() {
     setCart(newCart);
   };
 
+  const fractional = !!shipment?.fractionalBagsEnabled;
+  const getBags = (id: string): Record<string, number> => bagCart.get(id) || {};
+  const setBag = (productId: string, fraction: string, next: number) => {
+    setBagCart((prev) => {
+      const m = new Map(prev);
+      const sel = { ...(m.get(productId) || {}) };
+      if (next <= 0) delete sel[fraction];
+      else sel[fraction] = next;
+      if (Object.keys(sel).length === 0) m.delete(productId);
+      else m.set(productId, sel);
+      return m;
+    });
+  };
+  const productHeadcount = (p: SerializedProduct) =>
+    fractional ? bagHeadcount(p.packOptions || [], getBags(p.id)) : getQty(p.id);
+  const productBoxFill = (p: SerializedProduct) =>
+    fractional ? bagBoxFill(p.packOptions || [], getBags(p.id)) : 0;
+
   const subtotal =
     shipment?.products.reduce(
-      (sum, p) => sum + getQty(p.id) * applyDiscount(Number(p.price), discount),
+      (sum, p) => sum + productHeadcount(p) * applyDiscount(Number(p.price), discount),
       0,
     ) || 0;
 
-  const freightEst = shipment
+  const totalBoxFill =
+    fractional && shipment ? shipment.products.reduce((s, p) => s + productBoxFill(p), 0) : 0;
+
+  const freightEst = shipment && !fractional
     ? estimateFreight(
         shipment.products.map((p) => ({ quantity: getQty(p.id), qtyPerBox: p.qtyPerBox })),
         Number(shipment.freightCost),
       )
-    : { totalBoxes: 0, freight: 0, hasUnknownBoxItems: false };
+    : { totalBoxes: Math.ceil(totalBoxFill), freight: 0, hasUnknownBoxItems: false };
 
   const totalBoxes = freightEst.totalBoxes;
   const hasUnknownBoxItems = freightEst.hasUnknownBoxItems;
   const estimatedFreight = freightEst.freight;
   const vat = subtotal * 0.2;
   const total = subtotal + vat;
+
+  // Order presence/count works for both modes (raw cart vs bag cart).
+  const orderItemCount = fractional && shipment
+    ? shipment.products.filter((p) => hasAnyBags(getBags(p.id))).length
+    : cart.size;
+  const hasOrder = orderItemCount > 0;
 
   const handleExport = async () => {
     if (!shipment) return;
@@ -344,7 +407,7 @@ export default function ShipmentDetailPage() {
   };
 
   const handleSubmitClick = () => {
-    if (!shipment || cart.size === 0) return;
+    if (!shipment || !hasOrder) return;
     if (adminMode && !selectedUserId) {
       setSubmitError("Please select a customer first");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -354,24 +417,42 @@ export default function ShipmentDetailPage() {
   };
 
   const handleConfirmSubmit = async () => {
-    if (!shipment || cart.size === 0 || !termsAccepted) return;
+    if (!shipment || !hasOrder || !termsAccepted) return;
     setShowTerms(false);
     setSubmitting(true);
     setSubmitError("");
 
-    const items = shipment.products
-      .filter((p) => getQty(p.id) > 0)
-      .map((p) => {
-        const sub = substitutes.get(p.id);
-        return {
-          productId: p.id,
-          name: p.name,
-          quantity: getQty(p.id),
-          unitPrice: Number(p.price),
-          substituteProductId: sub?.productId || null,
-          substituteName: sub?.name || null,
-        };
-      });
+    const items = fractional
+      ? shipment.products.flatMap((p) => {
+          const sel = getBags(p.id);
+          return (p.packOptions || [])
+            .filter((o) => (sel[o.fraction] || 0) > 0)
+            .map((o) => ({
+              productId: p.id,
+              name: p.name,
+              quantity: (sel[o.fraction] || 0) * o.headcount,
+              unitPrice: Number(p.price),
+              packFraction: o.fraction as string | null,
+              bagCount: (sel[o.fraction] || 0) as number | null,
+              substituteProductId: null as string | null,
+              substituteName: null as string | null,
+            }));
+        })
+      : shipment.products
+          .filter((p) => getQty(p.id) > 0)
+          .map((p) => {
+            const sub = substitutes.get(p.id);
+            return {
+              productId: p.id,
+              name: p.name,
+              quantity: getQty(p.id),
+              unitPrice: Number(p.price),
+              packFraction: null as string | null,
+              bagCount: null as number | null,
+              substituteProductId: sub?.productId || null,
+              substituteName: sub?.name || null,
+            };
+          });
 
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -513,7 +594,7 @@ export default function ShipmentDetailPage() {
         </div>
       )}
 
-      {cart.size > 0 && (
+      {hasOrder && (
         <div
           ref={cartBarRef}
           className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6"
@@ -521,6 +602,11 @@ export default function ShipmentDetailPage() {
           {discount > 0 && (
             <div className="mb-3 px-2.5 py-1.5 bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-lg inline-block">
               <p className="text-[#0984E3] text-xs font-medium">{discount}% discount applied</p>
+            </div>
+          )}
+          {fractional && totalBoxFill > 0 && (
+            <div className="mb-4">
+              <BoxFillMeter boxFill={totalBoxFill} />
             </div>
           )}
           <div className="grid grid-cols-3 gap-3 md:flex md:flex-wrap md:items-start md:gap-6 mb-4">
@@ -562,11 +648,11 @@ export default function ShipmentDetailPage() {
               </p>
             </div>
             <p className="hidden md:block text-white/30 text-xs self-center">
-              {cart.size} items{totalBoxes > 0 ? ` / ${totalBoxes} boxes` : ""}
+              {orderItemCount} items{totalBoxes > 0 ? ` / ${totalBoxes} boxes` : ""}
             </p>
           </div>
           <p className="md:hidden text-white/30 text-xs mb-4">
-            {cart.size} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}
+            {orderItemCount} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}
           </p>
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             {user && user.creditBalance > 0 && (
@@ -597,12 +683,12 @@ export default function ShipmentDetailPage() {
         </div>
       )}
 
-      {cart.size > 0 && !cartBarVisible && (
+      {hasOrder && !cartBarVisible && (
         <div className="sticky top-14 md:top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-2.5 mb-4 bg-[#111518]/95 backdrop-blur-xl border-b border-white/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <p className="text-[#0984E3] text-sm font-bold tabular-nums">{formatPrice(total)}</p>
-              <p className="text-white/30 text-xs">{cart.size} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}</p>
+              <p className="text-white/30 text-xs">{orderItemCount} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -708,7 +794,23 @@ export default function ShipmentDetailPage() {
                 </p>
               </div>
             )}
-            {filteredProducts.map((product) => {
+            {filteredProducts.slice(0, visibleCount).map((product) => {
+              if (fractional) {
+                return (
+                  <ProductBagCard
+                    key={product.id}
+                    name={product.name}
+                    latinName={product.latinName}
+                    size={product.size}
+                    variant={product.variant}
+                    unitPrice={applyDiscount(Number(product.price), discount)}
+                    packOptions={product.packOptions || []}
+                    bags={getBags(product.id)}
+                    onChange={(fr, next) => setBag(product.id, fr, next)}
+                    unavailable={isUnavailable(product)}
+                  />
+                );
+              }
               const qty = getQty(product.id);
               const lineTotal = qty * applyDiscount(Number(product.price), discount);
               const unavail = isUnavailable(product);
@@ -983,6 +1085,13 @@ export default function ShipmentDetailPage() {
               );
             })}
           </div>
+          {visibleCount < filteredProducts.length && (
+            <div ref={loadMoreRef} className="px-4 md:px-5 py-4 text-center">
+              <span className="text-white/30 text-xs">
+                Loading more… ({visibleCount} of {filteredProducts.length})
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

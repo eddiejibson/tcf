@@ -261,7 +261,7 @@ export default function SquareCardForm({ orderId, total, amount, buyer, onSucces
   }, [orderId, processing, onSuccess, amount, buyer, chargeUrl]);
 
   return (
-    <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+    <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6">
       <style>{`
         #square-card-container .sq-card-message {
           display: none !important;

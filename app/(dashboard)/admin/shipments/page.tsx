@@ -75,7 +75,7 @@ export default function AdminShipmentsPage() {
       {loading ? (
         <SkeletonOrderList />
       ) : error ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load shipments</p>
           <button onClick={() => fetchShipments(page)} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
@@ -86,7 +86,7 @@ export default function AdminShipmentsPage() {
           <AnimatedList className="space-y-4">
             {shipments.map((s) => (
               <AnimatedListItem key={s.id}>
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 hover:bg-white/[0.07] transition-colors">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 hover:bg-white/[0.07] transition-colors">
                 <div className="flex items-center justify-between">
                   <Link href={`/admin/shipments/${s.id}`} className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-12 h-12 rounded-xl bg-[#0984E3]/20 flex items-center justify-center shrink-0">
@@ -142,7 +142,7 @@ export default function AdminShipmentsPage() {
             ))}
           </AnimatedList>
             {shipments.length === 0 && (
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center text-white/40">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center text-white/40">
                 No shipments yet. Upload an Excel file to create one.
               </div>
             )}

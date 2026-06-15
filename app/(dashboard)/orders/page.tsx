@@ -12,7 +12,7 @@ const statusColors: Record<string, string> = {
   AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
   ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
   EXPIRED: "bg-orange-500/20 text-orange-400",
 };
@@ -59,12 +59,12 @@ export default function OrdersPage() {
       {loading ? (
         <SkeletonOrderList />
       ) : forbidden ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50">You don&apos;t have permission to view orders.</p>
           <p className="text-white/30 text-sm mt-2">Contact your company admin to request access.</p>
         </div>
       ) : error ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load orders</p>
           <button onClick={fetchOrders} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
@@ -74,7 +74,7 @@ export default function OrdersPage() {
         <AnimatedList className="space-y-4">
           {orders.map((o) => (
             <AnimatedListItem key={o.id}>
-            <Link href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
+            <Link href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export default function OrdersPage() {
             </AnimatedListItem>
           ))}
           {orders.length === 0 && (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
               <p className="text-white/40 mb-4">No orders yet</p>
               <div className="flex items-center justify-center gap-4">
                 <Link href="/shipments" className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm font-medium transition-colors">Browse Shipments</Link>

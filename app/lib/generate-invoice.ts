@@ -21,6 +21,7 @@ export interface InvoiceData {
   vat: number;
   shipping: number;
   freight?: number;
+  delivery?: number;
   credit?: number;
   total: number;
   includeShipping: boolean;
@@ -334,6 +335,9 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   }
   if (data.freight && data.freight > 0) {
     drawTotalRow("Freight", fmtPrice(data.freight));
+  }
+  if (data.delivery && data.delivery > 0) {
+    drawTotalRow("Delivery", fmtPrice(data.delivery));
   }
   if (data.includeShipping) {
     drawTotalRow("Shipping", fmtPrice(data.shipping));

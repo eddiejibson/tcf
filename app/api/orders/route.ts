@@ -17,7 +17,7 @@ export async function GET() {
 
   return NextResponse.json(
     orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent, o.deliveryCharge);
       return {
         id: o.id,
         status: o.status,
@@ -62,13 +62,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const order = await createOrder(effectiveUserId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string }) => ({
+    const order = await createOrder(effectiveUserId, shipmentId, items.map((i: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string; substituteName?: string; packFraction?: string | null; bagCount?: number | null }) => ({
       productId: i.productId,
       name: i.name,
       quantity: i.quantity,
       unitPrice: i.unitPrice,
       substituteProductId: i.substituteProductId || null,
       substituteName: i.substituteName || null,
+      packFraction: i.packFraction ?? null,
+      bagCount: i.bagCount ?? null,
     })), { skipDiscount: !!skipDiscount });
     if (order) await audit(user, "order.create", "order", order.id, { kind: "shipment", shipmentId, forUserId: forUserId || null, itemCount: items.length });
 

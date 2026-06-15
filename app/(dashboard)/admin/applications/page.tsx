@@ -6,10 +6,10 @@ import type { ApplicationListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-500/20 text-yellow-400",
-  APPROVED: "bg-green-500/20 text-green-400",
-  REJECTED: "bg-red-500/20 text-red-400",
+const statusStyles: Record<string, { cls: string; dot: string }> = {
+  PENDING: { cls: "text-amber-300 bg-amber-400/10 ring-amber-400/20", dot: "bg-amber-400" },
+  APPROVED: { cls: "text-emerald-300 bg-emerald-400/10 ring-emerald-400/20", dot: "bg-emerald-400" },
+  REJECTED: { cls: "text-rose-300 bg-rose-400/10 ring-rose-400/20", dot: "bg-rose-400" },
 };
 
 export default function AdminApplicationsPage() {
@@ -54,18 +54,18 @@ export default function AdminApplicationsPage() {
       </div>
 
       {/* Status filter */}
-      <div className="flex gap-2 mb-4">
+      <div className="mb-5 inline-flex items-center gap-0.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-0.5">
         {["", "PENDING", "APPROVED", "REJECTED"].map((s) => (
           <button
             key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
               statusFilter === s
-                ? "bg-[#0984E3]/20 text-[#0984E3]"
-                : "bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10"
+                ? "bg-white/[0.08] text-white shadow-sm"
+                : "text-white/45 hover:text-white/80"
             }`}
           >
-            {s || "All"}
+            {s ? s.charAt(0) + s.slice(1).toLowerCase() : "All"}
           </button>
         ))}
       </div>
@@ -73,41 +73,45 @@ export default function AdminApplicationsPage() {
       {loading ? (
         <SkeletonTable />
       ) : fetchError ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load applications</p>
           <button onClick={fetchApplications} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
           </button>
         </div>
       ) : (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[2fr_1.5fr_2fr_1fr_1.5fr] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
-              <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Company</p></div>
-              <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Contact</p></div>
-              <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Email</p></div>
-              <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Status</p></div>
-              <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Date</p></div>
+            <div className="min-w-[640px] px-4 md:px-6 py-2.5 grid grid-cols-[2fr_1.5fr_2fr_1fr_1.5fr] items-center gap-4 border-b border-white/[0.07]">
+              <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Company</p></div>
+              <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Contact</p></div>
+              <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Email</p></div>
+              <div className="text-center"><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Status</p></div>
+              <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Date</p></div>
             </div>
             <AnimatedList>
-            {applications.map((a) => (
+            {applications.map((a) => {
+              const st = statusStyles[a.status] || { cls: "text-white/50 bg-white/5 ring-white/10", dot: "bg-white/40" };
+              return (
               <AnimatedListItem key={a.id}>
               <div
                 onClick={() => router.push(`/admin/applications/${a.id}`)}
-                className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1.5fr_2fr_1fr_1.5fr] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                className="group min-w-[640px] px-4 md:px-6 py-3.5 grid grid-cols-[2fr_1.5fr_2fr_1fr_1.5fr] items-center gap-4 border-b border-white/[0.05] last:border-b-0 hover:bg-white/[0.035] transition-colors cursor-pointer"
               >
-                <div><p className="text-white/90 text-sm font-medium truncate">{a.companyName}</p></div>
-                <div><p className="text-white/60 text-sm truncate">{a.contactName}</p></div>
-                <div><p className="text-white/60 text-sm truncate">{a.contactEmail}</p></div>
+                <div><p className="text-white text-sm font-medium truncate">{a.companyName}</p></div>
+                <div><p className="text-white/55 text-sm truncate">{a.contactName}</p></div>
+                <div><p className="text-white/55 text-sm truncate">{a.contactEmail}</p></div>
                 <div className="text-center">
-                  <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-medium ${statusColors[a.status] || ""}`}>
-                    {a.status}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${st.cls}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                    {a.status.charAt(0) + a.status.slice(1).toLowerCase()}
                   </span>
                 </div>
-                <div><p className="text-white/40 text-xs">{new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p></div>
+                <div><p className="text-white/45 text-xs tabular-nums">{new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p></div>
               </div>
               </AnimatedListItem>
-            ))}
+              );
+            })}
             </AnimatedList>
             {applications.length === 0 && (
               <div className="py-12 text-center text-white/40">
@@ -117,7 +121,7 @@ export default function AdminApplicationsPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="px-4 md:px-6 py-3 border-t border-white/10 flex items-center justify-between">
+            <div className="px-4 md:px-6 py-3 border-t border-white/[0.07] flex items-center justify-between">
               <p className="text-white/40 text-xs">
                 {total} application{total !== 1 ? "s" : ""} total
               </p>

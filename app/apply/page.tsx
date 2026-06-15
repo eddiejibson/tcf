@@ -136,7 +136,7 @@ export default function ApplyPage() {
       case 1:
         return companyName.trim().length > 0;
       case 2:
-        return contactName.trim().length > 0 && contactEmail.trim().length > 0;
+        return contactName.trim().length > 0 && contactEmail.trim().length > 0 && phone.trim().length > 0;
       case 3:
         return (
           billingAddress.line1.trim() &&
@@ -170,7 +170,7 @@ export default function ApplyPage() {
           companyNumber: companyNumber.trim() || undefined,
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
-          phone: phone.trim() || undefined,
+          phone: phone.trim(),
           accountsName: accountsName.trim() || undefined,
           accountsEmail: accountsEmail.trim() || undefined,
           additionalInfo: additionalInfo.trim() || undefined,
@@ -571,13 +571,13 @@ export default function ApplyPage() {
                         </div>
 
                         <div>
-                          <label className={labelClasses}>Phone Number</label>
+                          <label className={labelClasses}>Phone Number *</label>
                           <input
                             type="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className={inputClasses}
-                            placeholder="Phone number (optional)"
+                            placeholder="Your phone number"
                           />
                         </div>
 

@@ -11,6 +11,7 @@ import type { CategoryType } from "@/server/entities/Category";
 import type { CatalogProductRecord } from "@/server/entities/CatalogProduct";
 import type { ApplicationType } from "@/server/entities/Application";
 import type { OrderPaymentType } from "@/server/entities/OrderPayment";
+import type { DeliveryOption } from "./delivery";
 
 type Serialized<T> = {
   [K in keyof T]: T[K] extends Date ? string : T[K];
@@ -78,6 +79,7 @@ export interface OrderTotals {
   vat: number;
   shipping: number;
   freight: number;
+  delivery: number;
   credit: number;
   total: number;
 }
@@ -116,6 +118,8 @@ export interface AdminShipmentDetailOrderItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  packFraction?: string | null;
+  bagCount?: number | null;
 }
 
 export interface AdminShipmentDetailOrder {
@@ -141,6 +145,8 @@ export interface AdminShipmentDetail {
   shipmentDate: string;
   freightCost: number;
   margin: number;
+  fractionalBagsEnabled: boolean;
+  deliveryOptions?: DeliveryOption[] | null;
   sourceFilename: string | null;
   createdAt: string;
   products: AdminShipmentDetailProduct[];
@@ -160,6 +166,8 @@ export type EditableOrderItem = Pick<SerializedOrderItem, "id" | "productId" | "
   categoryName?: string | null;
   size?: string | null;
   variant?: string | null;
+  packFraction?: string | null;
+  bagCount?: number | null;
 };
 
 export type OrderItemWithMeta = SerializedOrderItem & {
@@ -193,7 +201,7 @@ export type ShipmentListItem = Pick<SerializedShipment, "id" | "name" | "deadlin
   productCount: number;
 };
 
-export type ShipmentDetail = Pick<SerializedShipment, "id" | "name" | "deadline" | "shipmentDate" | "freightCost"> & {
+export type ShipmentDetail = Pick<SerializedShipment, "id" | "name" | "deadline" | "shipmentDate" | "freightCost" | "fractionalBagsEnabled"> & {
   products: SerializedProduct[];
 };
 
@@ -250,6 +258,9 @@ export interface ParsedProduct {
   price: number | null;
   size: string | null;
   qtyPerBox: number | null;
+  // Per-fraction bag headcounts, e.g. [{fraction:"1/6", headcount:100}, {fraction:"1/12", headcount:50}].
+  // Drives fractional-bag ordering (step 2). The fraction set varies per supplier.
+  packOptions?: { fraction: string; headcount: number }[];
   availableQty: number | null;
   originalRow?: Record<string, unknown>;
   warnings: string[];
@@ -274,5 +285,7 @@ export interface ParsedShipment {
   warnings: string[];
   headers: string[];
   columnMappings: ColumnMapping;
+  // Distinct bag fractions found across the list, in column order, e.g. ["1/6","1/12"].
+  packFractions?: string[];
   rawRows?: unknown[][];
 }

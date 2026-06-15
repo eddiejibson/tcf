@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
     const billingAddress = body.billingAddress || null;
     const shippingAddress = body.shippingAddress || null;
 
-    if (!companyName || !contactName || !contactEmail) {
+    if (!companyName || !contactName || !contactEmail || !phone) {
       return NextResponse.json(
-        { error: "Company name, contact name, and email are required" },
+        { error: "Company name, contact name, email, and phone number are required" },
         { status: 400 }
       );
     }

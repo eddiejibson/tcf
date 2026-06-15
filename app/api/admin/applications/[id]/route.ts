@@ -80,7 +80,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       company = await companyRepo.save({
         name: application.companyName,
         companyNumber: application.companyNumber,
+        phone: application.phone,
       });
+    } else if (!company.phone && application.phone) {
+      // Backfill phone onto an existing company that doesn't have one yet
+      company.phone = application.phone;
+      await companyRepo.save(company);
     }
 
     // Create Address records if address data exists

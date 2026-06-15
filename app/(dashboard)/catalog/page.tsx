@@ -40,7 +40,7 @@ interface CartItem {
 }
 
 const stockLevelColors: Record<string, string> = {
-  LOW: "bg-amber-500/20 text-amber-400",
+  LOW: "bg-amber-500/15 text-amber-300",
   AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
@@ -189,7 +189,7 @@ export default function CatalogPage() {
 
   if (error) return (
     <div className="p-4 md:p-8">
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
         <p className="text-white/50 mb-4">Failed to load catalog</p>
         <button onClick={retryLoad} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
           Retry
@@ -361,7 +361,7 @@ export default function CatalogPage() {
 
         {/* Cart sidebar */}
         <div className="lg:w-80 flex-shrink-0 self-start lg:sticky lg:top-4">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <h3 className="text-white font-semibold mb-4">Draft Invoice</h3>
 
             {cart.length === 0 ? (

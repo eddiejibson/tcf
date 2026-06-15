@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 import Sidebar from "./Sidebar";
 import PageTransition from "./PageTransition";
 import { useAuth } from "@/app/lib/auth-context";
@@ -31,7 +33,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const sudoBarOffset = user?.isImpersonating ? "top-9" : "top-0";
 
   return (
-    <div className={`flex min-h-screen bg-[#1a1f26] ${user?.isImpersonating ? "pt-9" : ""}`}>
+    <div className={`flex min-h-screen bg-[#161b22] ${user?.isImpersonating ? "pt-9" : ""}`}>
       {user?.isImpersonating && (
         <div className="fixed top-0 left-0 right-0 z-[60] h-9 bg-amber-500 text-black px-4 flex items-center justify-center gap-3 text-xs font-medium shadow-lg">
           <span>
@@ -47,16 +49,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </div>
       )}
       {/* Mobile top bar */}
-      <div className={`fixed ${sudoBarOffset} left-0 right-0 z-40 md:hidden bg-[#141820] border-b border-white/5 px-4 py-3 flex items-center gap-3`}>
+      <div className={`fixed ${sudoBarOffset} left-0 right-0 z-40 md:hidden bg-[#10141b]/95 backdrop-blur-md border-b border-white/[0.06] px-4 py-3 flex items-center gap-3`}>
         <button
           onClick={() => setSidebarOpen(true)}
-          className="text-white/60 hover:text-white transition-colors p-1"
+          className="-ml-1 p-1 text-white/60 hover:text-white transition-colors"
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         </button>
-        <span className="text-white font-extrabold tracking-wider text-sm">THE CORAL FARM</span>
+        <Link href="/" aria-label="The Coral Farm" className="flex items-center">
+          <Image src="/images/logo.png" alt="The Coral Farm" width={20} height={30} className="object-contain" />
+        </Link>
       </div>
 
       {/* Desktop sidebar */}

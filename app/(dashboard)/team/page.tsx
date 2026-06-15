@@ -62,7 +62,7 @@ export default function TeamPage() {
   if (!isAdmin) {
     return (
       <div className="p-4 md:p-8">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50">You don&apos;t have access to team management.</p>
         </div>
       </div>
@@ -266,14 +266,14 @@ export default function TeamPage() {
       {loading ? (
         <SkeletonTable />
       ) : error ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">{error}</p>
           <button onClick={fetchMembers} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
           </button>
         </div>
       ) : (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="overflow-x-auto">
             <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[2fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Member</p></div>

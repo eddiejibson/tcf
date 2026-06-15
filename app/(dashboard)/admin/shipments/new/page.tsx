@@ -4,6 +4,8 @@ import { useState, useRef, useCallback, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ParsedProduct, ParsedShipment, ColumnMapping } from "@/app/lib/types";
 import { VirtualItemList, ROW_H } from "@/app/components/shipments/ProductItemList";
+import DeliveryOptionsEditor from "@/app/components/shipments/DeliveryOptionsEditor";
+import { DEFAULT_DELIVERY_OPTIONS, type DeliveryOption } from "@/app/lib/delivery";
 
 type ItemWithId = ParsedProduct & { _id: number };
 let nextItemId = 0;
@@ -133,6 +135,8 @@ export default function NewShipmentPage() {
   const [shipmentDate, setShipmentDate] = useState("");
   const [freightCost, setFreightCost] = useState("");
   const [items, setItems] = useState<ItemWithId[]>([]);
+  const [fractionalBagsEnabled, setFractionalBagsEnabled] = useState(false);
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>(DEFAULT_DELIVERY_OPTIONS);
   const [itemSearch, setItemSearch] = useState("");
   const [mappingsOpen, setMappingsOpen] = useState(false);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
@@ -171,6 +175,8 @@ export default function NewShipmentPage() {
       const arrayBuffer = await file.arrayBuffer();
       const data: ParsedShipment = parseExcelBuffer(arrayBuffer, file.name);
       setParsed(data);
+      // Default fractional-bag ordering on when the list carries pack quantities.
+      setFractionalBagsEnabled((data.items || []).some((it) => it.packOptions && it.packOptions.length > 0));
       setName(data.name || "");
       setDeadline(data.deadline || "");
       setShipmentDate(data.shipmentDate || "");
@@ -264,6 +270,8 @@ export default function NewShipmentPage() {
           shipmentDate,
           freightCost: parseFloat(freightCost) || 0,
           margin: parseFloat(margin) || 0,
+          fractionalBagsEnabled,
+          deliveryOptions,
           products: validItems.map((i) => ({
             name: i.name,
             latinName: i.latinName || null,
@@ -272,6 +280,8 @@ export default function NewShipmentPage() {
             size: i.size,
             qtyPerBox: i.qtyPerBox || null,
             availableQty: i.availableQty,
+            packOptions: i.packOptions ?? null,
+            originalRow: i.originalRow ?? null,
           })),
         }),
       });
@@ -291,6 +301,7 @@ export default function NewShipmentPage() {
   const hasVariant = useMemo(() => items.some((i) => i.variant), [items]);
   const hasSize = useMemo(() => items.some((i) => i.size), [items]);
   const hasStock = useMemo(() => items.some((i) => i.availableQty !== null && i.availableQty !== undefined), [items]);
+  const hasBags = useMemo(() => items.some((i) => i.packOptions && i.packOptions.length > 0), [items]);
   const validCount = useMemo(() => items.filter((i) => i.name && i.price).length, [items]);
 
   return (
@@ -378,6 +389,30 @@ export default function NewShipmentPage() {
                 </div>
               </div>
             )}
+            {items.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fractionalBagsEnabled}
+                    onChange={(e) => setFractionalBagsEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-white/80 text-sm font-medium">Fractional-bag ordering</span>
+                </label>
+                <p className="text-white/30 text-xs mt-1.5">
+                  {fractionalBagsEnabled
+                    ? "Customers order this shipment by bags like 1/12 and 1/6. On by default because the list includes pack quantities."
+                    : "Customers order by raw quantity. Enable to let them order by fractional bags (needs per-bag counts in the list)."}
+                </p>
+              </div>
+            )}
+            {items.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Delivery options (optional)</label>
+                <DeliveryOptionsEditor options={deliveryOptions} onChange={setDeliveryOptions} />
+              </div>
+            )}
           </div>
 
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
@@ -441,6 +476,7 @@ export default function NewShipmentPage() {
               <div className="w-24"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
               {hasSize && <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Size</p></div>}
               <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty/Box</p></div>
+              {hasBags && <div className="w-28"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Bags</p></div>}
               {hasStock && <div className="w-20"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Stock</p></div>}
               <div className="w-16"></div>
             </div>
@@ -450,6 +486,7 @@ export default function NewShipmentPage() {
               hasVariant={hasVariant}
               hasSize={hasSize}
               hasStock={hasStock}
+              hasBags={hasBags}
               onUpdate={updateItem}
               onRemove={removeItem}
               isPending={isPending}

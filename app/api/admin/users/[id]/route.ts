@@ -56,6 +56,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       id: company.id,
       name: company.name,
       companyNumber: company.companyNumber,
+      phone: company.phone,
+      salesNotes: company.salesNotes,
       discount: Number(company.discount) || 0,
       users: companyUsers.map((u) => ({ id: u.id, email: u.email, companyRole: u.companyRole })),
     } : null,

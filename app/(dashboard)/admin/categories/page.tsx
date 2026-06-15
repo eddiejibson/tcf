@@ -96,7 +96,7 @@ export default function CategoriesPage() {
         <h1 className="text-2xl font-bold text-white">Categories</h1>
         <p className="text-white/50 text-sm mt-1">Manage product categories</p>
       </div>
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
         <p className="text-white/50 mb-4">Failed to load categories</p>
         <button onClick={fetchCategories} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
           Retry
@@ -116,7 +116,7 @@ export default function CategoriesPage() {
       <AnimatedList className="space-y-6">
         {categories.map((parent) => (
           <AnimatedListItem key={parent.id}>
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
             <div className="px-6 py-4 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
               {editingId === parent.id ? (
                 <div className="flex items-center gap-3 flex-1">
@@ -167,7 +167,7 @@ export default function CategoriesPage() {
         ))}
       </AnimatedList>
 
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 space-y-5">
           <h3 className="text-white font-semibold">Add Category</h3>
 
           <div>

@@ -238,14 +238,14 @@ export default function CatalogPage() {
       {loading ? (
         <SkeletonTable />
       ) : error ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load catalog</p>
           <button onClick={() => fetchProducts()} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
           </button>
         </div>
       ) : (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="overflow-x-auto">
             <div className="min-w-[880px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
               <div className="w-12"></div>

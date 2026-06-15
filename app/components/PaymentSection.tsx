@@ -157,7 +157,7 @@ export default function PaymentSection({
 
       {/* Existing payments */}
       {canViewPayments && order.payments?.length > 0 && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 mb-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold">Payments</h3>
             {order.remainingBalance > 0 && <span className="text-amber-400 text-sm font-medium">{formatPrice(order.remainingBalance)} remaining</span>}
@@ -270,7 +270,7 @@ export default function PaymentSection({
         const bankPayment = pendingPayments.find((p) => p.method === "BANK_TRANSFER");
         const paymentAmount = bankPayment ? Number(bankPayment.amount) : order.remainingBalance;
         return (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold text-lg">Bank Transfer Details</h3>
               {canCancelPayments && bankPayment && (
@@ -326,7 +326,7 @@ export default function PaymentSection({
       {showFinancePending && (() => {
         const finPayment = pendingPayments.find((p) => p.method === "FINANCE");
         return (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold text-lg">Finance via iwocaPay</h3>
               {canCancelPayments && finPayment && (

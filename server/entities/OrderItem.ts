@@ -26,6 +26,14 @@ export class OrderItem extends BaseEntity {
   @Column({ type: "int" })
   quantity: number;
 
+  // Fractional-bag ordering: the bag size (e.g. "1/12") and how many bags. `quantity` stays
+  // the total headcount (bagCount × per-bag headcount) so all existing totals math is unchanged.
+  @Column({ type: "varchar", nullable: true })
+  packFraction: string | null;
+
+  @Column({ type: "int", nullable: true })
+  bagCount: number | null;
+
   @Column({ type: "decimal", precision: 10, scale: 2 })
   unitPrice: number;
 

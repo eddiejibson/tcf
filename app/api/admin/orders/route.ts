@@ -11,7 +11,7 @@ export async function GET() {
 
   return NextResponse.json(
     orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent, o.deliveryCharge);
       return {
         id: o.id,
         status: o.status,
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       itemCount: mappedItems.length,
     });
 
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
     return NextResponse.json({
       id: order.id,
       status: order.status,

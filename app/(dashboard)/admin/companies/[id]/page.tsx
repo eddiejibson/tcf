@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { TrafficLightPicker, type TrafficLightValue } from "@/app/components/TrafficLight";
 import { CompanyTags, type TagLite } from "@/app/components/CompanyTags";
+import {
+  TrafficLightPicker,
+  type TrafficLightValue,
+} from "@/app/components/TrafficLight";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 interface AddressData {
   id: string;
@@ -21,16 +24,36 @@ interface CompanyDetail {
   id: string;
   name: string;
   companyNumber: string | null;
+  phone: string | null;
+  salesNotes: string | null;
   trafficLight: TrafficLightValue;
   discount: number;
   createdAt: string;
   tags: TagLite[];
-  users: { id: string; email: string; companyRole: string | null; lastLogin: string | null }[];
+  users: {
+    id: string;
+    email: string;
+    companyRole: string | null;
+    lastLogin: string | null;
+  }[];
   addresses: AddressData[];
 }
 
-function formatAddress(a: { line1: string; line2?: string | null; city: string; county?: string | null; postcode: string; country: string }) {
-  return [a.line1, a.line2, a.city, a.county, a.postcode, a.country].filter(Boolean).join(", ");
+function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
+function formatAddress(a: {
+  line1: string;
+  line2?: string | null;
+  city: string;
+  county?: string | null;
+  postcode: string;
+  country: string;
+}) {
+  return [a.line1, a.line2, a.city, a.county, a.postcode, a.country]
+    .filter(Boolean)
+    .join(", ");
 }
 
 export default function CompanyDetailPage() {
@@ -44,6 +67,8 @@ export default function CompanyDetailPage() {
 
   const [editName, setEditName] = useState("");
   const [editNumber, setEditNumber] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editSalesNotes, setEditSalesNotes] = useState("");
   const [editDiscount, setEditDiscount] = useState("");
   const [editAddresses, setEditAddresses] = useState<AddressData[]>([]);
 
@@ -56,7 +81,9 @@ export default function CompanyDetailPage() {
     setLoading(false);
   }, [params.id]);
 
-  useEffect(() => { fetchCompany(); }, [fetchCompany]);
+  useEffect(() => {
+    fetchCompany();
+  }, [fetchCompany]);
 
   useEffect(() => {
     fetch("/api/admin/tags")
@@ -69,6 +96,8 @@ export default function CompanyDetailPage() {
     if (!company) return;
     setEditName(company.name);
     setEditNumber(company.companyNumber || "");
+    setEditPhone(company.phone || "");
+    setEditSalesNotes(company.salesNotes || "");
     setEditDiscount(String(company.discount));
     setEditAddresses(company.addresses.map((a) => ({ ...a })));
     setEditing(true);
@@ -83,8 +112,18 @@ export default function CompanyDetailPage() {
       body: JSON.stringify({
         name: editName,
         companyNumber: editNumber || null,
+        phone: editPhone.trim() || null,
+        salesNotes: editSalesNotes.trim() || null,
         discount: parseFloat(editDiscount) || 0,
-        addresses: editAddresses.map((a) => ({ id: a.id, line1: a.line1, line2: a.line2, city: a.city, county: a.county, postcode: a.postcode, country: a.country })),
+        addresses: editAddresses.map((a) => ({
+          id: a.id,
+          line1: a.line1,
+          line2: a.line2,
+          city: a.city,
+          county: a.county,
+          postcode: a.postcode,
+          country: a.country,
+        })),
       }),
     });
     if (res.ok) {
@@ -124,26 +163,90 @@ export default function CompanyDetailPage() {
     setResending(false);
   };
 
-  const updateAddress = (index: number, field: keyof AddressData, value: string) => {
-    setEditAddresses((prev) => prev.map((a, i) => i === index ? { ...a, [field]: value } : a));
+  const updateAddress = (
+    index: number,
+    field: keyof AddressData,
+    value: string,
+  ) => {
+    setEditAddresses((prev) =>
+      prev.map((a, i) => (i === index ? { ...a, [field]: value } : a)),
+    );
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>;
-  if (!company) return <div className="p-4 md:p-8 text-white/40">Company not found</div>;
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  if (!company)
+    return <div className="p-4 md:p-8 text-white/40">Company not found</div>;
 
   return (
     <div className="p-4 md:p-8">
-      <button onClick={() => router.push("/admin/companies")} className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+      <button
+        onClick={() => router.push("/admin/companies")}
+        className="text-white/50 hover:text-white text-sm mb-4 md:mb-6 flex items-center gap-1 transition-colors"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
         Back to Companies
       </button>
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6 md:mb-8">
         <div className="flex items-center gap-3">
-          <TrafficLightPicker value={company.trafficLight} onChange={updateTrafficLight} size="lg" className="mt-1" />
+          <TrafficLightPicker
+            value={company.trafficLight}
+            onChange={updateTrafficLight}
+            size="lg"
+            className="mt-1"
+          />
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-white">{company.name}</h1>
-            {company.companyNumber && <p className="text-white/40 text-sm mt-1">Company #{company.companyNumber}</p>}
+            <h1 className="text-xl md:text-2xl font-bold text-white">
+              {company.name}
+            </h1>
+            {company.companyNumber && (
+              <p className="text-white/40 text-sm mt-1">
+                Company #{company.companyNumber}
+              </p>
+            )}
+            {company.phone ? (
+              <a
+                href={telHref(company.phone)}
+                className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-[#0984E3]/15 hover:bg-[#0984E3]/25 text-[#0984E3] text-sm font-semibold rounded-lg transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                  />
+                </svg>
+                {company.phone}
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-amber-500/[0.08] ring-1 ring-inset ring-amber-500/20 text-white/70 text-sm font-medium rounded-lg">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400/90" />
+                No phone number
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -156,63 +259,223 @@ export default function CompanyDetailPage() {
               <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
             ) : resendDone ? (
               <>
-                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                <svg
+                  className="w-3.5 h-3.5 text-emerald-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
                 <span className="text-emerald-400">Sent</span>
               </>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                  />
+                </svg>
                 Resend Welcome
               </>
             )}
           </button>
           {!editing ? (
-            <button onClick={startEditing} className="px-4 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-sm font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all">Edit</button>
+            <button
+              onClick={startEditing}
+              className="px-4 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-sm font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all"
+            >
+              Edit
+            </button>
           ) : (
             <>
-              <button onClick={saveEdits} disabled={saving} className="px-4 py-1.5 bg-[#0984E3] text-white text-sm font-medium rounded-lg hover:bg-[#0984E3]/90 disabled:bg-white/10 transition-all">{saving ? "Saving..." : "Save"}</button>
-              <button onClick={() => setEditing(false)} className="px-4 py-1.5 text-white/50 hover:text-white text-sm transition-colors">Cancel</button>
+              <button
+                onClick={saveEdits}
+                disabled={saving}
+                className="px-4 py-1.5 bg-[#0984E3] text-white text-sm font-medium rounded-lg hover:bg-[#0984E3]/90 disabled:bg-white/10 transition-all"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="px-4 py-1.5 text-white/50 hover:text-white text-sm transition-colors"
+              >
+                Cancel
+              </button>
             </>
           )}
         </div>
       </div>
 
+      {!company.phone && (
+        <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-amber-500/[0.06] border border-amber-500/15">
+          <svg
+            className="w-5 h-5 text-amber-400/90 flex-shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.8}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+            />
+          </svg>
+          <div>
+            <p className="text-white/90 text-sm font-medium">
+              No phone number added
+            </p>
+            <p className="text-white/50 text-xs mt-0.5">
+              Add a phone number to this company!!
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Company Info */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-4">Company Details</h3>
           <div className="space-y-4">
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Name</p>
-              {editing ? <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" /> : <p className="text-white text-sm">{company.name}</p>}
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">
+                Name
+              </p>
+              {editing ? (
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                />
+              ) : (
+                <p className="text-white text-sm">{company.name}</p>
+              )}
             </div>
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Company Number</p>
-              {editing ? <input value={editNumber} onChange={(e) => setEditNumber(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" placeholder="e.g. 12345678" /> : <p className="text-white text-sm">{company.companyNumber || "—"}</p>}
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">
+                Company Number
+              </p>
+              {editing ? (
+                <input
+                  value={editNumber}
+                  onChange={(e) => setEditNumber(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                  placeholder="e.g. 12345678"
+                />
+              ) : (
+                <p className="text-white text-sm">
+                  {company.companyNumber || "—"}
+                </p>
+              )}
             </div>
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Discount</p>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">
+                Phone
+              </p>
+              {editing ? (
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                  placeholder="+44 7123 456789"
+                />
+              ) : company.phone ? (
+                <a
+                  href={telHref(company.phone)}
+                  className="text-[#0984E3] text-sm font-medium hover:underline inline-flex items-center gap-1.5"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                    />
+                  </svg>
+                  {company.phone}
+                </a>
+              ) : (
+                <p className="inline-flex items-center gap-1.5 text-white/45 text-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" />
+                  No phone number added
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">
+                Discount
+              </p>
               {editing ? (
                 <div className="flex items-center gap-2">
-                  <input type="number" min="0" max="100" step="0.01" value={editDiscount} onChange={(e) => setEditDiscount(e.target.value)} className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={editDiscount}
+                    onChange={(e) => setEditDiscount(e.target.value)}
+                    className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                   <span className="text-white/40 text-sm">%</span>
                 </div>
-              ) : <p className={`text-sm font-medium ${company.discount > 0 ? "text-[#0984E3]" : "text-white/40"}`}>{company.discount}%</p>}
+              ) : (
+                <p
+                  className={`text-sm font-medium ${company.discount > 0 ? "text-[#0984E3]" : "text-white/40"}`}
+                >
+                  {company.discount}%
+                </p>
+              )}
             </div>
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">Traffic Light</p>
-              <TrafficLightPicker value={company.trafficLight} onChange={updateTrafficLight} variant="full" />
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-1">
+                Traffic Light
+              </p>
+              <TrafficLightPicker
+                value={company.trafficLight}
+                onChange={updateTrafficLight}
+                variant="full"
+              />
             </div>
             <div>
-              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-2">Tags</p>
+              <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium mb-2">
+                Tags
+              </p>
               <CompanyTags
                 variant="inline"
                 companyId={company.id}
                 tags={company.tags}
                 allTags={allTags}
-                onChange={(next) => setCompany((prev) => (prev ? { ...prev, tags: next } : prev))}
+                onChange={(next) =>
+                  setCompany((prev) => (prev ? { ...prev, tags: next } : prev))
+                }
                 onTagCreated={(tag) =>
-                  setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name))))
+                  setAllTags((prev) =>
+                    prev.some((t) => t.id === tag.id)
+                      ? prev
+                      : [...prev, tag].sort((a, b) =>
+                          a.name.localeCompare(b.name),
+                        ),
+                  )
                 }
               />
             </div>
@@ -220,19 +483,31 @@ export default function CompanyDetailPage() {
         </div>
 
         {/* Users */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
-          <h3 className="text-white font-semibold mb-4">Users ({company.users.length})</h3>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
+          <h3 className="text-white font-semibold mb-4">
+            Users ({company.users.length})
+          </h3>
           {company.users.length === 0 ? (
             <p className="text-white/30 text-sm">No users linked</p>
           ) : (
             <div className="space-y-3">
               {company.users.map((u) => (
-                <Link key={u.id} href={`/admin/users/${u.id}`} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl hover:bg-white/[0.06] transition-colors">
+                <Link
+                  key={u.id}
+                  href={`/admin/users/${u.id}`}
+                  className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl hover:bg-white/[0.06] transition-colors"
+                >
                   <div>
                     <p className="text-white/90 text-sm">{u.email}</p>
-                    <p className="text-white/30 text-xs mt-0.5">{u.lastLogin ? `Last login ${new Date(u.lastLogin).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Never logged in"}</p>
+                    <p className="text-white/30 text-xs mt-0.5">
+                      {u.lastLogin
+                        ? `Last login ${new Date(u.lastLogin).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                        : "Never logged in"}
+                    </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${u.companyRole === "OWNER" ? "bg-[#0984E3]/20 text-[#0984E3]" : "bg-white/10 text-white/50"}`}>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium ${u.companyRole === "OWNER" ? "bg-[#0984E3]/20 text-[#0984E3]" : "bg-white/10 text-white/50"}`}
+                  >
                     {u.companyRole || "MEMBER"}
                   </span>
                 </Link>
@@ -241,8 +516,30 @@ export default function CompanyDetailPage() {
           )}
         </div>
 
+        {/* Sales Notes — admin only */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-white font-semibold">Sales Notes</h3>
+          </div>
+          {editing ? (
+            <textarea
+              value={editSalesNotes}
+              onChange={(e) => setEditSalesNotes(e.target.value)}
+              rows={4}
+              placeholder="Internal sales notes"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-[#0984E3]/50 resize-none"
+            />
+          ) : company.salesNotes ? (
+            <p className="text-white/70 text-sm whitespace-pre-wrap">
+              {company.salesNotes}
+            </p>
+          ) : (
+            <p className="text-white/20 text-sm">No sales notes yet</p>
+          )}
+        </div>
+
         {/* Addresses */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 lg:col-span-2">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 lg:col-span-2">
           <h3 className="text-white font-semibold mb-4">Addresses</h3>
           {company.addresses.length === 0 && !editing ? (
             <p className="text-white/30 text-sm">No addresses on file</p>
@@ -251,23 +548,69 @@ export default function CompanyDetailPage() {
               {(editing ? editAddresses : company.addresses).map((addr, i) => (
                 <div key={addr.id}>
                   <p className="text-[#0984E3] text-[10px] uppercase tracking-wider font-medium mb-2">
-                    {addr.type === "BILLING" ? "Billing Address" : "Shipping Address"}
+                    {addr.type === "BILLING"
+                      ? "Billing Address"
+                      : "Shipping Address"}
                   </p>
                   {editing ? (
                     <div className="space-y-2">
-                      <input value={editAddresses[i]?.line1 || ""} onChange={(e) => updateAddress(i, "line1", e.target.value)} placeholder="Address line 1" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
-                      <input value={editAddresses[i]?.line2 || ""} onChange={(e) => updateAddress(i, "line2", e.target.value)} placeholder="Address line 2" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+                      <input
+                        value={editAddresses[i]?.line1 || ""}
+                        onChange={(e) =>
+                          updateAddress(i, "line1", e.target.value)
+                        }
+                        placeholder="Address line 1"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                      />
+                      <input
+                        value={editAddresses[i]?.line2 || ""}
+                        onChange={(e) =>
+                          updateAddress(i, "line2", e.target.value)
+                        }
+                        placeholder="Address line 2"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                      />
                       <div className="grid grid-cols-2 gap-2">
-                        <input value={editAddresses[i]?.city || ""} onChange={(e) => updateAddress(i, "city", e.target.value)} placeholder="City" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
-                        <input value={editAddresses[i]?.county || ""} onChange={(e) => updateAddress(i, "county", e.target.value)} placeholder="County" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+                        <input
+                          value={editAddresses[i]?.city || ""}
+                          onChange={(e) =>
+                            updateAddress(i, "city", e.target.value)
+                          }
+                          placeholder="City"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                        />
+                        <input
+                          value={editAddresses[i]?.county || ""}
+                          onChange={(e) =>
+                            updateAddress(i, "county", e.target.value)
+                          }
+                          placeholder="County"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <input value={editAddresses[i]?.postcode || ""} onChange={(e) => updateAddress(i, "postcode", e.target.value)} placeholder="Postcode" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
-                        <input value={editAddresses[i]?.country || ""} onChange={(e) => updateAddress(i, "country", e.target.value)} placeholder="Country" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
+                        <input
+                          value={editAddresses[i]?.postcode || ""}
+                          onChange={(e) =>
+                            updateAddress(i, "postcode", e.target.value)
+                          }
+                          placeholder="Postcode"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                        />
+                        <input
+                          value={editAddresses[i]?.country || ""}
+                          onChange={(e) =>
+                            updateAddress(i, "country", e.target.value)
+                          }
+                          placeholder="Country"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50"
+                        />
                       </div>
                     </div>
                   ) : (
-                    <p className="text-white/80 text-sm leading-relaxed">{formatAddress(addr)}</p>
+                    <p className="text-white/80 text-sm leading-relaxed">
+                      {formatAddress(addr)}
+                    </p>
                   )}
                 </div>
               ))}

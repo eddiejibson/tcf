@@ -328,6 +328,7 @@ export default function AdminOrderDetailPage() {
       vat: order.totals.vat,
       shipping: order.totals.shipping,
       freight: order.totals.freight,
+      delivery: order.totals.delivery,
       credit: order.totals.credit,
       total: order.totals.total,
       includeShipping: order.includeShipping,
@@ -407,9 +408,10 @@ export default function AdminOrderDetailPage() {
   const subtotal = grossSubtotal - discountAmount;
   const shipping = includeShipping ? 30 : 0;
   const freight = parseFloat(freightCharge) || 0;
-  const vat = (subtotal + shipping + freight) * 0.2;
+  const delivery = Number(order?.deliveryCharge) || 0;
+  const vat = (subtotal + shipping + freight + delivery) * 0.2;
   const credit = Number(order?.creditApplied) || 0;
-  const total = subtotal + shipping + freight + vat - credit;
+  const total = subtotal + shipping + freight + delivery + vat - credit;
   const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED", "AWAITING_PAYMENT"].includes(order.status) || (order.status === "DRAFT" && !!order.shipmentId);
   // Items on this order that have neither productId nor catalogProductId — these are the
   // legacy free-text rows where latin name / category can't resolve.
@@ -716,6 +718,11 @@ export default function AdminOrderDetailPage() {
                   {[item.variant, item.size].filter(Boolean).join(" / ")}
                 </p>
               )}
+              {item.bagCount && item.packFraction && (
+                <p className="text-[#0984E3]/70 text-xs mt-0.5 tabular-nums">
+                  {item.bagCount} × {item.packFraction} bag ({item.quantity} fish)
+                </p>
+              )}
             </div>
             <div className="w-28">
               {isEditable ? (
@@ -881,6 +888,12 @@ export default function AdminOrderDetailPage() {
               <span className="tabular-nums">{formatPrice(freight)}</span>
             )}
           </div>
+          {delivery > 0 && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
+              <span className="tabular-nums">{formatPrice(delivery)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-white/60 text-sm">
             {isEditable ? (
               <label className="flex items-center gap-2 cursor-pointer">

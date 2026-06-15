@@ -66,77 +66,96 @@ export default function Sidebar() {
 
   const isAdmin = user?.role === "ADMIN";
   const links = isAdmin ? adminLinks : user ? getUserLinks(user) : [];
+  const initials = (user?.email ?? "").trim().slice(0, 2).toUpperCase() || "··";
 
   return (
-    <aside className="w-64 bg-[#141820] border-r border-white/5 flex flex-col h-full">
-      <div className="p-6">
-        <Link href="/" className="flex items-center gap-3 group">
-          <Image src="/images/logo.png" alt="The Coral Farm" width={32} height={48} className="transition-transform duration-300 group-hover:scale-105" />
-          <span className="text-white font-extrabold tracking-wider text-sm">THE CORAL FARM</span>
+    <aside className="relative flex h-full w-64 flex-col border-r border-white/[0.06] bg-[#10141b]">
+      {/* Soft top sheen for depth */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/[0.035] to-transparent" />
+
+      {/* Brand mark — logo only */}
+      <div className="relative px-5 pt-6 pb-5">
+        <Link href="/" aria-label="The Coral Farm" className="group inline-flex">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] transition-all duration-300 group-hover:border-white/20 group-hover:bg-white/[0.07]">
+            <Image src="/images/logo.png" alt="The Coral Farm" width={22} height={33} className="object-contain transition-transform duration-300 group-hover:scale-105" />
+          </span>
         </Link>
       </div>
 
-      {isAdmin && (
-        <div className="px-4 mb-2">
-          <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium px-3">Admin</span>
+      {/* Navigation */}
+      <nav className="relative flex-1 overflow-y-auto px-3 pb-4">
+        <div className="space-y-0.5">
+          {links.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors duration-200 ${
+                  isActive ? "text-white" : "text-white/45 hover:bg-white/[0.03] hover:text-white/85"
+                }`}
+              >
+                {isActive && (
+                  <>
+                    <motion.span
+                      layoutId="sidebar-active-bg"
+                      className="absolute inset-0 rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/[0.07]"
+                      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    />
+                    <motion.span
+                      layoutId="sidebar-active-rail"
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#0984E3]"
+                      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    />
+                  </>
+                )}
+                <svg
+                  className={`relative z-10 h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-[#0984E3]" : "text-white/40 group-hover:text-white/70"}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d={link.icon} />
+                </svg>
+                <span className="relative z-10">{link.label}</span>
+              </Link>
+            );
+          })}
         </div>
-      )}
-
-      <nav className="flex-1 px-4 space-y-1">
-        {links.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                isActive
-                  ? "text-[#0984E3]"
-                  : "text-white/50 hover:text-white/80 hover:bg-white/5"
-              }`}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 bg-[#0984E3]/10 rounded-xl"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              <svg className="relative w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={link.icon} />
-              </svg>
-              <span className="relative">{link.label}</span>
-            </Link>
-          );
-        })}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
+      {/* Footer */}
+      <div className="relative border-t border-white/[0.06] px-3 pt-3 pb-4">
         {user && user.creditBalance > 0 && (
           <button
             onClick={() => setShowCreditHistory(true)}
-            className="w-full text-left px-3 py-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/15 transition-colors"
+            className="mb-3 w-full rounded-xl border border-emerald-500/15 bg-emerald-500/[0.08] px-3 py-2.5 text-left transition-colors hover:border-emerald-500/25 hover:bg-emerald-500/[0.12]"
           >
-            <p className="text-emerald-400/60 text-[10px] uppercase tracking-wider font-medium">Account Credit</p>
-            <p className="text-emerald-400 text-sm font-bold tabular-nums">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300/60">Account Credit</p>
+            <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-300">
               <FlipNumber value={`£${Number(user.creditBalance).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             </p>
           </button>
         )}
         <CreditHistoryModal open={showCreditHistory} onClose={() => setShowCreditHistory(false)} />
-        <div className="px-3 mb-3">
-          <p className="text-white/80 text-sm font-medium truncate">{user?.email}</p>
-          <p className="text-white/30 text-xs">{user ? getRoleDisplay(user) : ""}</p>
+
+        <div className="flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors hover:bg-white/[0.03]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0984E3]/35 to-[#0984E3]/5 text-[11px] font-semibold text-white/90 ring-1 ring-inset ring-white/10">
+            {initials}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium leading-tight text-white/85">{user?.email}</p>
+            <p className="mt-0.5 text-[11px] leading-tight text-white/35">{user ? getRoleDisplay(user) : ""}</p>
+          </div>
+          <button
+            onClick={logout}
+            aria-label="Sign out"
+            title="Sign out"
+            className="shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
+          >
+            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-        >
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign Out
-        </button>
       </div>
     </aside>
   );

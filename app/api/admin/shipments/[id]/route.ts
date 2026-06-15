@@ -71,6 +71,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     shipmentDate: shipment.shipmentDate,
     freightCost: shipment.freightCost,
     margin: shipment.margin,
+    fractionalBagsEnabled: shipment.fractionalBagsEnabled,
+    deliveryOptions: shipment.deliveryOptions,
     sourceFilename: shipment.sourceFilename,
     createdAt: shipment.createdAt,
     products: shipment.products.map((p) => ({
@@ -86,7 +88,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       originalRow: p.originalRow || null,
     })),
     orders: shipment.orders.map((o) => {
-      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent);
+      const totals = calculateOrderTotals(o.items, o.includeShipping, o.freightCharge, o.creditApplied, o.discountPercent, o.deliveryCharge);
       return {
         id: o.id,
         status: o.status,
@@ -105,6 +107,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
           name: i.name,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
+          packFraction: i.packFraction ?? null,
+          bagCount: i.bagCount ?? null,
         })),
       };
     }),
@@ -125,12 +129,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const shipment = await repo.findOneBy({ id });
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
-  const { name, deadline, shipmentDate, freightCost, margin, status, products } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, fractionalBagsEnabled, deliveryOptions } = body;
   if (name !== undefined) shipment.name = name;
   if (deadline !== undefined) shipment.deadline = new Date(deadline);
   if (shipmentDate !== undefined) shipment.shipmentDate = new Date(shipmentDate);
   if (freightCost !== undefined) shipment.freightCost = freightCost;
   if (margin !== undefined) shipment.margin = margin;
+  if (fractionalBagsEnabled !== undefined) shipment.fractionalBagsEnabled = fractionalBagsEnabled;
+  if (deliveryOptions !== undefined) shipment.deliveryOptions = deliveryOptions;
   if (status !== undefined) shipment.status = status;
 
   if (products !== undefined && Array.isArray(products)) {

@@ -20,7 +20,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     if (!order) return NextResponse.json({ error: "Failed to duplicate order" }, { status: 500 });
     await audit(admin, "order.duplicate", "order", order.id, { sourceOrderId: id });
 
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
     return NextResponse.json(
       { id: order.id, status: order.status, shipmentId: order.shipmentId, total: totals.total },
       { status: 201 },

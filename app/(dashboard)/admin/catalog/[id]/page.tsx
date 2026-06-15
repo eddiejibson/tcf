@@ -167,7 +167,7 @@ export default function EditCatalogProductPage() {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5 overflow-visible relative z-10">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 space-y-5 overflow-visible relative z-10">
           <div>
             <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
@@ -267,7 +267,7 @@ export default function EditCatalogProductPage() {
           </div>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 space-y-5">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 space-y-5">
           <div>
             <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3 block">Stock Mode</label>
             <div className="flex gap-4">

@@ -29,6 +29,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     id: company.id,
     name: company.name,
     companyNumber: company.companyNumber,
+    phone: company.phone,
+    salesNotes: company.salesNotes,
     trafficLight: company.trafficLight,
     discount: Number(company.discount) || 0,
     creditBalance: Number(company.creditBalance) || 0,
@@ -85,6 +87,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // Update company fields
   if (body.name !== undefined) company.name = body.name;
   if (body.companyNumber !== undefined) company.companyNumber = body.companyNumber || null;
+  if (body.phone !== undefined) company.phone = (typeof body.phone === "string" ? body.phone.trim() : "") || null;
+  if (body.salesNotes !== undefined) company.salesNotes = (typeof body.salesNotes === "string" ? body.salesNotes : "") || null;
   if (body.discount !== undefined) {
     const num = Number(body.discount);
     if (!isNaN(num) && num >= 0 && num <= 100) company.discount = num;
@@ -125,6 +129,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     changes: {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.companyNumber !== undefined ? { companyNumber: body.companyNumber } : {}),
+      ...(body.phone !== undefined ? { phone: company.phone } : {}),
+      ...(body.salesNotes !== undefined ? { salesNotesUpdated: true } : {}),
       ...(body.discount !== undefined ? { discount: body.discount } : {}),
       ...(body.trafficLight !== undefined ? { trafficLight: body.trafficLight } : {}),
       ...(body.tagIds !== undefined ? { tagIds: body.tagIds } : {}),
@@ -135,6 +141,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   return NextResponse.json({
     id: company.id,
     name: company.name,
+    phone: company.phone,
+    salesNotes: company.salesNotes,
     discount: Number(company.discount),
     trafficLight: company.trafficLight,
     ...(body.tagIds !== undefined ? { tags: (company.tags ?? []).map((t) => ({ id: t.id, name: t.name })) } : {}),

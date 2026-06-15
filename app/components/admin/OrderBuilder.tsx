@@ -331,7 +331,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
       </div>
 
       {/* Customer selector */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6 overflow-visible relative z-10">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 mb-6 overflow-visible relative z-10">
         <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Customer</label>
         <CustomerPicker users={users} value={selectedUserId} onChange={setSelectedUserId} />
       </div>
@@ -471,7 +471,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
 
         {/* Order summary sidebar */}
         <div className="lg:w-80 flex-shrink-0">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] flex flex-col">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 lg:sticky lg:top-8 lg:max-h-[calc(100vh-4rem)] flex flex-col">
             <h3 className="text-white font-semibold mb-4 shrink-0">Order Summary</h3>
 
             {orderItems.length === 0 ? (

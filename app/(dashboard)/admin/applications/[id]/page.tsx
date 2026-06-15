@@ -68,7 +68,7 @@ export default function AdminApplicationDetailPage() {
   if (error && !application) {
     return (
       <div className="p-4 md:p-8">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50">{error}</p>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function AdminApplicationDetailPage() {
 
       <div className="space-y-6">
         {/* Details */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6">
           <h2 className="text-white/30 text-[10px] uppercase tracking-wider font-medium mb-4">Application Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -155,7 +155,7 @@ export default function AdminApplicationDetailPage() {
 
         {/* Addresses */}
         {(application.billingAddress || application.shippingAddress) && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6">
             <h2 className="text-white/30 text-[10px] uppercase tracking-wider font-medium mb-4">Addresses</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {application.billingAddress && (
@@ -188,7 +188,7 @@ export default function AdminApplicationDetailPage() {
 
         {/* Files */}
         {(application.licenseFileUrl || application.shopPhotoUrls.length > 0) && (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6">
             <h2 className="text-white/30 text-[10px] uppercase tracking-wider font-medium mb-4">Uploaded Files</h2>
 
             {application.licenseFileUrl && (

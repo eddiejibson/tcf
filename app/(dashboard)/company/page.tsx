@@ -82,7 +82,7 @@ export default function CompanyPage() {
 
   if (error || !company) return (
     <div className="p-4 md:p-8">
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
         <p className="text-white/40">No company linked to your account.</p>
       </div>
     </div>
@@ -114,13 +114,13 @@ export default function CompanyPage() {
       </div>
 
       {company.addresses.length === 0 && !editing ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/30">No addresses on file. Contact your admin to add addresses.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {(editing ? editAddresses : company.addresses).map((addr, i) => (
-            <div key={addr.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-5">
+            <div key={addr.id} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-5">
               <p className={`text-[10px] uppercase tracking-wider font-medium mb-3 ${addr.type === "SHIPPING" ? "text-[#0984E3]" : "text-white/50"}`}>
                 {addr.type === "BILLING" ? "Billing Address" : "Shipping Address"}
               </p>

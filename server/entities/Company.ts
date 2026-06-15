@@ -21,6 +21,9 @@ export class Company extends BaseEntityWithUpdate {
   @Column({ type: "varchar", nullable: true })
   companyNumber: string | null;
 
+  @Column({ type: "varchar", nullable: true })
+  phone: string | null;
+
   @Column({ type: "enum", enum: TrafficLight, default: TrafficLight.AMBER })
   trafficLight: TrafficLight;
 
@@ -29,6 +32,10 @@ export class Company extends BaseEntityWithUpdate {
 
   @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
   creditBalance: number;
+
+  // Admin-only internal sales notes — never exposed to customer-facing endpoints
+  @Column({ type: "text", nullable: true })
+  salesNotes: string | null;
 
   @OneToMany(() => Address, (address) => address.company)
   addresses: Relation<Address[]>;

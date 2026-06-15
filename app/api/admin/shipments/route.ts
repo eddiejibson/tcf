@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, deadline, shipmentDate, freightCost, margin, status, products, sourceFilename } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, sourceFilename, fractionalBagsEnabled, deliveryOptions } = body;
 
   if (!name || !deadline || !shipmentDate) {
     return NextResponse.json({ error: "Name, deadline, and shipment date are required" }, { status: 400 });
@@ -66,8 +66,10 @@ export async function POST(request: NextRequest) {
     margin: margin || 0,
     status: status || ShipmentStatus.DRAFT,
     sourceFilename,
+    fractionalBagsEnabled: !!fractionalBagsEnabled,
+    deliveryOptions: deliveryOptions ?? null,
     createdById: admin.userId,
-    products: products?.map((p: { name: string; latinName?: string | null; variant?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null }) => ({
+    products: products?.map((p: { name: string; latinName?: string | null; variant?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null; originalRow?: Record<string, unknown> | null; packOptions?: { fraction: string; headcount: number }[] | null }) => ({
       name: p.name,
       latinName: p.latinName || null,
       variant: p.variant || null,
@@ -75,6 +77,10 @@ export async function POST(request: NextRequest) {
       size: p.size || null,
       qtyPerBox: p.qtyPerBox || null,
       availableQty: p.availableQty ?? null,
+      packOptions: p.packOptions && p.packOptions.length ? p.packOptions : null,
+      // Persist the raw row so the supplier Code (and Notes/Link) survive import — the
+      // packing-list export reads originalRow["Code"]. Previously dropped on create.
+      originalRow: p.originalRow || null,
     })),
   });
 

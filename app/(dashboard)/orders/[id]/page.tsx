@@ -267,6 +267,11 @@ export default function OrderDetailPage() {
                     {[item.variant, item.size].filter(Boolean).join(" / ")}
                   </p>
                 )}
+                {item.bagCount && item.packFraction && (
+                  <p className="text-[#0984E3]/70 text-xs mt-0.5 tabular-nums">
+                    {item.bagCount} × {item.packFraction} bag ({item.quantity} fish)
+                  </p>
+                )}
               </div>
               <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p></div>
               <div className="w-16 text-center"><p className="text-white/60 text-sm">{item.quantity}</p></div>
@@ -299,6 +304,12 @@ export default function OrderDetailPage() {
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${formatPrice(freightPerBox)})` : ""}</span>
               <span className="tabular-nums">{formatPrice(order.totals.freight)}</span>
+            </div>
+          )}
+          {order.totals.delivery > 0 && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
+              <span className="tabular-nums">{formatPrice(order.totals.delivery)}</span>
             </div>
           )}
           {order.includeShipping && (

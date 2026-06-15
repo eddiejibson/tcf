@@ -2,6 +2,7 @@
 
 import CustomerPicker from "@/app/components/CustomerPicker";
 import ProductSearch from "@/app/components/ProductSearch";
+import { DELIVERY_DOOR_RATE, DELIVERY_MILE_RATE, deliveryRate, deliveryEnabled } from "@/app/lib/delivery";
 import {
   buildOrdersFromRawData,
   parsePackingList,
@@ -188,12 +189,17 @@ type FlowStep =
 
 type OrderDecision = "queued" | "skipped";
 
+type DeliveryMethod = "" | "door" | "mileage" | "both";
+
 interface ReviewedEntry {
   items: ReviewItem[];
   decision: OrderDecision;
   freightCharge: string;
   includeShipping: boolean;
   boxes: string;
+  deliveryMethod: DeliveryMethod;
+  deliveryMiles: string;
+  deliveryCharge: string;
 }
 
 export default function AdminShipmentDetailPage() {
@@ -220,6 +226,11 @@ export default function AdminShipmentDetailPage() {
   const [pricePerBox, setPricePerBox] = useState<string>("");
   // Boxes is per-order (stored on the cache entry, restored on navigation).
   const [reviewBoxes, setReviewBoxes] = useState<string>("");
+  // Delivery is per-order: admin picks the method (door/mileage/both); the charge
+  // auto-computes (£30×boxes + £1×miles) but stays overridable, mirroring freight.
+  const [reviewDeliveryMethod, setReviewDeliveryMethod] = useState<DeliveryMethod>("");
+  const [reviewDeliveryMiles, setReviewDeliveryMiles] = useState<string>("");
+  const [reviewDeliveryCharge, setReviewDeliveryCharge] = useState<string>("");
   // Cache of reviewed items keyed by packingOrderIndex (stable across navigation,
   // and works for "new" mappings that have no systemOrderId yet).
   const [reviewedOrders, setReviewedOrders] = useState<
@@ -554,7 +565,8 @@ export default function AdminShipmentDetailPage() {
         const variant = product?.variant || "";
         const size = product?.size || "";
         const extras = [variant, size].filter(Boolean).join(" / ");
-        const displayName = extras ? `${item.name} (${extras})` : item.name;
+        const bagInfo = item.bagCount && item.packFraction ? ` · ${item.bagCount} × ${item.packFraction} bag` : "";
+        const displayName = (extras ? `${item.name} (${extras})` : item.name) + bagInfo;
 
         const row = ws.getRow(rowNum++);
         row.height = 20;
@@ -920,6 +932,9 @@ export default function AdminShipmentDetailPage() {
     // Default freight/shipping: existing orders keep their current values; new orders start blank.
     // Boxes is always blank per-order (admin fills it in; freight auto-derives from ppb × boxes).
     setReviewBoxes("");
+    setReviewDeliveryMethod("");
+    setReviewDeliveryMiles("");
+    setReviewDeliveryCharge("");
     if (mapping.type === "existing") {
       const sysOrder = shipment.orders.find(
         (o) => o.id === mapping.systemOrderId,
@@ -1122,6 +1137,48 @@ export default function AdminShipmentDetailPage() {
     }
   };
 
+  // Delivery rates + which methods are offered come from the shipment's configured options
+  // (fallback to system defaults for older shipments). Admin can still override the charge.
+  const doorRate = deliveryRate(shipment?.deliveryOptions, "door", DELIVERY_DOOR_RATE);
+  const mileRate = deliveryRate(shipment?.deliveryOptions, "mileage", DELIVERY_MILE_RATE);
+  const doorOn = deliveryEnabled(shipment?.deliveryOptions, "door");
+  const mileOn = deliveryEnabled(shipment?.deliveryOptions, "mileage");
+  const deliveryMethodPills: [DeliveryMethod, string][] = [["", "None"]];
+  if (doorOn) deliveryMethodPills.push(["door", "Door"]);
+  if (mileOn) deliveryMethodPills.push(["mileage", "Mileage"]);
+  if (doorOn && mileOn) deliveryMethodPills.push(["both", "Both"]);
+
+  // Delivery auto-compute: door rate × boxes + mile rate × miles, per selected method.
+  // Like freight, the admin can override the resulting charge until method/miles/boxes change.
+  const recomputeDelivery = (method: DeliveryMethod, miles: string, boxes: string) => {
+    if (method === "") {
+      setReviewDeliveryCharge("");
+      return;
+    }
+    const boxesNum = parseFloat(boxes);
+    const milesNum = parseFloat(miles);
+    let amt = 0;
+    if ((method === "door" || method === "both") && !isNaN(boxesNum) && boxesNum > 0) {
+      amt += doorRate * boxesNum;
+    }
+    if ((method === "mileage" || method === "both") && !isNaN(milesNum) && milesNum > 0) {
+      amt += mileRate * milesNum;
+    }
+    setReviewDeliveryCharge(amt > 0 ? amt.toFixed(2) : "");
+  };
+
+  const handleDeliveryMethodChange = (method: DeliveryMethod) => {
+    setReviewDeliveryMethod(method);
+    const miles = method === "mileage" || method === "both" ? reviewDeliveryMiles : "";
+    if (method !== "mileage" && method !== "both") setReviewDeliveryMiles("");
+    recomputeDelivery(method, miles, reviewBoxes);
+  };
+
+  const handleDeliveryMilesChange = (value: string) => {
+    setReviewDeliveryMiles(value);
+    recomputeDelivery(reviewDeliveryMethod, value, reviewBoxes);
+  };
+
   const handlePricePerBoxChange = (value: string) => {
     setPricePerBox(value);
     recomputeFreight(value, reviewBoxes);
@@ -1130,6 +1187,7 @@ export default function AdminShipmentDetailPage() {
   const handleBoxesChange = (value: string) => {
     setReviewBoxes(value);
     recomputeFreight(pricePerBox, value);
+    recomputeDelivery(reviewDeliveryMethod, reviewDeliveryMiles, value);
   };
 
   // Persist the current review's items + decision into the cache, then move position
@@ -1146,6 +1204,9 @@ export default function AdminShipmentDetailPage() {
       freightCharge: reviewFreight,
       includeShipping: reviewIncludeShipping,
       boxes: reviewBoxes,
+      deliveryMethod: reviewDeliveryMethod,
+      deliveryMiles: reviewDeliveryMiles,
+      deliveryCharge: reviewDeliveryCharge,
     });
     setReviewedOrders(snapshot);
 
@@ -1162,6 +1223,9 @@ export default function AdminShipmentDetailPage() {
       setReviewFreight(cached.freightCharge);
       setReviewIncludeShipping(cached.includeShipping);
       setReviewBoxes(cached.boxes);
+      setReviewDeliveryMethod(cached.deliveryMethod);
+      setReviewDeliveryMiles(cached.deliveryMiles);
+      setReviewDeliveryCharge(cached.deliveryCharge);
     } else {
       buildReviewItems(orderMappings[nextIndex]);
     }
@@ -1198,6 +1262,9 @@ export default function AdminShipmentDetailPage() {
           freightCharge: reviewFreight,
           includeShipping: reviewIncludeShipping,
           boxes: reviewBoxes,
+          deliveryMethod: reviewDeliveryMethod,
+          deliveryMiles: reviewDeliveryMiles,
+          deliveryCharge: reviewDeliveryCharge,
         });
         return updated;
       });
@@ -1208,6 +1275,9 @@ export default function AdminShipmentDetailPage() {
       setReviewFreight(cached.freightCharge);
       setReviewIncludeShipping(cached.includeShipping);
       setReviewBoxes(cached.boxes);
+      setReviewDeliveryMethod(cached.deliveryMethod);
+      setReviewDeliveryMiles(cached.deliveryMiles);
+      setReviewDeliveryCharge(cached.deliveryCharge);
     } else {
       buildReviewItems(orderMappings[index]);
     }
@@ -1228,6 +1298,9 @@ export default function AdminShipmentDetailPage() {
       includeShipping: boolean;
       boxCount: number | null;
       freightPerBox: number | null;
+      deliveryMethod: string | null;
+      deliveryMiles: number | null;
+      deliveryCharge: number | null;
     }[] = [];
     const sessionPpb = parseFloat(pricePerBox);
     const sessionPpbValid = !isNaN(sessionPpb) && sessionPpb > 0;
@@ -1243,6 +1316,8 @@ export default function AdminShipmentDetailPage() {
           ? null
           : parseFloat(entry.freightCharge);
       const boxesNum = entry.boxes.trim() === "" ? null : parseInt(entry.boxes, 10);
+      const deliveryNum = entry.deliveryCharge.trim() === "" ? null : parseFloat(entry.deliveryCharge);
+      const deliveryMilesNum = entry.deliveryMiles.trim() === "" ? null : parseInt(entry.deliveryMiles, 10);
       queued.push({
         mapping: orderMappings[i],
         items: active,
@@ -1251,6 +1326,9 @@ export default function AdminShipmentDetailPage() {
         includeShipping: entry.includeShipping,
         boxCount: boxesNum != null && !isNaN(boxesNum) && boxesNum > 0 ? boxesNum : null,
         freightPerBox: sessionPpbValid ? sessionPpb : null,
+        deliveryMethod: entry.deliveryMethod || null,
+        deliveryMiles: deliveryMilesNum != null && !isNaN(deliveryMilesNum) && deliveryMilesNum > 0 ? deliveryMilesNum : null,
+        deliveryCharge: deliveryNum != null && !isNaN(deliveryNum) ? deliveryNum : null,
       });
     }
     if (queued.length === 0) return;
@@ -1277,7 +1355,7 @@ export default function AdminShipmentDetailPage() {
     const accepted = new Set<string>();
 
     for (let i = 0; i < queued.length; i++) {
-      const { mapping, items, freightCharge, includeShipping, boxCount, freightPerBox } = queued[i];
+      const { mapping, items, freightCharge, includeShipping, boxCount, freightPerBox, deliveryMethod, deliveryMiles, deliveryCharge } = queued[i];
       // Customer discount is persisted as Order.discountPercent — the totals calculation
       // applies it at subtotal level, so unit prices go through untouched.
       const discountPct = applyDiscountToTotals ? getMappingDiscountPct(mapping) : 0;
@@ -1328,6 +1406,9 @@ export default function AdminShipmentDetailPage() {
             // order breakdown can show "N boxes × £X" for the freight line.
             boxCount,
             freightPerBox,
+            deliveryMethod,
+            deliveryMiles,
+            deliveryCharge,
             // Persist the discount % on the order so order detail / invoice views can show
             // "N% customer discount applied" — 0 when the toggle is off, customer's company
             // discount when on. Unit prices sent above are already the post-discount values.
@@ -2459,7 +2540,8 @@ export default function AdminShipmentDetailPage() {
                   ).length;
                   const freightNum = parseFloat(reviewFreight) || 0;
                   const shippingNum = reviewIncludeShipping ? 30 : 0;
-                  const total = subtotal + freightNum + shippingNum;
+                  const deliveryNum = parseFloat(reviewDeliveryCharge) || 0;
+                  const total = subtotal + freightNum + shippingNum + deliveryNum;
 
                   return (
                     <div className="space-y-4">
@@ -2560,6 +2642,88 @@ export default function AdminShipmentDetailPage() {
                             className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
                           />
                         </div>
+                        {/* Delivery (last-mile to the customer) — admin sets it here; the customer just sees the line */}
+                        <div className="flex items-center justify-between text-sm text-white/60 gap-3">
+                          <span className="flex flex-col">
+                            Delivery
+                            <span className="text-[10px] text-white/30">
+                              To customer&apos;s door
+                            </span>
+                          </span>
+                          <div className="flex gap-1">
+                            {deliveryMethodPills.map(([val, lbl]) => (
+                              <button
+                                key={val || "none"}
+                                type="button"
+                                onClick={() => handleDeliveryMethodChange(val)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                                  reviewDeliveryMethod === val
+                                    ? "bg-[#0984E3] text-white"
+                                    : "bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10"
+                                }`}
+                              >
+                                {lbl}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {(reviewDeliveryMethod === "mileage" ||
+                          reviewDeliveryMethod === "both") && (
+                          <div className="flex items-center justify-between text-sm text-white/60 gap-3">
+                            <span className="flex flex-col">
+                              Mileage
+                              <span className="text-[10px] text-white/30">
+                                {formatPrice(mileRate)}/mile, one way
+                              </span>
+                            </span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={reviewDeliveryMiles}
+                              onChange={(e) => handleDeliveryMilesChange(e.target.value)}
+                              placeholder="0"
+                              className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
+                            />
+                          </div>
+                        )}
+                        {reviewDeliveryMethod !== "" && (
+                          <div className="flex items-center justify-between text-sm text-white/60 gap-3">
+                            <span className="flex flex-col">
+                              Delivery Charge
+                              {(() => {
+                                const boxesNum = parseFloat(reviewBoxes);
+                                const milesNum = parseFloat(reviewDeliveryMiles);
+                                const parts: string[] = [];
+                                if (
+                                  (reviewDeliveryMethod === "door" || reviewDeliveryMethod === "both") &&
+                                  !isNaN(boxesNum) && boxesNum > 0
+                                ) {
+                                  parts.push(`${formatPrice(doorRate)} × ${boxesNum}`);
+                                }
+                                if (
+                                  (reviewDeliveryMethod === "mileage" || reviewDeliveryMethod === "both") &&
+                                  !isNaN(milesNum) && milesNum > 0
+                                ) {
+                                  parts.push(`${formatPrice(mileRate)} × ${milesNum}mi`);
+                                }
+                                return (
+                                  <span className="text-[10px] text-white/30 tabular-nums">
+                                    {parts.length ? parts.join(" + ") : "Or set manually"}
+                                  </span>
+                                );
+                              })()}
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={reviewDeliveryCharge}
+                              onChange={(e) => setReviewDeliveryCharge(e.target.value)}
+                              placeholder="0.00"
+                              className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
+                            />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-sm text-white/60">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input

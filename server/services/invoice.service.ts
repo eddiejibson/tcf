@@ -295,6 +295,9 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   if (data.freight && data.freight > 0) {
     drawTotalRow("Freight", fmtPrice(data.freight));
   }
+  if (data.delivery && data.delivery > 0) {
+    drawTotalRow("Delivery", fmtPrice(data.delivery));
+  }
   if (data.includeShipping) {
     drawTotalRow("Shipping", fmtPrice(data.shipping));
   }

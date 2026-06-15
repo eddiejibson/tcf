@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { companyName, companyNumber, contactEmail, accountsEmail, billingAddress, shippingAddress, additionalUsers, linkUserIds } = body;
+  const { companyName, companyNumber, phone, contactEmail, accountsEmail, billingAddress, shippingAddress, additionalUsers, linkUserIds } = body;
 
   if (!companyName?.trim()) return NextResponse.json({ error: "Company name is required" }, { status: 400 });
   if (!contactEmail?.trim()) return NextResponse.json({ error: "Primary contact email is required" }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
   const company = await companyRepo.save({
     name: companyName.trim(),
     companyNumber: companyNumber?.trim() || null,
+    phone: phone?.trim() || null,
   });
   await audit(admin, "company.create", "company", company.id, {
     name: company.name,

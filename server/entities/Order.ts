@@ -61,6 +61,19 @@ export class Order extends BaseEntityWithUpdate {
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
   freightPerBox: number | null;
 
+  // Delivery (last-mile, to the customer's door) — distinct from freight (import leg).
+  // Set by an admin at packing-list review, NOT chosen by the customer. Method is one of
+  // 'door' (per box), 'mileage' (per mile, one way) or 'both'; deliveryCharge is the final
+  // £ figure (auto-computed from method but admin-overridable, like freightCharge).
+  @Column({ type: "varchar", nullable: true })
+  deliveryMethod: string | null;
+
+  @Column({ type: "int", nullable: true })
+  deliveryMiles: number | null;
+
+  @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
+  deliveryCharge: number | null;
+
   @Column({ type: "text", nullable: true })
   adminNotes: string | null;
 

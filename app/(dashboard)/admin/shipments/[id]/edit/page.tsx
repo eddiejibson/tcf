@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { AdminShipmentDetail } from "@/app/lib/types";
 import { VirtualItemList } from "@/app/components/shipments/ProductItemList";
+import DeliveryOptionsEditor from "@/app/components/shipments/DeliveryOptionsEditor";
+import { DEFAULT_DELIVERY_OPTIONS, resolveDeliveryOptions, type DeliveryOption } from "@/app/lib/delivery";
 
 type EditItem = {
   _id: number;
@@ -29,6 +31,8 @@ export default function EditShipmentPage() {
   const [shipmentDate, setShipmentDate] = useState("");
   const [freightCost, setFreightCost] = useState("");
   const [margin, setMargin] = useState("");
+  const [fractionalBagsEnabled, setFractionalBagsEnabled] = useState(false);
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>(DEFAULT_DELIVERY_OPTIONS);
   const [items, setItems] = useState<EditItem[]>([]);
   const [itemSearch, setItemSearch] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +47,8 @@ export default function EditShipmentPage() {
       setShipmentDate(data.shipmentDate?.slice(0, 10) || "");
       setFreightCost(String(data.freightCost || ""));
       setMargin(String(data.margin || ""));
+      setFractionalBagsEnabled(!!data.fractionalBagsEnabled);
+      setDeliveryOptions(resolveDeliveryOptions(data.deliveryOptions));
       setItems(
         data.products.map((p) => ({
           _id: nextItemId++,
@@ -101,6 +107,8 @@ export default function EditShipmentPage() {
           shipmentDate,
           freightCost: parseFloat(freightCost) || 0,
           margin: parseFloat(margin) || 0,
+          fractionalBagsEnabled,
+          deliveryOptions,
           products: validItems.map((i) => ({
             ...(i.dbId ? { id: i.dbId } : {}),
             name: i.name,
@@ -145,7 +153,7 @@ export default function EditShipmentPage() {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
           <h3 className="text-white font-semibold mb-4">Shipment Details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -179,9 +187,25 @@ export default function EditShipmentPage() {
               <p className="text-white/30 text-xs">Stored margin value only — does not recalculate product prices</p>
             </div>
           </div>
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={fractionalBagsEnabled}
+                onChange={(e) => setFractionalBagsEnabled(e.target.checked)}
+                className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-white/80 text-sm font-medium">Fractional-bag ordering</span>
+            </label>
+            <p className="text-white/30 text-xs mt-1.5">When on, customers order this shipment by bags like 1/12 and 1/6 instead of by raw quantity.</p>
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Delivery options (optional)</label>
+            <DeliveryOptionsEditor options={deliveryOptions} onChange={setDeliveryOptions} />
+          </div>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="p-4 md:p-6 flex items-center justify-between border-b border-white/10">
             <h3 className="text-white font-semibold">Products ({items.length})</h3>
             <button onClick={addItem} className="px-3 py-1.5 bg-[#0984E3]/20 text-[#0984E3] text-xs font-medium rounded-lg hover:bg-[#0984E3]/30 transition-all">

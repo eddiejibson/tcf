@@ -25,7 +25,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
   const items = order.items.map((i) => ({
     ...i,
     latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -110,7 +110,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!currentOrder) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     // Save freight/adminNotes/boxLimits/discount FIRST so the invoice gets the correct values
-    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined || body.discountPercent !== undefined || body.boxCount !== undefined || body.freightPerBox !== undefined) {
+    if (body.freightCharge !== undefined || body.adminNotes !== undefined || body.maxBoxes !== undefined || body.minBoxes !== undefined || body.includeShipping !== undefined || body.discountPercent !== undefined || body.boxCount !== undefined || body.freightPerBox !== undefined || body.deliveryMethod !== undefined || body.deliveryMiles !== undefined || body.deliveryCharge !== undefined) {
       const db = await getDb();
       const update: Record<string, unknown> = {};
       if (body.freightCharge !== undefined) update.freightCharge = body.freightCharge;
@@ -121,6 +121,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body.discountPercent !== undefined) update.discountPercent = body.discountPercent;
       if (body.boxCount !== undefined) update.boxCount = body.boxCount;
       if (body.freightPerBox !== undefined) update.freightPerBox = body.freightPerBox;
+      if (body.deliveryMethod !== undefined) update.deliveryMethod = body.deliveryMethod;
+      if (body.deliveryMiles !== undefined) update.deliveryMiles = body.deliveryMiles;
+      if (body.deliveryCharge !== undefined) update.deliveryCharge = body.deliveryCharge;
       await db.getRepository(Order).update(id, update);
     }
 
@@ -162,7 +165,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             await audit(admin, "order.accept", "order", id, { from: "DRAFT", userId: draftOrder.userId });
             const accepted = await getOrderById(id);
             if (accepted) {
-              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
+              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent, accepted.deliveryCharge);
               const resultItems = accepted.items.map((i) => ({
                 ...i,
                 latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -184,7 +187,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             const accepted = await createAdminOrder("admin", draftOrder.userId, draftItems, draftOrder.notes || undefined, body.includeShipping ?? draftOrder.includeShipping, body.skipEmail);
             if (accepted) {
               await audit(admin, "order.accept", "order", accepted.id, { from: "DRAFT", supersededDraftId: id, userId: draftOrder.userId });
-              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent);
+              const totals = calculateOrderTotals(accepted.items, accepted.includeShipping, accepted.freightCharge, accepted.creditApplied, accepted.discountPercent, accepted.deliveryCharge);
               const resultItems = accepted.items.map((i) => ({
                 ...i,
                 latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -226,7 +229,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (body.resendEmail) {
       const resendOrder = await getOrderById(id);
       if (resendOrder && resendOrder.user) {
-        const totals = calculateOrderTotals(resendOrder.items, resendOrder.includeShipping, resendOrder.freightCharge, resendOrder.creditApplied, resendOrder.discountPercent);
+        const totals = calculateOrderTotals(resendOrder.items, resendOrder.includeShipping, resendOrder.freightCharge, resendOrder.creditApplied, resendOrder.discountPercent, resendOrder.deliveryCharge);
         const orderRef = resendOrder.id.slice(0, 8).toUpperCase();
         const discountPct = resendOrder.userId ? await getUserDiscount(resendOrder.userId) : 0;
         const invoiceData: InvoiceData = {
@@ -293,7 +296,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const order = await getOrderById(id);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
     const patchItems = order.items.map((i) => ({
       ...i,
       latinName: i.catalogProduct?.latinName || i.product?.latinName || null,

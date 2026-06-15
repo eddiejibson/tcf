@@ -154,7 +154,7 @@ export default function AdminUsersPage() {
       </div>
 
       {showCreate && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6 overflow-visible relative z-20">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] shadow-2xl shadow-black/40 p-6 mb-6 overflow-visible relative z-20">
           <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 md:gap-4">
             <div className="flex-1 sm:col-span-2 md:col-span-1">
               <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Email</label>
@@ -287,27 +287,27 @@ export default function AdminUsersPage() {
       {loading ? (
         <SkeletonTable />
       ) : fetchError ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load users</p>
           <button onClick={() => fetchUsers()} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
           </button>
         </div>
       ) : (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] shadow-2xl shadow-black/40 overflow-hidden">
           <div className="overflow-x-auto">
-          <div className="min-w-[640px] px-4 md:px-6 py-3 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_7rem] items-center gap-4 border-b border-white/10 bg-white/[0.02]">
-            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">User</p></div>
-            <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Role</p></div>
-            <div className="text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Orders</p></div>
-            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Last Login</p></div>
-            <div><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Created</p></div>
+          <div className="min-w-[640px] px-4 md:px-6 py-2.5 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_7rem] items-center gap-4 border-b border-white/[0.07]">
+            <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">User</p></div>
+            <div className="text-center"><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Role</p></div>
+            <div className="text-center"><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Orders</p></div>
+            <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Last Login</p></div>
+            <div><p className="text-white/35 text-[11px] uppercase tracking-[0.08em] font-medium">Created</p></div>
             <div></div>
           </div>
           <AnimatedList>
           {users.map((u) => (
             <AnimatedListItem key={u.id}>
-            <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_7rem] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+            <div className="min-w-[640px] px-4 md:px-6 py-3.5 grid grid-cols-[3fr_1fr_1fr_2fr_1.5fr_7rem] items-center gap-4 border-b border-white/[0.05] last:border-b-0 hover:bg-white/[0.035] transition-colors">
               <div className="min-w-0">
                 {editCompanyUserId === u.id ? (
                   <div className="flex items-center gap-2">
@@ -324,32 +324,34 @@ export default function AdminUsersPage() {
                     <button onClick={() => setEditCompanyUserId(null)} className="text-white/40 text-xs">Cancel</button>
                   </div>
                 ) : (
-                  <Link href={`/admin/users/${u.id}`} className="flex items-center gap-2 group/name hover:opacity-80 transition-opacity">
+                  <Link href={`/admin/users/${u.id}`} className="flex items-center gap-2 group/name">
                     <div className="min-w-0">
-                      <p className="text-white/90 text-sm font-medium truncate">{u.companyName || u.email}</p>
-                      {u.companyName && <p className="text-white/40 text-xs truncate">{u.email}</p>}
+                      <p className="text-white text-sm font-medium truncate group-hover/name:text-[#5BA8F0] transition-colors">{u.companyName || u.email}</p>
+                      {u.companyName && <p className="text-white/45 text-xs truncate">{u.email}</p>}
                     </div>
-                    <svg className="w-4 h-4 text-white/20 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    <svg className="w-4 h-4 text-white/20 group-hover/name:text-white/50 shrink-0 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </Link>
                 )}
               </div>
               <div className="text-center">
                 <button
                   onClick={() => handleRoleToggle(u.id, u.role)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  title="Toggle role"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset transition-all ${
                     u.role === "ADMIN"
-                      ? "bg-[#0984E3]/20 text-[#0984E3]"
-                      : "bg-white/10 text-white/60"
+                      ? "text-[#5BA8F0] bg-[#0984E3]/10 ring-[#0984E3]/25 hover:bg-[#0984E3]/20"
+                      : "text-white/55 bg-white/5 ring-white/10 hover:bg-white/10"
                   }`}
                 >
-                  {u.role}
+                  <span className={`h-1.5 w-1.5 rounded-full ${u.role === "ADMIN" ? "bg-[#5BA8F0]" : "bg-white/40"}`} />
+                  {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
                 </button>
               </div>
-              <div className="text-center"><p className="text-white/60 text-sm">{u.orderCount}</p></div>
-              <div><p className="text-white/40 text-xs">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
-              <div><p className="text-white/40 text-xs">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
+              <div className="text-center"><p className="text-white/70 text-sm tabular-nums">{u.orderCount}</p></div>
+              <div><p className="text-white/45 text-xs tabular-nums">{u.lastLogin ? new Date(u.lastLogin).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</p></div>
+              <div><p className="text-white/45 text-xs tabular-nums">{new Date(u.createdAt).toLocaleDateString("en-GB")}</p></div>
               <div className="w-28 flex items-center justify-end gap-3">
-                <button onClick={() => handleSudo(u.id, u.email)} className="text-[#0984E3]/70 hover:text-[#0984E3] text-xs font-medium transition-colors">Sudo</button>
+                <button onClick={() => handleSudo(u.id, u.email)} className="rounded-md px-2 py-1 text-xs font-medium text-white/45 hover:text-white hover:bg-white/[0.06] transition-colors">Sudo</button>
               </div>
             </div>
             </AnimatedListItem>
@@ -364,7 +366,7 @@ export default function AdminUsersPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-4 md:px-6 py-3 border-t border-white/10 flex items-center justify-between">
+            <div className="px-4 md:px-6 py-3 border-t border-white/[0.07] flex items-center justify-between">
               <p className="text-white/40 text-xs">
                 {total} user{total !== 1 ? "s" : ""} total
               </p>

@@ -15,7 +15,7 @@ export default function NewCatalogProductPage() {
 
       <h1 className="text-2xl font-bold text-white mb-8">New Product</h1>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 overflow-visible relative z-10">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 overflow-visible relative z-10">
         <CatalogProductForm onSuccess={() => router.push("/admin/catalog")} />
       </div>
     </div>

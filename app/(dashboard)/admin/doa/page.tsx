@@ -130,7 +130,7 @@ export default function AdminDoaPage() {
     return (
       <div className="p-4 md:p-8">
         <h1 className="text-2xl font-bold text-white mb-8">DOA Claims</h1>
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load DOA claims</p>
           <button onClick={() => fetchGroups()} className="px-6 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all">
             Retry
@@ -152,7 +152,7 @@ export default function AdminDoaPage() {
         <AnimatedList className="space-y-4">
           {groups.map((group) => (
             <AnimatedListItem key={group.shipment.id}>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
               <div
                 onClick={() => toggleShipment(group.shipment.id, group.reports[0]?.id ?? null)}
                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer"

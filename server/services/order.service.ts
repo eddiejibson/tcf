@@ -18,7 +18,7 @@ import { OrderPayment, OrderPaymentStatus, OrderPaymentMethod } from "../entitie
 const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;
 
-export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number, discountPercent?: number) {
+export function calculateOrderTotals(items: { unitPrice: number; quantity: number; surcharge?: number }[], includeShipping: boolean, freightCharge?: number | null, creditApplied?: number, discountPercent?: number, deliveryCharge?: number | null) {
   const grossSubtotal = items.reduce((sum, item) => {
     const base = Number(item.unitPrice) * item.quantity;
     return sum + base + base * ((Number(item.surcharge) || 0) / 100);
@@ -30,10 +30,12 @@ export function calculateOrderTotals(items: { unitPrice: number; quantity: numbe
   const subtotal = grossSubtotal - discount;
   const shipping = includeShipping ? SHIPPING_COST : 0;
   const freight = Number(freightCharge) || 0;
-  const vat = (subtotal + shipping + freight) * VAT_RATE;
+  // Delivery (last-mile) is admin-set at review; defaults to 0 so existing callers are unchanged.
+  const delivery = Number(deliveryCharge) || 0;
+  const vat = (subtotal + shipping + freight + delivery) * VAT_RATE;
   const credit = Number(creditApplied) || 0;
-  const total = subtotal + shipping + freight + vat - credit;
-  return { subtotal, grossSubtotal, discount, vat, shipping, freight, credit, total };
+  const total = subtotal + shipping + freight + delivery + vat - credit;
+  return { subtotal, grossSubtotal, discount, vat, shipping, freight, delivery, credit, total };
 }
 
 export function formatPrice(price: number): string {
@@ -105,7 +107,7 @@ export async function getOrderById(id: string, relations = ["items", "items.prod
   return order;
 }
 
-export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null }[], opts?: { skipDiscount?: boolean }) {
+export async function createOrder(userId: string, shipmentId: string, items: { productId: string; name: string; quantity: number; unitPrice: number; substituteProductId?: string | null; substituteName?: string | null; packFraction?: string | null; bagCount?: number | null }[], opts?: { skipDiscount?: boolean }) {
   const db = await getDb();
   const orderRepo = db.getRepository(Order);
   const productRepo = db.getRepository(Product);
@@ -129,6 +131,8 @@ export async function createOrder(userId: string, shipmentId: string, items: { p
       unitPrice: item.unitPrice,
       substituteProductId: item.substituteProductId || null,
       substituteName: item.substituteName || null,
+      packFraction: item.packFraction ?? null,
+      bagCount: item.bagCount ?? null,
     })),
   });
 
@@ -208,7 +212,7 @@ export async function submitOrder(orderId: string) {
 
   const adminUsers = await db.getRepository(User).find({ where: { role: UserRole.ADMIN } });
   const adminEmails = adminUsers.map((u) => u.email);
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
 
   sendOrderNotification(adminEmails, order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
     .catch((e) => log.error("Failed to send order notification", e));
@@ -272,7 +276,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
     if (order.useCredit && !Number(order.creditApplied) && order.userId) {
       const companyId = await getCompanyIdForUser(order.userId);
       if (companyId) {
-        const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0);
+        const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, 0, undefined, order.deliveryCharge);
         const grandTotal = totals.total;
         if (grandTotal > 0) {
           const result = await applyCredit(orderId, companyId, grandTotal);
@@ -280,7 +284,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
             const refreshed = await getOrderById(orderId);
             if (refreshed) Object.assign(order, refreshed);
 
-            const newTotals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+            const newTotals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
             if (newTotals.total <= 0) {
               await markOrderPaid(orderId, "CREDIT");
               const paidOrder = await getOrderById(orderId);
@@ -306,7 +310,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
   }
 
   if (!skipEmail && (status === OrderStatus.ACCEPTED || status === OrderStatus.REJECTED || status === OrderStatus.AWAITING_FULFILLMENT)) {
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
     // Fire and forget — don't block the API response on email/PDF
     if (status === OrderStatus.ACCEPTED) {
       const orderDiscountPct = order.userId ? await getUserDiscount(order.userId) : 0;
@@ -329,6 +333,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         vat: totals.vat,
         shipping: totals.shipping,
         freight: totals.freight,
+        delivery: totals.delivery,
         credit: totals.credit,
         total: totals.total,
         includeShipping: order.includeShipping,
@@ -427,7 +432,7 @@ export async function updateAcceptedOrderItems(
   if (changes.length > 0 && !skipEmail) {
     const updated = await getOrderById(orderId);
     if (updated) {
-      const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent);
+      const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent, updated.deliveryCharge);
       const recipients = await getOrderCustomerEmails(updated.userId);
       sendOrderChanges(recipients.length ? recipients : updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
@@ -484,7 +489,7 @@ export async function markOrderPaid(orderId: string, reference?: string) {
 
   const order = await getOrderById(orderId);
   if (order) {
-    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+    const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
     // Notify the customer (all company members). Admins are not emailed here — in the
     // admin-marks-paid path they triggered the action so don't need a self-notification,
     // and in the webhook path the webhook separately sends its own admin-facing email.
@@ -589,7 +594,7 @@ export async function createAdminOrder(
 
   // Send email to customer with invoice PDF unless skipped
   if (fullOrder && !skipEmail) {
-    const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, null, 0, fullOrder.discountPercent);
+    const totals = calculateOrderTotals(fullOrder.items, fullOrder.includeShipping, null, 0, fullOrder.discountPercent, fullOrder.deliveryCharge);
     const orderRef = fullOrder.id.slice(0, 8).toUpperCase();
     const invoiceData: InvoiceData = {
       orderRef,
@@ -610,6 +615,7 @@ export async function createAdminOrder(
       vat: totals.vat,
       shipping: totals.shipping,
       freight: totals.freight,
+      delivery: totals.delivery,
       credit: totals.credit,
       total: totals.total,
       includeShipping: fullOrder.includeShipping,
@@ -843,8 +849,8 @@ export function getOrderPaidAmount(order: { payments?: { status: string; amount:
     .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
-export function getOrderRemainingBalance(order: { items: { unitPrice: number; quantity: number; surcharge?: number }[]; includeShipping: boolean; freightCharge?: number | null; creditApplied?: number; discountPercent?: number; payments?: { status: string; amount: number }[] }): number {
-  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent);
+export function getOrderRemainingBalance(order: { items: { unitPrice: number; quantity: number; surcharge?: number }[]; includeShipping: boolean; freightCharge?: number | null; creditApplied?: number; discountPercent?: number; deliveryCharge?: number | null; payments?: { status: string; amount: number }[] }): number {
+  const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
   const paid = getOrderPaidAmount(order);
   return Math.max(0, Math.round((totals.total - paid) * 100) / 100);
 }

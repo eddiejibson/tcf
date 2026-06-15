@@ -21,7 +21,7 @@ const PRICE_PATTERNS = [
   /price/i,
   /^cost$/i, /unit[\s_-]*cost/i,
   /amount[\s_-]*(gbp|usd|eur|[£$€])/i,
-  /^each$/i, /per[\s_-]*unit/i,
+  /^each$/i, /[£$€]\s*each/i, /per[\s_-]*unit/i, /per[\s_-]*head/i,
   /^[£$€]$/i, /^gbp$/i, /^amount$/i,
   /wholesale/i,
   /retailer[\s_-]*buy/i,
@@ -56,6 +56,24 @@ const QTY_PER_BOX_PATTERNS = [
   /quantity[\s_-]*per[\s_-]*pack/i, /qty[\s_-]*per[\s_-]*pack/i,
   /pieces[\s_-]*per/i,
 ];
+
+// Pack-fraction columns: headers like "1/6 Qty", "1/12 Qty", "1/8", "1/4 bag" — the number of
+// fish that fit in a fraction-of-a-box bag. The fraction set varies by supplier, so this is generic.
+const PACK_FRACTION_RE = /^\s*(\d{1,2})\s*\/\s*(\d{1,3})\s*(?:th)?\s*(?:qty|quantity|pcs|pieces|bag|bags|box)?\s*$/i;
+
+function detectPackFractionColumns(headers: string[]): { colIndex: number; fraction: string; denom: number }[] {
+  const cols: { colIndex: number; fraction: string; denom: number }[] = [];
+  for (let i = 0; i < headers.length; i++) {
+    const m = String(headers[i] || "").trim().match(PACK_FRACTION_RE);
+    if (!m) continue;
+    const num = parseInt(m[1], 10);
+    const denom = parseInt(m[2], 10);
+    if (denom >= 2 && num >= 1 && num <= denom) {
+      cols.push({ colIndex: i, fraction: `${num}/${denom}`, denom });
+    }
+  }
+  return cols;
+}
 
 const STOCK_PATTERNS = [
   /^stock$/i, /^available$/i, /^avail$/i, /^inventory$/i,
@@ -125,7 +143,10 @@ function parsePrice(value: unknown): number | null {
     return Math.round(value * 100) / 100;
   }
   if (typeof value === "string") {
-    const cleaned = value.replace(/[£$€,\s]/g, "").replace(/^(US|UK|EU|GBP|USD|EUR)\s*/i, "");
+    const cleaned = value.replace(/[£$€,\s]/g, "").replace(/(US|UK|EU|GBP|USD|EUR)/gi, "");
+    // Reject code-like cells (e.g. "SP/A009", "POA", "net"): any letters left after stripping
+    // currency mean this isn't a price, so a code column can never be mistaken for the price column.
+    if (/[a-z]/i.test(cleaned)) return null;
     const numMatch = cleaned.match(/[\d.]+/);
     if (!numMatch) return null;
     const num = parseFloat(numMatch[0]);
@@ -202,7 +223,7 @@ function parseNaturalDate(text: string): string | null {
   const month = MONTH_MAP[match[2].toLowerCase()];
   if (month === undefined) return null;
   const year = match[3] ? parseInt(match[3]) : new Date().getFullYear();
-  const d = new Date(year, month, day);
+  const d = new Date(Date.UTC(year, month, day));
   return isNaN(d.getTime()) ? null : d.toISOString().split("T")[0];
 }
 
@@ -213,7 +234,7 @@ function parseDate(value: unknown): string | null {
     try {
       const parsed = XLSX.SSF.parse_date_code(value);
       if (parsed) {
-        const d = new Date(parsed.y, parsed.m - 1, parsed.d);
+        const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
         return d.toISOString().split("T")[0];
       }
     } catch { /* ignore */ }
@@ -232,13 +253,13 @@ function parseDate(value: unknown): string | null {
       const month = parseInt(ddmmyy[2]);
       let year = parseInt(ddmmyy[3]);
       if (year < 100) year += 2000;
-      const d = new Date(year, month - 1, day);
+      const d = new Date(Date.UTC(year, month - 1, day));
       if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
     }
 
     const yyyymmdd = trimmed.match(/(\d{4})[/.\-](\d{1,2})[/.\-](\d{1,2})/);
     if (yyyymmdd) {
-      const d = new Date(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3]));
+      const d = new Date(Date.UTC(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3])));
       if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
     }
 
@@ -281,7 +302,7 @@ function extractMetadata(data: unknown[][]): { name: string | null; shipmentDate
     for (let j = 0; j < row.length; j++) {
       const cellStr = String(row[j] || "").trim();
 
-      if (!meta.deadline && /deadline|order[\s_-]*by|due[\s_-]*date|close/i.test(cellStr)) {
+      if (!meta.deadline && /deadline|order[\s_-]*by|orders?\b[^.]*\bbefore\b|reach[\s_-]*us[\s_-]*before|due[\s_-]*date|close/i.test(cellStr)) {
         const d = parseNaturalDate(cellStr) || parseDate(cellStr.split(/[:]\s*/)[1]) || parseDate(row[j + 1]);
         if (d) meta.deadline = d;
       }
@@ -469,7 +490,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     const dateMatch = filename.match(/(\d{2})\.(\d{2})\.(\d{2})\.(xlsx?|xls)$/i);
     if (dateMatch) {
       const [, day, month, year] = dateMatch;
-      const d = new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+      const d = new Date(Date.UTC(2000 + parseInt(year), parseInt(month) - 1, parseInt(day)));
       if (!meta.deadline) meta.deadline = d.toISOString().split("T")[0];
     }
   }
@@ -502,6 +523,9 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       }
     }
   }
+
+  const packCols = detectPackFractionColumns(headers);
+  const packColSet = new Set(packCols.map((c) => c.colIndex));
 
   if (!meta.name) meta.name = detectShipmentName(data, headerRowIndex, filename);
   if (!meta.name) {
@@ -537,6 +561,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
   if (priceColIndex === -1 && columnOverrides?.price === undefined) {
     for (let col = 0; col < headers.length; col++) {
       if (reservedCols.includes(col) || col === stockColIndex) continue;
+      if (packColSet.has(col)) continue;
       let priceCount = 0;
       for (let row = headerRowIndex + 1; row < Math.min(headerRowIndex + 10, data.length); row++) {
         if (parsePrice(data[row]?.[col]) !== null) priceCount++;
@@ -603,7 +628,19 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
 
     const itemWarnings: string[] = [];
     const price = priceColIndex !== -1 ? parsePrice(row[priceColIndex]) : null;
-    const qtyPerBox = qtyPerBoxColIndex !== -1 ? parseQty(row[qtyPerBoxColIndex]) : null;
+    const packOptions: { fraction: string; headcount: number }[] = [];
+    for (const pc of packCols) {
+      const hc = parseQty(row[pc.colIndex]);
+      if (hc !== null && hc > 0) packOptions.push({ fraction: pc.fraction, headcount: hc });
+    }
+    // Legacy single qtyPerBox = fish per FULL box, derived from a fraction bag
+    // (headcount × denominator), e.g. 50 in a 1/12 bag → 600 per box. Keeps the existing
+    // box/freight estimate working; fractional-bag ordering (step 2) uses packOptions directly.
+    let qtyPerBox = qtyPerBoxColIndex !== -1 ? parseQty(row[qtyPerBoxColIndex]) : null;
+    if (qtyPerBox === null && packOptions.length > 0) {
+      const denom = parseInt(packOptions[0].fraction.split("/")[1], 10);
+      if (denom > 0) qtyPerBox = packOptions[0].headcount * denom;
+    }
     const size = sizeColIndex !== -1 ? parseSize(row[sizeColIndex]) : null;
     let availableQty: number | null = null;
     if (stockColIndex !== -1) {
@@ -643,7 +680,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       if (header && row[idx] !== undefined) originalRow[header] = row[idx];
     });
 
-    items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, availableQty, originalRow, warnings: itemWarnings });
+    items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, packOptions: packOptions.length ? packOptions : undefined, availableQty, originalRow, warnings: itemWarnings });
   }
 
   const rawRows = data.slice(headerRowIndex + 1);
@@ -657,6 +694,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     warnings,
     headers,
     columnMappings,
+    packFractions: packCols.map((c) => c.fraction),
     rawRows,
   };
 }

@@ -36,6 +36,16 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "varchar", nullable: true })
   sourceFilename: string;
 
+  // When true, customers order this shipment by fractional bags (1/12, 1/6, …) rather than
+  // by raw headcount. Defaulted on at import when products carry packOptions; admin can toggle.
+  @Column({ type: "boolean", default: false })
+  fractionalBagsEnabled: boolean;
+
+  // Delivery methods this shipment offers + their rates (per box / per mile / flat). Admin sets
+  // these on create/edit; the per-order packing review uses them. Null = use system defaults.
+  @Column({ type: "jsonb", nullable: true })
+  deliveryOptions: { id: string; label: string; basis: string; rate: number; enabled: boolean }[] | null;
+
   @Column({ type: "uuid" })
   createdById: string;
 

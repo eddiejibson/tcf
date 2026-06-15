@@ -144,7 +144,7 @@ export default function AdminCompaniesPage() {
     return (
       <div className="p-4 md:p-8">
         <h1 className="text-2xl font-bold text-white mb-6">Companies</h1>
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-8">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-8">
           <div className="animate-pulse space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-10 bg-white/5 rounded-xl" />
@@ -159,7 +159,7 @@ export default function AdminCompaniesPage() {
     return (
       <div className="p-4 md:p-8">
         <h1 className="text-2xl font-bold text-white mb-6">Companies</h1>
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] py-16 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 py-16 text-center">
           <p className="text-white/50 mb-4">Failed to load companies</p>
           <button
             onClick={fetchCompanies}
@@ -185,7 +185,7 @@ export default function AdminCompaniesPage() {
       </div>
 
       {creditCompanyId && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6 mb-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6 mb-6">
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Adjust Credit for {companies.find((c) => c.id === creditCompanyId)?.name}</p>
           <form onSubmit={async (e) => {
             e.preventDefault();
@@ -405,7 +405,7 @@ export default function AdminCompaniesPage() {
         ))}
       </div>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
         {/* Table header */}
         <div className="hidden md:grid grid-cols-[1fr_80px_100px_120px_120px_80px_56px] gap-4 px-6 py-3 border-b border-white/10 bg-white/[0.02]">
           <p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Company</p>

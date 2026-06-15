@@ -6,7 +6,7 @@ import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/Anima
 import { SkeletonOrderList } from "@/app/components/dashboard/Skeleton";
 
 const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-500/20 text-yellow-400",
+  PENDING: "bg-amber-500/15 text-amber-300",
   REVIEWED: "bg-blue-500/20 text-blue-400",
   REPORTED: "bg-green-500/20 text-green-400",
 };

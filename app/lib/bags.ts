@@ -42,3 +42,38 @@ export function hasAnyBags(sel: BagSelection | undefined): boolean {
   for (const k in sel) if ((sel[k] || 0) > 0) return true;
   return false;
 }
+
+// --- Parsing helpers (shared by the Excel parser and the client column-remap) ---
+
+// Pack-fraction column headers like "1/6 Qty", "1/12 Qty", "1/8", "1/4 bag" — the number of fish
+// that fit in a fraction-of-a-box bag. The fraction set varies by supplier, so this stays generic.
+export const PACK_FRACTION_RE = /^\s*(\d{1,2})\s*\/\s*(\d{1,3})\s*(?:th)?\s*(?:qty|quantity|pcs|pieces|bag|bags|box)?\s*$/i;
+
+export function detectPackColumns(headers: string[]): { colIndex: number; fraction: string; denom: number }[] {
+  const cols: { colIndex: number; fraction: string; denom: number }[] = [];
+  for (let i = 0; i < headers.length; i++) {
+    const m = String(headers[i] || "").trim().match(PACK_FRACTION_RE);
+    if (!m) continue;
+    const num = parseInt(m[1], 10);
+    const denom = parseInt(m[2], 10);
+    if (denom >= 2 && num >= 1 && num <= denom) cols.push({ colIndex: i, fraction: `${num}/${denom}`, denom });
+  }
+  return cols;
+}
+
+export function packOptionsFromRow(row: unknown[], packCols: { colIndex: number; fraction: string }[]): PackOption[] {
+  const out: PackOption[] = [];
+  for (const c of packCols) {
+    const raw = row[c.colIndex];
+    const n = typeof raw === "number" ? Math.round(raw) : parseInt(String(raw ?? "").replace(/[^\d]/g, ""), 10);
+    if (!isNaN(n) && n > 0) out.push({ fraction: c.fraction, headcount: n });
+  }
+  return out;
+}
+
+/** Legacy single qtyPerBox = fish per FULL box, derived from the first bag (headcount × denominator). */
+export function qtyPerBoxFromPacks(packOptions: PackOption[]): number | null {
+  if (!packOptions.length) return null;
+  const d = parseInt(packOptions[0].fraction.split("/")[1], 10);
+  return d > 0 ? packOptions[0].headcount * d : null;
+}

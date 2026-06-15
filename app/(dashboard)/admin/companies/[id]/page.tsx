@@ -323,7 +323,7 @@ export default function CompanyDetailPage() {
       {!company.phone && (
         <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-amber-500/[0.06] border border-amber-500/15">
           <svg
-            className="w-5 h-5 text-amber-400/90 flex-shrink-0 mt-0.5"
+            className="w-5 h-5 text-amber-300/90 flex-shrink-0 mt-0.5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

@@ -228,8 +228,19 @@ export default function ShipmentDetailPage() {
     return [...available, ...unavailable];
   }, [shipment]);
 
+  // Grouping: when the list carries section/genus categories, show them as headers (in the
+  // original file order) so big lists are browsable. Search falls back to a flat result.
+  const hasCategories = useMemo(() => !!shipment?.products.some((p) => p.category), [shipment]);
+  const categoryCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of shipment?.products ?? []) {
+      if (p.category) m.set(p.category, (m.get(p.category) || 0) + 1);
+    }
+    return m;
+  }, [shipment]);
+
   const filteredProducts = useMemo(() => {
-    if (!deferredSearch.trim()) return sortedProducts;
+    if (!deferredSearch.trim()) return hasCategories ? (shipment?.products ?? []) : sortedProducts;
     const q = deferredSearch.toLowerCase();
     return sortedProducts.filter(
       (p) =>
@@ -238,7 +249,9 @@ export default function ShipmentDetailPage() {
         (p.variant && p.variant.toLowerCase().includes(q)) ||
         (p.size && p.size.toLowerCase().includes(q)),
     );
-  }, [sortedProducts, deferredSearch]);
+  }, [sortedProducts, deferredSearch, hasCategories, shipment]);
+
+  const grouped = hasCategories && !deferredSearch.trim();
 
   // Reset the visible window whenever the (filtered) list changes from a search,
   // so results always start from the top.
@@ -527,7 +540,7 @@ export default function ShipmentDetailPage() {
 
       {/* Admin mode: customer picker */}
       {adminMode && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6 overflow-visible relative z-10">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 mb-6 overflow-visible relative z-10">
           <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Customer</label>
           <CustomerPicker users={adminUsers} value={selectedUserId} onChange={setSelectedUserId} placeholder="Select customer..." />
         </div>
@@ -537,7 +550,8 @@ export default function ShipmentDetailPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">{shipment.name}</h1>
           <div className="flex items-center gap-4 mt-2">
-            <span className="text-amber-400 text-sm font-medium">
+            <span className="inline-flex items-center gap-1.5 text-white/55 text-sm font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" />
               Deadline:{" "}
               {new Date(shipment.deadline).toLocaleDateString("en-GB", {
                 day: "numeric",
@@ -578,16 +592,16 @@ export default function ShipmentDetailPage() {
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-amber-400 text-sm font-medium mb-1">{submitError.split("\n")[0]}</p>
+              <p className="text-amber-300 text-sm font-medium mb-1">{submitError.split("\n")[0]}</p>
               {submitError.split("\n").length > 1 && (
                 <ul className="space-y-0.5">
                   {submitError.split("\n").slice(1).map((w, i) => (
-                    <li key={i} className="text-amber-400/70 text-xs">• {w}</li>
+                    <li key={i} className="text-amber-300/70 text-xs">• {w}</li>
                   ))}
                 </ul>
               )}
             </div>
-            <button onClick={() => setSubmitError("")} className="text-amber-400/50 hover:text-amber-400 shrink-0 transition-colors">
+            <button onClick={() => setSubmitError("")} className="text-amber-300/50 hover:text-amber-300 shrink-0 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -597,7 +611,7 @@ export default function ShipmentDetailPage() {
       {hasOrder && (
         <div
           ref={cartBarRef}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6"
+          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-5 mb-6"
         >
           {discount > 0 && (
             <div className="mb-3 px-2.5 py-1.5 bg-[#0984E3]/10 border border-[#0984E3]/20 rounded-lg inline-block">
@@ -635,7 +649,7 @@ export default function ShipmentDetailPage() {
                   {estimatedFreight > 0 ? `~${formatPrice(estimatedFreight)}` : "—"}
                 </p>
                 {hasUnknownBoxItems && (
-                  <p className="text-amber-400/60 text-[10px] mt-0.5">Partial — some items have unknown box qty</p>
+                  <p className="text-amber-300/60 text-[10px] mt-0.5">Partial — some items have unknown box qty</p>
                 )}
               </div>
             )}
@@ -717,8 +731,8 @@ export default function ShipmentDetailPage() {
       {shipment.products.some((p) => p.featured) && (
         <div className="bg-gradient-to-r from-amber-500/5 to-transparent border border-amber-500/10 rounded-[20px] p-4 md:p-5 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-            <h3 className="text-amber-400 text-xs font-bold uppercase tracking-wider">Our Top Picks</h3>
+            <svg className="w-4 h-4 text-amber-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+            <h3 className="text-amber-300 text-xs font-bold uppercase tracking-wider">Our Top Picks</h3>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {shipment.products.filter((p) => p.featured).map((p) => {
@@ -728,7 +742,7 @@ export default function ShipmentDetailPage() {
                   <p className="text-white/90 text-sm font-semibold truncate">{toTitleCase(p.name)}</p>
                   {p.latinName && <p className="text-white/30 text-[10px] italic truncate">{p.latinName}</p>}
                   <p className="text-[#0984E3] text-sm font-bold mt-1 tabular-nums">{formatPrice(discount > 0 ? applyDiscount(Number(p.price), discount) : Number(p.price))}</p>
-                  {qty > 0 && <p className="text-amber-400 text-[10px] font-medium mt-0.5">{qty} in order</p>}
+                  {qty > 0 && <p className="text-amber-300 text-[10px] font-medium mt-0.5">{qty} in order</p>}
                 </button>
               );
             })}
@@ -736,7 +750,7 @@ export default function ShipmentDetailPage() {
         </div>
       )}
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
         <div className="px-4 md:px-5 py-3 border-b border-white/10">
           <div className="relative">
             <svg
@@ -794,21 +808,32 @@ export default function ShipmentDetailPage() {
                 </p>
               </div>
             )}
-            {filteredProducts.slice(0, visibleCount).map((product) => {
+            {filteredProducts.slice(0, visibleCount).map((product, idx, arr) => {
+              const showHeader = grouped && product.category != null && (idx === 0 || arr[idx - 1].category !== product.category);
+              const header = showHeader ? (
+                <div className="px-4 md:px-5 pt-3 pb-1.5 bg-white/[0.02] border-y border-white/10">
+                  <p className="text-[#0984E3] text-[11px] uppercase tracking-wider font-semibold">
+                    {toTitleCase(product.category!)}
+                    <span className="text-white/30 font-normal normal-case"> · {categoryCounts.get(product.category!)}</span>
+                  </p>
+                </div>
+              ) : null;
               if (fractional) {
                 return (
-                  <ProductBagCard
-                    key={product.id}
-                    name={product.name}
-                    latinName={product.latinName}
-                    size={product.size}
-                    variant={product.variant}
-                    unitPrice={applyDiscount(Number(product.price), discount)}
-                    packOptions={product.packOptions || []}
-                    bags={getBags(product.id)}
-                    onChange={(fr, next) => setBag(product.id, fr, next)}
-                    unavailable={isUnavailable(product)}
-                  />
+                  <React.Fragment key={product.id}>
+                    {header}
+                    <ProductBagCard
+                      name={product.name}
+                      latinName={product.latinName}
+                      size={product.size}
+                      variant={product.variant}
+                      unitPrice={applyDiscount(Number(product.price), discount)}
+                      packOptions={product.packOptions || []}
+                      bags={getBags(product.id)}
+                      onChange={(fr, next) => setBag(product.id, fr, next)}
+                      unavailable={isUnavailable(product)}
+                    />
+                  </React.Fragment>
                 );
               }
               const qty = getQty(product.id);
@@ -818,6 +843,7 @@ export default function ShipmentDetailPage() {
               const sub = substitutes.get(product.id);
               return (
                 <React.Fragment key={product.id}>
+                  {header}
                   <div
                     className={`min-w-[420px] hidden md:block px-5 py-3 transition-colors ${unavail ? "opacity-30" : qty > 0 ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}
                   >
@@ -862,7 +888,7 @@ export default function ShipmentDetailPage() {
                           <div className="mt-1.5">
                             {sub ? (
                               <div className="flex items-center gap-2">
-                                <span className="text-amber-400/70 text-[11px]">
+                                <span className="text-amber-300/70 text-[11px]">
                                   Sub: {toTitleCase(sub.name)}
                                 </span>
                                 <button
@@ -1050,7 +1076,7 @@ export default function ShipmentDetailPage() {
                       <div className="mt-2 ml-0.5">
                         {sub ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-amber-400/70 text-xs">
+                            <span className="text-amber-300/70 text-xs">
                               Sub: {toTitleCase(sub.name)}
                             </span>
                             <button
@@ -1151,7 +1177,7 @@ export default function ShipmentDetailPage() {
                   </div>
                 )}
                 {hasUnknownBoxItems && (
-                  <p className="text-amber-400/50 text-[10px]">* Some items have unknown box quantity — freight is a partial estimate</p>
+                  <p className="text-amber-300/50 text-[10px]">* Some items have unknown box quantity — freight is a partial estimate</p>
                 )}
                 <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
                   <span className="text-white/70 font-medium">Total</span>

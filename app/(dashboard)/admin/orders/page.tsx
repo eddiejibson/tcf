@@ -13,7 +13,7 @@ const statusColors: Record<string, string> = {
   AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
   ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
   EXPIRED: "bg-orange-500/20 text-orange-400",
 };

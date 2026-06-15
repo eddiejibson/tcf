@@ -9,7 +9,7 @@ import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/Anima
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
 
 const stockLevelColors: Record<string, string> = {
-  LOW: "bg-amber-500/20 text-amber-400",
+  LOW: "bg-amber-500/20 text-amber-300",
   AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
@@ -114,7 +114,7 @@ export default function CatalogPage() {
           </button>
           <button
             onClick={() => setShowBulkSurcharge(!showBulkSurcharge)}
-            className={`px-4 py-2.5 border text-sm font-medium rounded-xl transition-all flex items-center gap-2 ${showBulkSurcharge ? "bg-amber-500/20 border-amber-500/30 text-amber-400" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"}`}
+            className={`px-4 py-2.5 border text-sm font-medium rounded-xl transition-all flex items-center gap-2 ${showBulkSurcharge ? "bg-amber-500/20 border-amber-500/30 text-amber-300" : "bg-white/5 border-white/10 hover:bg-white/10 text-white"}`}
           >
             <span className="text-xs font-bold">%</span>
             Bulk Surcharge
@@ -132,14 +132,14 @@ export default function CatalogPage() {
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-[20px] p-4 md:p-6 mb-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-amber-400 font-semibold text-sm">Bulk Surcharge</h3>
-              <p className="text-amber-400/60 text-xs mt-0.5">Set surcharge % for active products — all or by category</p>
+              <h3 className="text-amber-300 font-semibold text-sm">Bulk Surcharge</h3>
+              <p className="text-amber-300/60 text-xs mt-0.5">Set surcharge % for active products — all or by category</p>
             </div>
             <button onClick={() => { setShowBulkSurcharge(false); setBulkSurchargeCategoryId(""); }} className="text-white/40 hover:text-white text-sm transition-colors">Cancel</button>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-56">
-              <label className="text-amber-400/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Category</label>
+              <label className="text-amber-300/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Category</label>
               <CategoryPicker
                 categories={categories}
                 value={bulkSurchargeCategoryId}
@@ -149,7 +149,7 @@ export default function CatalogPage() {
               />
             </div>
             <div>
-              <label className="text-amber-400/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Surcharge</label>
+              <label className="text-amber-300/60 text-[10px] uppercase tracking-wider font-medium block mb-1.5">Surcharge</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -161,7 +161,7 @@ export default function CatalogPage() {
                   className="w-24 px-3 py-2 bg-white/5 border border-amber-500/30 rounded-lg text-white text-sm text-right tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   autoFocus
                 />
-                <span className="text-amber-400/60 text-sm">%</span>
+                <span className="text-amber-300/60 text-sm">%</span>
               </div>
             </div>
             <button
@@ -199,7 +199,7 @@ export default function CatalogPage() {
                 setBulkSaving(false);
               }}
               disabled={bulkSaving}
-              className="px-4 py-2 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:bg-white/10 disabled:text-white/30 text-sm font-medium rounded-lg transition-all"
+              className="px-4 py-2 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:bg-white/10 disabled:text-white/30 text-sm font-medium rounded-lg transition-all"
             >
               {bulkSaving ? "Applying..." : bulkSurchargeCategoryId ? "Apply to Category" : "Apply to All"}
             </button>

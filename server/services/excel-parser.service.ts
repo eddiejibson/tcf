@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import type { ParsedShipment, ParsedProduct, ColumnMapping } from "@/app/lib/types";
 import { extractSizeVariant } from "./size-variant-extract";
+import { detectPackColumns, packOptionsFromRow, qtyPerBoxFromPacks } from "@/app/lib/bags";
 
 const NAME_PATTERNS = [
   /english[\s_-]*name/i, /common[\s_-]*name/i, /como?n[\s_-]*name/i,
@@ -57,23 +58,7 @@ const QTY_PER_BOX_PATTERNS = [
   /pieces[\s_-]*per/i,
 ];
 
-// Pack-fraction columns: headers like "1/6 Qty", "1/12 Qty", "1/8", "1/4 bag" — the number of
-// fish that fit in a fraction-of-a-box bag. The fraction set varies by supplier, so this is generic.
-const PACK_FRACTION_RE = /^\s*(\d{1,2})\s*\/\s*(\d{1,3})\s*(?:th)?\s*(?:qty|quantity|pcs|pieces|bag|bags|box)?\s*$/i;
-
-function detectPackFractionColumns(headers: string[]): { colIndex: number; fraction: string; denom: number }[] {
-  const cols: { colIndex: number; fraction: string; denom: number }[] = [];
-  for (let i = 0; i < headers.length; i++) {
-    const m = String(headers[i] || "").trim().match(PACK_FRACTION_RE);
-    if (!m) continue;
-    const num = parseInt(m[1], 10);
-    const denom = parseInt(m[2], 10);
-    if (denom >= 2 && num >= 1 && num <= denom) {
-      cols.push({ colIndex: i, fraction: `${num}/${denom}`, denom });
-    }
-  }
-  return cols;
-}
+// Pack-fraction column detection lives in @/app/lib/bags so the client column-remap shares it.
 
 const STOCK_PATTERNS = [
   /^stock$/i, /^available$/i, /^avail$/i, /^inventory$/i,
@@ -477,6 +462,17 @@ function isCategoryRow(row: unknown[], nameCol: number, priceCol: number): boole
   return filled <= 2;
 }
 
+// A sparse, price-less row is a section header (e.g. "SPECIAL OFFERS", "BARBUS"). Returns the
+// label so following products inherit it as their category for grouping, or null for normal rows.
+function sectionLabel(row: unknown[], priceColIndex: number): string | null {
+  if (priceColIndex !== -1 && parsePrice(row[priceColIndex]) !== null) return null;
+  const texts = row.map((c) => String(c ?? "").trim()).filter(Boolean);
+  if (texts.length === 0 || texts.length > 2) return null;
+  const label = texts.reduce((a, b) => (b.length > a.length ? b : a), "");
+  if (label.length < 2 || /^[\d.,£$€\-/]+$/.test(label)) return null;
+  return label;
+}
+
 export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string, columnOverrides?: Partial<ColumnMapping>): ParsedShipment {
   const workbook = XLSX.read(buffer, { type: buffer instanceof ArrayBuffer ? "array" : "buffer" });
   const sheetName = workbook.SheetNames[0];
@@ -524,7 +520,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     }
   }
 
-  const packCols = detectPackFractionColumns(headers);
+  const packCols = detectPackColumns(headers);
   const packColSet = new Set(packCols.map((c) => c.colIndex));
 
   if (!meta.name) meta.name = detectShipmentName(data, headerRowIndex, filename);
@@ -616,31 +612,28 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
   };
 
   const items: ParsedProduct[] = [];
+  let currentCategory: string | null = null;
 
   for (let i = headerRowIndex + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
 
+    // Sparse, price-less rows are section headers; following products inherit them as category.
+    const sec = sectionLabel(row, priceColIndex);
+    if (sec !== null) { currentCategory = sec; continue; }
+
     const rawName = String(row[nameColIndex] || "").trim();
     if (!rawName || rawName.length < 2) continue;
     if (/^\d+$/.test(rawName) && rawName.length < 4) continue;
-    if (priceColIndex !== -1 && isCategoryRow(row, nameColIndex, priceColIndex)) continue;
+    if (priceColIndex !== -1 && isCategoryRow(row, nameColIndex, priceColIndex)) { currentCategory = rawName; continue; }
 
     const itemWarnings: string[] = [];
     const price = priceColIndex !== -1 ? parsePrice(row[priceColIndex]) : null;
-    const packOptions: { fraction: string; headcount: number }[] = [];
-    for (const pc of packCols) {
-      const hc = parseQty(row[pc.colIndex]);
-      if (hc !== null && hc > 0) packOptions.push({ fraction: pc.fraction, headcount: hc });
-    }
-    // Legacy single qtyPerBox = fish per FULL box, derived from a fraction bag
-    // (headcount × denominator), e.g. 50 in a 1/12 bag → 600 per box. Keeps the existing
-    // box/freight estimate working; fractional-bag ordering (step 2) uses packOptions directly.
+    const packOptions = packOptionsFromRow(row, packCols);
+    // Legacy single qtyPerBox = fish per FULL box (headcount × denominator), e.g. 50 in a
+    // 1/12 bag → 600 per box. Keeps the box/freight estimate working; ordering uses packOptions.
     let qtyPerBox = qtyPerBoxColIndex !== -1 ? parseQty(row[qtyPerBoxColIndex]) : null;
-    if (qtyPerBox === null && packOptions.length > 0) {
-      const denom = parseInt(packOptions[0].fraction.split("/")[1], 10);
-      if (denom > 0) qtyPerBox = packOptions[0].headcount * denom;
-    }
+    if (qtyPerBox === null) qtyPerBox = qtyPerBoxFromPacks(packOptions);
     const size = sizeColIndex !== -1 ? parseSize(row[sizeColIndex]) : null;
     let availableQty: number | null = null;
     if (stockColIndex !== -1) {
@@ -680,7 +673,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
       if (header && row[idx] !== undefined) originalRow[header] = row[idx];
     });
 
-    items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, packOptions: packOptions.length ? packOptions : undefined, availableQty, originalRow, warnings: itemWarnings });
+    items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, packOptions: packOptions.length ? packOptions : undefined, category: currentCategory, availableQty, originalRow, warnings: itemWarnings });
   }
 
   const rawRows = data.slice(headerRowIndex + 1);

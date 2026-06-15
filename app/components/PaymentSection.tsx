@@ -160,7 +160,7 @@ export default function PaymentSection({
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold">Payments</h3>
-            {order.remainingBalance > 0 && <span className="text-amber-400 text-sm font-medium">{formatPrice(order.remainingBalance)} remaining</span>}
+            {order.remainingBalance > 0 && <span className="text-amber-300 text-sm font-medium">{formatPrice(order.remainingBalance)} remaining</span>}
           </div>
           <div className="space-y-2">
             {order.payments.map((p) => (
@@ -169,7 +169,7 @@ export default function PaymentSection({
                   <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.method === "BANK_TRANSFER" ? "bg-blue-500/20 text-blue-400" : p.method === "CARD" ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"}`}>
                     {p.method === "BANK_TRANSFER" ? "Bank Transfer" : p.method === "CARD" ? "Card" : "Finance"}
                   </span>
-                  <span className={`text-[10px] font-medium ${p.status === "COMPLETED" ? "text-emerald-400" : p.status === "AWAITING_CONFIRMATION" ? "text-amber-400" : "text-white/40"}`}>
+                  <span className={`text-[10px] font-medium ${p.status === "COMPLETED" ? "text-emerald-400" : p.status === "AWAITING_CONFIRMATION" ? "text-amber-300" : "text-white/40"}`}>
                     {p.status === "COMPLETED" ? "Paid" : p.status === "AWAITING_CONFIRMATION" ? "Awaiting confirmation" : "Pending"}
                   </span>
                 </div>
@@ -356,7 +356,7 @@ export default function PaymentSection({
         <div className="space-y-2 mb-6">
           {awaitingPayments.map((p) => (
             <div key={p.id} className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4">
-              <p className="text-amber-400 text-sm font-medium">
+              <p className="text-amber-300 text-sm font-medium">
                 {p.method === "BANK_TRANSFER" ? `Bank transfer of ${formatPrice(Number(p.amount))} marked as sent.` : p.method === "FINANCE" ? `Finance application for ${formatPrice(Number(p.amount))} submitted.` : `Payment of ${formatPrice(Number(p.amount))} pending.`}
                 {" "}Awaiting confirmation from The Coral Farm.
               </p>

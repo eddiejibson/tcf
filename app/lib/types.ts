@@ -109,6 +109,7 @@ export interface AdminShipmentDetailProduct {
   qtyPerBox: number | null;
   availableQty: number | null;
   featured: boolean;
+  category?: string | null;
   originalRow?: Record<string, unknown> | null;
 }
 
@@ -261,6 +262,8 @@ export interface ParsedProduct {
   // Per-fraction bag headcounts, e.g. [{fraction:"1/6", headcount:100}, {fraction:"1/12", headcount:50}].
   // Drives fractional-bag ordering (step 2). The fraction set varies per supplier.
   packOptions?: { fraction: string; headcount: number }[];
+  // Section/genus the product sits under in the list (e.g. "BARBUS", "SPECIAL OFFERS").
+  category?: string | null;
   availableQty: number | null;
   originalRow?: Record<string, unknown>;
   warnings: string[];

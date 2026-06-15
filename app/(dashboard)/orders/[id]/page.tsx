@@ -19,7 +19,7 @@ const statusColors: Record<string, string> = {
   AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
   ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
   EXPIRED: "bg-orange-500/20 text-orange-400",
 };
@@ -242,7 +242,7 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
         <div className="overflow-x-auto">
         <div className="min-w-[400px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
@@ -278,7 +278,7 @@ export default function OrderDetailPage() {
               <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.quantity * Number(item.unitPrice))}</p></div>
             </div>
             {item.substituteName && (
-              <p className="text-amber-400/60 text-[11px] mt-1">Substitute if unavailable: {item.substituteName}</p>
+              <p className="text-amber-300/60 text-[11px] mt-1">Substitute if unavailable: {item.substituteName}</p>
             )}
           </div>
         ))}
@@ -343,7 +343,7 @@ export default function OrderDetailPage() {
       )}
 
       {order.adminNotes && (
-        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-5">
+        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-5">
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2">Note from The Coral Farm</p>
           <p className="text-white/70 text-sm whitespace-pre-wrap">{order.adminNotes}</p>
         </div>
@@ -415,14 +415,14 @@ export default function OrderDetailPage() {
       </div>
 
       {(order.status === "PAID" || order.status === "AWAITING_PAYMENT" || (order.status === "ACCEPTED" && !!order.shipment)) && (canViewDoa || canCreateDoa) && (
-        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-6">
+        <div className="mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-6">
           <h3 className="text-white font-semibold text-lg mb-2">Dead On Arrival (DOA) Report</h3>
 
           {doaClaim ? (
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                  doaClaim.status === "PENDING" ? "bg-yellow-500/20 text-yellow-400"
+                  doaClaim.status === "PENDING" ? "bg-amber-500/15 text-amber-300"
                     : doaClaim.status === "REVIEWED" ? "bg-blue-500/20 text-blue-400"
                     : "bg-green-500/20 text-green-400"
                 }`}>

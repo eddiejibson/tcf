@@ -31,7 +31,7 @@ const statusColors: Record<string, string> = {
   AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
   ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
 };
 
@@ -1526,7 +1526,7 @@ export default function AdminShipmentDetailPage() {
             {shipment.name}
           </h1>
           <div className="flex items-center gap-4 mt-1">
-            <span className="text-amber-400 text-sm">
+            <span className="text-amber-300 text-sm">
               Deadline:{" "}
               {new Date(shipment.deadline).toLocaleDateString("en-GB", {
                 day: "numeric",
@@ -1567,7 +1567,7 @@ export default function AdminShipmentDetailPage() {
           </button>
           <Link
             href={`/admin/shipments/${shipment.id}/email`}
-            className="px-4 py-1.5 bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/30 transition-all flex items-center gap-1.5"
+            className="px-4 py-1.5 bg-amber-500/20 text-amber-300 text-sm font-medium rounded-lg hover:bg-amber-500/30 transition-all flex items-center gap-1.5"
           >
             <svg
               className="w-4 h-4"
@@ -1618,7 +1618,7 @@ export default function AdminShipmentDetailPage() {
       </div>
 
       {/* Shipment details */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
           <div>
             <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-1">
@@ -1648,11 +1648,11 @@ export default function AdminShipmentDetailPage() {
       </div>
 
       {/* Top Picks */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-5 mb-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-amber-400"
+              className="w-4 h-4 text-amber-300"
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -1675,7 +1675,7 @@ export default function AdminShipmentDetailPage() {
             .map((p) => (
               <span
                 key={p.id}
-                className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs font-medium flex items-center gap-1.5"
+                className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-xs font-medium flex items-center gap-1.5"
               >
                 {p.name}
                 <button
@@ -1693,7 +1693,7 @@ export default function AdminShipmentDetailPage() {
                     );
                     fetchShipment();
                   }}
-                  className="text-amber-400/50 hover:text-amber-400 transition-colors"
+                  className="text-amber-300/50 hover:text-amber-300 transition-colors"
                 >
                   <svg
                     className="w-3 h-3"
@@ -1731,7 +1731,7 @@ export default function AdminShipmentDetailPage() {
       {flowStep === "idle" && (
         <>
           {/* Orders list */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden mb-6">
             <div className="p-4 md:p-6 flex items-center justify-between border-b border-white/10">
               <h3 className="text-white font-semibold">
                 Orders ({shipment.orders.length})
@@ -1850,7 +1850,7 @@ export default function AdminShipmentDetailPage() {
 
           {showExportWarning && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-6">
-              <p className="text-amber-400 text-sm font-medium mb-2">
+              <p className="text-amber-300 text-sm font-medium mb-2">
                 There {pendingOrders.length === 1 ? "is" : "are"}{" "}
                 {pendingOrders.length} order
                 {pendingOrders.length !== 1 ? "s" : ""} still in{" "}
@@ -1860,7 +1860,7 @@ export default function AdminShipmentDetailPage() {
                   .join("/")}{" "}
                 status.
               </p>
-              <p className="text-amber-400/60 text-xs mb-3">
+              <p className="text-amber-300/60 text-xs mb-3">
                 These orders won&apos;t be included in the export. Are you sure
                 you want to continue?
               </p>
@@ -1870,7 +1870,7 @@ export default function AdminShipmentDetailPage() {
                     setShowExportWarning(false);
                     doExportPackingList();
                   }}
-                  className="px-3 py-1.5 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-xs font-medium rounded-lg transition-all"
+                  className="px-3 py-1.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-medium rounded-lg transition-all"
                 >
                   Export Anyway
                 </button>
@@ -1895,7 +1895,7 @@ export default function AdminShipmentDetailPage() {
       {/* Column mapping step */}
       {flowStep === "column_mapping" && (
         <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">
@@ -1917,7 +1917,7 @@ export default function AdminShipmentDetailPage() {
             {packingWarnings.length > 0 && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4">
                 {packingWarnings.map((w, i) => (
-                  <p key={i} className="text-amber-400/80 text-xs">
+                  <p key={i} className="text-amber-300/80 text-xs">
                     {w}
                   </p>
                 ))}
@@ -2076,7 +2076,7 @@ export default function AdminShipmentDetailPage() {
       {/* Order mapping step */}
       {flowStep === "mapping" && (
         <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">
@@ -2249,7 +2249,7 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             {/* Progress bar */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-white text-sm font-medium">
                   Order {currentReviewIndex + 1} of {orderMappings.length} —{" "}
@@ -2292,7 +2292,7 @@ export default function AdminShipmentDetailPage() {
             </div>
 
             {/* Review items table */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
               <div className="p-4 md:p-6 border-b border-white/10">
                 <h3 className="text-white font-semibold">
                   Review Items — Packing List &quot;{currentPackingOrder.label}
@@ -2395,7 +2395,7 @@ export default function AdminShipmentDetailPage() {
                           -
                         </span>
                       ) : item.status === "qty_changed" ? (
-                        <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs font-bold">
+                        <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-xs font-bold">
                           ~
                         </span>
                       ) : (
@@ -2425,7 +2425,7 @@ export default function AdminShipmentDetailPage() {
                             />
                           )}
                           {!item.productId && item.status !== "removed" && (
-                            <p className="text-amber-400/60 text-[10px] mt-1">
+                            <p className="text-amber-300/60 text-[10px] mt-1">
                               No matching product found — set price manually
                             </p>
                           )}
@@ -2552,7 +2552,7 @@ export default function AdminShipmentDetailPage() {
                           </span>
                         )}
                         {changed > 0 && (
-                          <span className="text-amber-400">
+                          <span className="text-amber-300">
                             {changed} qty changed
                           </span>
                         )}
@@ -2820,7 +2820,7 @@ export default function AdminShipmentDetailPage() {
         <div className="space-y-6">
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-[16px] px-4 py-3 flex items-start gap-3">
             <svg
-              className="w-5 h-5 text-amber-400 shrink-0 mt-0.5"
+              className="w-5 h-5 text-amber-300 shrink-0 mt-0.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -2833,10 +2833,10 @@ export default function AdminShipmentDetailPage() {
               />
             </svg>
             <div className="flex-1">
-              <p className="text-amber-400 text-sm font-medium">
+              <p className="text-amber-300 text-sm font-medium">
                 Final review — no changes have been saved yet
               </p>
-              <p className="text-amber-400/70 text-xs mt-0.5">
+              <p className="text-amber-300/70 text-xs mt-0.5">
                 {sendEmails
                   ? "Applying moves all queued orders to ACCEPTED. Customers get an 'Order Accepted' email with their invoice (or 'Order Updated' if the items changed on an already-accepted order). New orders are created silently."
                   : "Applying moves all queued orders to ACCEPTED silently — no customer emails will be sent."}
@@ -2844,7 +2844,7 @@ export default function AdminShipmentDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-4 md:p-6 border-b border-white/10">
               <h3 className="text-white font-semibold">Summary</h3>
             </div>
@@ -3085,7 +3085,7 @@ export default function AdminShipmentDetailPage() {
 
       {/* Done step */}
       {flowStep === "done" && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-12 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-green-500/20 flex items-center justify-center">
             <svg
               className="w-8 h-8 text-green-400"

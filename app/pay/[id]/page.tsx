@@ -13,7 +13,7 @@ function formatPrice(n: number) {
 
 const statusColors: Record<string, string> = {
   ACCEPTED: "bg-green-500/20 text-green-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
 };
 
@@ -152,7 +152,7 @@ export default function PublicPayPage() {
 
         {isAwaitingPayment && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-6">
-            <p className="text-amber-400 text-sm font-medium">Payment has been submitted and is awaiting confirmation.</p>
+            <p className="text-amber-300 text-sm font-medium">Payment has been submitted and is awaiting confirmation.</p>
           </div>
         )}
 

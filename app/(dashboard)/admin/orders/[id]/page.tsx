@@ -25,7 +25,7 @@ const statusColors: Record<string, string> = {
   AWAITING_FULFILLMENT: "bg-orange-500/20 text-orange-400",
   ACCEPTED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
-  AWAITING_PAYMENT: "bg-yellow-500/20 text-yellow-400",
+  AWAITING_PAYMENT: "bg-amber-500/15 text-amber-300",
   PAID: "bg-emerald-500/20 text-emerald-400",
   EXPIRED: "bg-orange-500/20 text-orange-400",
 };
@@ -541,18 +541,18 @@ export default function AdminOrderDetailPage() {
       </div>
 
       {order.status === "DRAFT" && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6 overflow-visible relative z-20">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 mb-6 overflow-visible relative z-20">
           <label className="text-white/50 text-xs uppercase tracking-wider font-medium mb-2 block">Customer</label>
           <CustomerPicker users={users} value={order.userId || ""} onChange={handleAssignCustomer} />
         </div>
       )}
 
       {(order.payments?.length > 0 || order.paymentMethod) && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 mb-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-white/50 text-xs uppercase tracking-wider font-medium">Payments</p>
             {order.remainingBalance > 0 && (
-              <span className="text-amber-400 text-xs font-medium">{formatPrice(order.remainingBalance)} remaining</span>
+              <span className="text-amber-300 text-xs font-medium">{formatPrice(order.remainingBalance)} remaining</span>
             )}
           </div>
           {order.payments?.length > 0 ? (
@@ -563,7 +563,7 @@ export default function AdminOrderDetailPage() {
                     <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.method === "BANK_TRANSFER" ? "bg-blue-500/20 text-blue-400" : p.method === "CARD" ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"}`}>
                       {p.method === "BANK_TRANSFER" ? "Bank" : p.method === "CARD" ? "Card" : "Finance"}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.status === "COMPLETED" ? "bg-emerald-500/15 text-emerald-400" : p.status === "AWAITING_CONFIRMATION" ? "bg-amber-500/15 text-amber-400" : "bg-white/10 text-white/50"}`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${p.status === "COMPLETED" ? "bg-emerald-500/15 text-emerald-400" : p.status === "AWAITING_CONFIRMATION" ? "bg-amber-500/15 text-amber-300" : "bg-white/10 text-white/50"}`}>
                       {p.status === "COMPLETED" ? "Paid" : p.status === "AWAITING_CONFIRMATION" ? "Awaiting" : "Pending"}
                     </span>
                   </div>
@@ -599,7 +599,7 @@ export default function AdminOrderDetailPage() {
       {(order.shippingAddress || order.billingAddress) && ["ACCEPTED", "AWAITING_PAYMENT", "PAID"].includes(order.status) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {order.shippingAddress && (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4">
               <p className="text-[#0984E3] text-[10px] uppercase tracking-wider font-medium mb-2">Shipping Address</p>
               <p className="text-white/80 text-sm leading-relaxed">
                 {order.shippingAddress.line1}
@@ -612,7 +612,7 @@ export default function AdminOrderDetailPage() {
             </div>
           )}
           {order.billingAddress && (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4">
               <p className="text-white/50 text-[10px] uppercase tracking-wider font-medium mb-2">Billing Address</p>
               <p className="text-white/80 text-sm leading-relaxed">
                 {order.billingAddress.line1}
@@ -686,12 +686,12 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden mb-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden mb-6">
         <div className="overflow-x-auto">
         <div className="min-w-[500px] px-4 md:px-6 py-3 flex items-center gap-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex-1"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Item</p></div>
           <div className="w-28"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Price</p></div>
-          <div className="w-16 text-center"><p className="text-amber-400/50 text-[10px] uppercase tracking-wider font-medium">Sur %</p></div>
+          <div className="w-16 text-center"><p className="text-amber-300/50 text-[10px] uppercase tracking-wider font-medium">Sur %</p></div>
           <div className="w-20 text-center"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Qty</p></div>
           <div className="w-28 text-right"><p className="text-white/30 text-[10px] uppercase tracking-wider font-medium">Total</p></div>
           {isEditable && <div className="w-16"></div>}
@@ -733,9 +733,9 @@ export default function AdminOrderDetailPage() {
             </div>
             <div className="w-16 text-center">
               {isEditable ? (
-                <input type="number" step="0.1" min="0" value={item.surcharge || ""} onChange={(e) => updateItem(index, "surcharge", e.target.value)} placeholder="0" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-amber-400/70 text-xs text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                <input type="number" step="0.1" min="0" value={item.surcharge || ""} onChange={(e) => updateItem(index, "surcharge", e.target.value)} placeholder="0" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-amber-300/70 text-xs text-center tabular-nums focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
               ) : Number(item.surcharge) > 0 ? (
-                <span className="text-amber-400/70 text-xs tabular-nums">{Number(item.surcharge)}%</span>
+                <span className="text-amber-300/70 text-xs tabular-nums">{Number(item.surcharge)}%</span>
               ) : (
                 <span className="text-white/20 text-xs">—</span>
               )}
@@ -755,7 +755,7 @@ export default function AdminOrderDetailPage() {
             )}
             </div>
             {item.substituteName && (
-              <p className="text-amber-400/60 text-[11px] mt-1 ml-1">Substitute: {item.substituteName}</p>
+              <p className="text-amber-300/60 text-[11px] mt-1 ml-1">Substitute: {item.substituteName}</p>
             )}
           </div>
         ))}
@@ -924,7 +924,7 @@ export default function AdminOrderDetailPage() {
       </div>
 
       {(isEditable || order.maxBoxes != null || order.minBoxes != null) && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 mb-6">
           <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Box Limits</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -961,7 +961,7 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6 mb-6">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 mb-6">
         <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-3">Invoice Note</p>
         {isEditable ? (
           <textarea

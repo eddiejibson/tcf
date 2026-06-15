@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { ApplicationDetail } from "@/app/lib/types";
 
 const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-500/20 text-yellow-400",
+  PENDING: "bg-amber-500/15 text-amber-300",
   APPROVED: "bg-green-500/20 text-green-400",
   REJECTED: "bg-red-500/20 text-red-400",
 };

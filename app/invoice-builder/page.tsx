@@ -306,7 +306,7 @@ function InvoiceBuilderContent() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-                      <span className="text-amber-400 text-xs font-bold">%</span>
+                      <span className="text-amber-300 text-xs font-bold">%</span>
                     </div>
                     <div>
                       <p className="text-white text-sm font-medium">Freight Excess</p>
@@ -386,7 +386,7 @@ function InvoiceBuilderContent() {
                         </div>
                         <div className="text-left">
                           <p className="text-white font-semibold">{file.displayName}</p>
-                          <p className="text-amber-400 text-sm font-medium">Deadline: {file.deadline}</p>
+                          <p className="text-amber-300 text-sm font-medium">Deadline: {file.deadline}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -504,7 +504,7 @@ function InvoiceBuilderContent() {
                                   <span>{formatPrice(getShipmentSubtotal(fileIndex))}</span>
                                 </div>
                                 {invoiceSurcharge > 0 && (
-                                  <div className="flex items-center justify-between text-amber-400/80 text-sm">
+                                  <div className="flex items-center justify-between text-amber-300/80 text-sm">
                                     <span>Freight Excess ({invoiceSurcharge}%)</span>
                                     <span>{formatPrice(getShipmentSurchargeAmount(fileIndex))}</span>
                                   </div>

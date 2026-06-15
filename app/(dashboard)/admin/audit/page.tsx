@@ -29,7 +29,7 @@ const ACTION_COLORS: Record<string, string> = {
   approve: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   accept: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   login: "bg-[#0984E3]/10 text-[#0984E3] border-[#0984E3]/20",
-  sudo: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  sudo: "bg-amber-500/10 text-amber-300 border-amber-500/20",
 };
 
 function actionColor(action: string) {

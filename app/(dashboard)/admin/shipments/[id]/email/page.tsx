@@ -158,7 +158,7 @@ export default function ShipmentEmailPage() {
                   Announcement
                 </div>
               </button>
-              <button onClick={() => setType("deadline_reminder")} className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium transition-all ${type === "deadline_reminder" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"}`}>
+              <button onClick={() => setType("deadline_reminder")} className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium transition-all ${type === "deadline_reminder" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"}`}>
                 <div className="flex items-center gap-2 justify-center">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   Deadline Reminder
@@ -246,7 +246,7 @@ export default function ShipmentEmailPage() {
               {sending ? "Sending..." : testMode ? "Send Test Email" : `Send to All (${shipmentData.recipientCount})`}
             </button>
             {sendResult && (
-              <div className={`mt-3 p-3 rounded-lg text-sm ${sendResult.failed === 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+              <div className={`mt-3 p-3 rounded-lg text-sm ${sendResult.failed === 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`}>
                 Sent: {sendResult.sent}{sendResult.failed > 0 ? `, Failed: ${sendResult.failed}` : ""}
               </div>
             )}
@@ -329,13 +329,13 @@ export default function ShipmentEmailPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setConfirmStep(0)}>
           <div className="bg-[#1a1f26] border border-white/10 rounded-[20px] p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
-              <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+              <svg className="w-6 h-6 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
             </div>
             <h3 className="text-white font-semibold text-lg text-center mb-2">Send to all customers?</h3>
             <p className="text-white/50 text-sm text-center mb-6">This will send the email to <strong className="text-white">{shipmentData.recipientCount}</strong> trade customers. This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmStep(0)} className="flex-1 py-2.5 bg-white/5 border border-white/10 text-white/60 font-medium rounded-xl text-sm hover:bg-white/10 transition-all">Cancel</button>
-              <button onClick={() => setConfirmStep(2)} className="flex-1 py-2.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium rounded-xl text-sm hover:bg-amber-500/30 transition-all">Yes, Continue</button>
+              <button onClick={() => setConfirmStep(2)} className="flex-1 py-2.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium rounded-xl text-sm hover:bg-amber-500/30 transition-all">Yes, Continue</button>
             </div>
           </div>
         </div>

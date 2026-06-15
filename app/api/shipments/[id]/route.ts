@@ -29,6 +29,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       surcharge: p.surcharge,
       featured: p.featured,
       packOptions: p.packOptions,
+      category: p.category,
     })),
   });
 }

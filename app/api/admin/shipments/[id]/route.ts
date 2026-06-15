@@ -85,6 +85,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       qtyPerBox: p.qtyPerBox,
       availableQty: p.availableQty,
       featured: p.featured || false,
+      category: p.category,
       originalRow: p.originalRow || null,
     })),
     orders: shipment.orders.map((o) => {
@@ -212,6 +213,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       qtyPerBox: p.qtyPerBox,
       availableQty: p.availableQty,
       featured: p.featured || false,
+      category: p.category,
       originalRow: p.originalRow || null,
     })),
   });

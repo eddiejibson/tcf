@@ -221,7 +221,7 @@ export default function CatalogPage() {
               onClick={() => setWysiwygOnly(!wysiwygOnly)}
               className={`px-4 py-2.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap border ${
                 wysiwygOnly
-                  ? "bg-amber-500/20 border-amber-500/30 text-amber-400"
+                  ? "bg-amber-500/20 border-amber-500/30 text-amber-300"
                   : "bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10"
               }`}
             >

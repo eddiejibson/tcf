@@ -37,7 +37,7 @@ export interface OrderLineItem {
 }
 
 const stockLevelColors: Record<string, string> = {
-  LOW: "bg-amber-500/20 text-amber-400",
+  LOW: "bg-amber-500/20 text-amber-300",
   AVERAGE: "bg-green-500/20 text-green-400",
   HIGH: "bg-green-500/20 text-green-400",
   OUT_OF_STOCK: "bg-red-500/30 text-red-300",
@@ -487,7 +487,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
                         <p className="text-white/90 text-sm truncate">{item.name}</p>
                         <p className="text-white/40 text-xs">{formatPrice(item.price)} each</p>
                         <div className="flex items-center gap-1 mt-1">
-                          <span className="text-amber-400/60 text-[10px]">Sur %</span>
+                          <span className="text-amber-300/60 text-[10px]">Sur %</span>
                           <input
                             type="number"
                             step="0.1"
@@ -524,7 +524,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
 
                 {/* Bulk surcharge */}
                 <div className="pt-2 border-t border-white/5 flex items-center gap-2">
-                  <span className="text-amber-400/60 text-[10px] shrink-0">Set all %</span>
+                  <span className="text-amber-300/60 text-[10px] shrink-0">Set all %</span>
                   <input
                     type="number"
                     step="0.1"
@@ -539,7 +539,7 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
                       const pct = parseFloat(input?.value) || 0;
                       setOrderItems(orderItems.map((i) => ({ ...i, surcharge: pct })));
                     }}
-                    className="px-2 py-1 bg-amber-500/20 text-amber-400 text-[10px] font-medium rounded hover:bg-amber-500/30 transition-all"
+                    className="px-2 py-1 bg-amber-500/20 text-amber-300 text-[10px] font-medium rounded hover:bg-amber-500/30 transition-all"
                   >
                     Apply
                   </button>

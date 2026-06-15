@@ -6,6 +6,7 @@ import type { ParsedProduct, ParsedShipment, ColumnMapping } from "@/app/lib/typ
 import { VirtualItemList, ROW_H } from "@/app/components/shipments/ProductItemList";
 import DeliveryOptionsEditor from "@/app/components/shipments/DeliveryOptionsEditor";
 import { DEFAULT_DELIVERY_OPTIONS, type DeliveryOption } from "@/app/lib/delivery";
+import { detectPackColumns, packOptionsFromRow, qtyPerBoxFromPacks } from "@/app/lib/bags";
 
 type ItemWithId = ParsedProduct & { _id: number };
 let nextItemId = 0;
@@ -77,6 +78,9 @@ function clientParseQty(value: unknown): number | null {
 
 function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: ColumnMapping): ParsedProduct[] {
   const items: ParsedProduct[] = [];
+  // Pack-fraction columns are detected from the headers, not the column mapping, so they
+  // survive a manual re-map of name/price/etc. (keeps the Bags data + fractional toggle intact).
+  const packCols = detectPackColumns(hdrs);
   for (const row of rawRows) {
     const r = row as unknown[];
     if (!r || r.length === 0) continue;
@@ -99,6 +103,8 @@ function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: Column
 
     let qtyPerBox: number | null = null;
     if (mappings.qtyPerBox >= 0) qtyPerBox = clientParseQty(r[mappings.qtyPerBox]);
+    const packOptions = packOptionsFromRow(r, packCols);
+    if (qtyPerBox === null && packOptions.length) qtyPerBox = qtyPerBoxFromPacks(packOptions);
 
     let availableQty: number | null = null;
     if (mappings.stock >= 0) {
@@ -120,7 +126,7 @@ function remapFromRawRows(rawRows: unknown[][], hdrs: string[], mappings: Column
     const originalRow: Record<string, unknown> = {};
     hdrs.forEach((h, idx) => { if (h && r[idx] !== undefined) originalRow[h] = r[idx]; });
 
-    items.push({ name: nameVal, latinName, variant, price, size, qtyPerBox, availableQty, originalRow, warnings: [] });
+    items.push({ name: nameVal, latinName, variant, price, size, qtyPerBox, packOptions: packOptions.length ? packOptions : undefined, availableQty, originalRow, warnings: [] });
   }
   return items;
 }
@@ -281,6 +287,7 @@ export default function NewShipmentPage() {
             qtyPerBox: i.qtyPerBox || null,
             availableQty: i.availableQty,
             packOptions: i.packOptions ?? null,
+            category: i.category ?? null,
             originalRow: i.originalRow ?? null,
           })),
         }),
@@ -312,7 +319,7 @@ export default function NewShipmentPage() {
       </div>
 
       {!parsed ? (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-12 text-center">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-12 text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#0984E3]/20 flex items-center justify-center">
             <svg className="w-10 h-10 text-[#0984E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -342,14 +349,14 @@ export default function NewShipmentPage() {
         <div className="space-y-6">
           {parsed.warnings.length > 0 && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4">
-              <p className="text-amber-400 text-sm font-medium mb-2">Warnings</p>
+              <p className="text-amber-300 text-sm font-medium mb-2">Warnings</p>
               {parsed.warnings.map((w, i) => (
-                <p key={i} className="text-amber-400/70 text-xs">{w}</p>
+                <p key={i} className="text-amber-300/70 text-xs">{w}</p>
               ))}
             </div>
           )}
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] p-4 md:p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6">
             <h3 className="text-white font-semibold mb-4">Shipment Details</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -415,7 +422,7 @@ export default function NewShipmentPage() {
             )}
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] overflow-hidden">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-4 md:p-6 flex items-center justify-between border-b border-white/10">
               <h3 className="text-white font-semibold">Products ({items.length})</h3>
               <div className="flex items-center gap-3">

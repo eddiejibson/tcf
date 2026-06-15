@@ -97,7 +97,7 @@ export default function AdminShipmentsPage() {
                     <div className="min-w-0">
                       <h3 className="text-white font-semibold truncate">{s.name}</h3>
                       <div className="flex flex-wrap items-center gap-2 md:gap-4 mt-1">
-                        <span className="text-amber-400 text-sm">Deadline: {new Date(s.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        <span className="text-amber-300 text-sm">Deadline: {new Date(s.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                         <span className="text-white/40 text-sm">{s.productCount} products</span>
                         <span className="text-white/40 text-sm">{s.orderCount} orders</span>
                       </div>

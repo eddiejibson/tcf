@@ -159,7 +159,7 @@ export default function NewCompanyPage() {
           {/* Accounts contact */}
           <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mb-3">
             <div className="flex items-center gap-2 mb-3">
-              <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-medium rounded">ACCOUNTS</span>
+              <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-medium rounded">ACCOUNTS</span>
               <span className="text-white/40 text-xs">Accounts contact — optional, gets full access</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

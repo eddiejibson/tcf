@@ -184,7 +184,7 @@ export default function EditCatalogProductPage() {
               <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
             </div>
             <div>
-              <label className="text-amber-400/70 text-xs uppercase tracking-wider font-medium mb-2 block">Surcharge %</label>
+              <label className="text-amber-300/70 text-xs uppercase tracking-wider font-medium mb-2 block">Surcharge %</label>
               <input type="number" step="0.1" min="0" value={surcharge} onChange={(e) => setSurcharge(e.target.value)} placeholder="0" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
             </div>
             <div>

@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     fractionalBagsEnabled: !!fractionalBagsEnabled,
     deliveryOptions: deliveryOptions ?? null,
     createdById: admin.userId,
-    products: products?.map((p: { name: string; latinName?: string | null; variant?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null; originalRow?: Record<string, unknown> | null; packOptions?: { fraction: string; headcount: number }[] | null }) => ({
+    products: products?.map((p: { name: string; latinName?: string | null; variant?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null; originalRow?: Record<string, unknown> | null; packOptions?: { fraction: string; headcount: number }[] | null; category?: string | null }) => ({
       name: p.name,
       latinName: p.latinName || null,
       variant: p.variant || null,
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       qtyPerBox: p.qtyPerBox || null,
       availableQty: p.availableQty ?? null,
       packOptions: p.packOptions && p.packOptions.length ? p.packOptions : null,
+      category: p.category ?? null,
       // Persist the raw row so the supplier Code (and Notes/Link) survive import — the
       // packing-list export reads originalRow["Code"]. Previously dropped on create.
       originalRow: p.originalRow || null,

@@ -27,7 +27,7 @@ export default function BoxFillMeter({ boxFill }: { boxFill: number }) {
       {isWhole ? (
         <p className="text-emerald-400/70 text-[10px] mt-1">All boxes packed full</p>
       ) : (
-        <p className="text-amber-400/60 text-[10px] mt-1">{100 - currentPct}% of box {boxesUsed} still free. Top up to avoid paying for air.</p>
+        <p className="text-amber-300/60 text-[10px] mt-1">{100 - currentPct}% of box {boxesUsed} still free. Top up to avoid paying for air.</p>
       )}
     </div>
   );

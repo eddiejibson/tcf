@@ -40,6 +40,10 @@ export class Product extends BaseEntityWithUpdate {
   @Column({ type: "jsonb", nullable: true })
   packOptions: { fraction: string; headcount: number }[] | null;
 
+  // Section/genus heading the product was listed under, for grouping the catalogue.
+  @Column({ type: "varchar", nullable: true })
+  category: string | null;
+
   @Column({ type: "decimal", precision: 5, scale: 2, default: 0 })
   surcharge: number;
 

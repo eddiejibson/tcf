@@ -206,6 +206,10 @@ export default function AdminShipmentDetailPage() {
   const [shipment, setShipment] = useState<AdminShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  // Inline customer-notes editor (also editable on create/edit shipment).
+  const [notesDraft, setNotesDraft] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
   // All money on this page shows in the shipment's currency label (blank → £).
   const money = (n: number) => formatMoney(n, shipment?.currency);
 
@@ -274,6 +278,34 @@ export default function AdminShipmentDetailPage() {
   useEffect(() => {
     fetchShipment();
   }, [fetchShipment]);
+
+  // Keep the notes editor in sync with the loaded shipment.
+  useEffect(() => {
+    setNotesDraft(shipment?.notes || "");
+  }, [shipment?.notes]);
+
+  const handleSaveNotes = async () => {
+    if (!shipment) return;
+    setSavingNotes(true);
+    setNotesSaved(false);
+    try {
+      const res = await fetch(`/api/admin/shipments/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesDraft }),
+      });
+      if (res.ok) {
+        setShipment((prev) => (prev ? { ...prev, notes: notesDraft.trim() ? notesDraft.trim() : null } : prev));
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2500);
+      } else {
+        alert("Failed to save notes");
+      }
+    } catch {
+      alert("Network error saving notes");
+    }
+    setSavingNotes(false);
+  };
 
   // Default the session price-per-box to the shipment's freight cost so admins don't
   // have to retype it for every packing-list import. Only sets when the field is blank
@@ -1645,14 +1677,30 @@ export default function AdminShipmentDetailPage() {
             </p>
           </div>
         </div>
-        {shipment.notes && shipment.notes.trim() && (
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-1.5">
-              Customer Notes <span className="text-[#0984E3] normal-case tracking-normal">· shown to customers</span>
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-white/50 text-xs uppercase tracking-wider font-medium">
+              Customer Notes <span className="text-[#0984E3] normal-case tracking-normal">· shown to customers at the top of the shipment</span>
             </p>
-            <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap break-words">{shipment.notes}</p>
+            <div className="flex items-center gap-2">
+              {notesSaved && <span className="text-emerald-400 text-xs font-medium">Saved</span>}
+              <button
+                onClick={handleSaveNotes}
+                disabled={savingNotes || notesDraft === (shipment.notes || "")}
+                className="px-3 py-1.5 bg-[#0984E3] hover:bg-[#0984E3]/90 disabled:bg-white/10 disabled:text-white/30 text-white text-xs font-medium rounded-lg transition-all"
+              >
+                {savingNotes ? "Saving..." : "Save Notes"}
+              </button>
+            </div>
           </div>
-        )}
+          <textarea
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            rows={4}
+            placeholder="Pricing notes, delivery info, deadlines, anything customers should read before ordering. Shows at the top of the shipment for everyone. Leave blank for none."
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50 resize-y leading-relaxed"
+          />
+        </div>
       </div>
 
       {/* Top Picks */}

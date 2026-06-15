@@ -3,6 +3,7 @@ import path from "path";
 import { getDb } from "../db/data-source";
 import { Shipment } from "../entities/Shipment";
 import { Product } from "../entities/Product";
+import { formatMoney } from "../../app/lib/currency";
 
 const BRAND: [number, number, number] = [9, 132, 227];
 const DARK: [number, number, number] = [13, 17, 23];
@@ -13,10 +14,6 @@ const TEXT: [number, number, number] = [230, 237, 243];
 const TEXT_DIM: [number, number, number] = [139, 148, 158];
 const TEXT_MUTED: [number, number, number] = [110, 118, 129];
 const WHITE: [number, number, number] = [255, 255, 255];
-
-function fmtPrice(n: number): string {
-  return `£${Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function fmtDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -37,6 +34,7 @@ export interface ShipmentListPdfData {
   deadline: string;
   shipmentDate: string;
   freightCostPerBox: number;
+  currency: string | null;
   products: {
     name: string;
     latinName: string | null;
@@ -49,6 +47,7 @@ export interface ShipmentListPdfData {
 }
 
 export async function generateShipmentListPdfBuffer(data: ShipmentListPdfData): Promise<Buffer> {
+  const fmtPrice = (n: number): string => formatMoney(n, data.currency);
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
   const pw = 297;
@@ -263,6 +262,7 @@ export async function getShipmentListPdfData(shipmentId: string): Promise<Shipme
     deadline: fmtDate(shipment.deadline),
     shipmentDate: fmtDate(shipment.shipmentDate),
     freightCostPerBox: Number(shipment.freightCost),
+    currency: shipment.currency ?? null,
     products: products.map((p) => ({
       name: p.name,
       latinName: p.latinName,

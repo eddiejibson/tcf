@@ -14,6 +14,7 @@ import { CatalogProduct } from "../entities/CatalogProduct";
 import { deductCatalogStock, restoreCatalogStock } from "./catalog.service";
 import { getUserDiscount } from "../lib/discount";
 import { OrderPayment, OrderPaymentStatus, OrderPaymentMethod } from "../entities/OrderPayment";
+import { formatMoney } from "../../app/lib/currency";
 
 const SHIPPING_COST = 30;
 const VAT_RATE = 0.2;
@@ -38,8 +39,8 @@ export function calculateOrderTotals(items: { unitPrice: number; quantity: numbe
   return { subtotal, grossSubtotal, discount, vat, shipping, freight, delivery, credit, total };
 }
 
-export function formatPrice(price: number): string {
-  return `£${price.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export function formatPrice(price: number, currency?: string | null): string {
+  return formatMoney(price, currency);
 }
 
 // Returns every email that should receive a customer-facing notification about this order.
@@ -214,7 +215,7 @@ export async function submitOrder(orderId: string) {
   const adminEmails = adminUsers.map((u) => u.email);
   const totals = calculateOrderTotals(order.items, order.includeShipping, order.freightCharge, order.creditApplied, order.discountPercent, order.deliveryCharge);
 
-  sendOrderNotification(adminEmails, order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id)
+  sendOrderNotification(adminEmails, order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total, order.shipment?.currency), order.id)
     .catch((e) => log.error("Failed to send order notification", e));
 
   return order;
@@ -321,6 +322,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         customerEmail: order.user!.email,
         customerCompanyName: order.user!.companyName,
         shipmentName: order.shipment?.name || "Catalog Order",
+        currency: order.shipment?.currency ?? null,
         items: order.items.map((i) => ({
           name: i.name,
           latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -343,11 +345,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
       };
       const recipients = await getOrderCustomerEmails(order.userId);
       generateInvoiceBuffer(invoiceData)
-        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total), order.id, invoiceData.orderRef, pdfBuffer))
+        .then((pdfBuffer) => sendOrderAcceptedWithInvoice(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", formatPrice(totals.total, order.shipment?.currency), order.id, invoiceData.orderRef, pdfBuffer))
         .catch((e) => log.error("Failed to send accepted email with invoice", e));
     } else {
       const recipients = await getOrderCustomerEmails(order.userId);
-      sendOrderStatusUpdate(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total), order.id)
+      sendOrderStatusUpdate(recipients.length ? recipients : order.user!.email, order.shipment?.name || "Catalog Order", status, formatPrice(totals.total, order.shipment?.currency), order.id)
         .catch((e) => log.error("Failed to send status update email", e));
     }
   }
@@ -383,7 +385,7 @@ export async function updateAcceptedOrderItems(
         changes.push(`${name}: qty ${oldItem.quantity} → ${newItem.quantity}`);
       }
       if (Number(newItem.unitPrice) !== Number(oldItem.unitPrice)) {
-        changes.push(`${name}: price ${formatPrice(Number(oldItem.unitPrice))} → ${formatPrice(Number(newItem.unitPrice))}`);
+        changes.push(`${name}: price ${formatPrice(Number(oldItem.unitPrice), order.shipment?.currency)} → ${formatPrice(Number(newItem.unitPrice), order.shipment?.currency)}`);
       }
     }
   }
@@ -434,7 +436,7 @@ export async function updateAcceptedOrderItems(
     if (updated) {
       const totals = calculateOrderTotals(updated.items, updated.includeShipping, updated.freightCharge, updated.creditApplied, updated.discountPercent, updated.deliveryCharge);
       const recipients = await getOrderCustomerEmails(updated.userId);
-      sendOrderChanges(recipients.length ? recipients : updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total), updated.id)
+      sendOrderChanges(recipients.length ? recipients : updated.user!.email, updated.shipment?.name || "Catalog Order", changes, formatPrice(totals.total, updated.shipment?.currency), updated.id)
         .catch((e) => log.error("Failed to send order changes email", e));
     }
   }
@@ -499,7 +501,7 @@ export async function markOrderPaid(orderId: string, reference?: string) {
         await sendOrderPaidCustomerNotification(
           recipients,
           order.id.slice(0, 8).toUpperCase(),
-          formatPrice(totals.total),
+          formatPrice(totals.total, order.shipment?.currency),
           order.paymentMethod || "Unknown",
           order.id,
         );
@@ -629,7 +631,7 @@ export async function createAdminOrder(
       await sendAdminOrderCreated(
         recipients.length ? recipients : fullOrder.user!.email,
         orderRef,
-        formatPrice(totals.total),
+        formatPrice(totals.total, fullOrder.shipment?.currency),
         fullOrder.id,
         pdfBuffer
       );

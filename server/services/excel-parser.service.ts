@@ -26,6 +26,12 @@ const PRICE_PATTERNS = [
   /^[£$€]$/i, /^gbp$/i, /^amount$/i,
   /wholesale/i,
   /retailer[\s_-]*buy/i,
+  // Currency-named price columns: "US$", "USD", "US $", lone "$", or any header carrying a
+  // currency symbol (e.g. "US$ EACH", "APPROX £"). These supplier sheets label the price column
+  // by currency rather than the word "price"; without these it fell through to a numeric guess
+  // and grabbed a numeric CODE column instead (e.g. Sunbeam's "SGD" was missed, codes won).
+  /^usd$/i, /us\s*\$/i, /^\$$/, /[£$€]/,
+  /^(sgd|gbp|eur|aud|nzd|hkd|myr|thb|jpy|cny|rmb|php|idr|inr|cad|chf|sek|dkk|nok|zar)$/i,
 ];
 
 const SIZE_PATTERNS = [
@@ -35,6 +41,9 @@ const SIZE_PATTERNS = [
   /^cm$/i, /^inches?$/i, /^mm$/i,
   /size[\s_-]*\(?cm\)?/i, /frag[\s_-]*size/i, /colony[\s_-]*size/i,
   /approx[\s_-]*size/i, /avg[\s_-]*size/i, /coral[\s_-]*size/i,
+  // "cm Approx" (Peru) and any header that mentions cm — these carry size ranges like ".6 - 8.",
+  // which parse as numbers and would otherwise be mistaken for a price column.
+  /cm[\s_-]*approx/i, /approx[\s_-]*cm/i, /\bcm\b/i,
 ];
 
 const VARIANT_PATTERNS = [
@@ -56,6 +65,7 @@ const QTY_PER_BOX_PATTERNS = [
   /quantity[\s_-]*of[\s_-]*each/i, /qty[\s_-]*of[\s_-]*each/i,
   /quantity[\s_-]*per[\s_-]*pack/i, /qty[\s_-]*per[\s_-]*pack/i,
   /pieces[\s_-]*per/i,
+  /pack[\s_/-]*box/i, /box[\s_/-]*pack/i,
 ];
 
 // Pack-fraction column detection lives in @/app/lib/bags so the client column-remap shares it.
@@ -466,9 +476,18 @@ function isCategoryRow(row: unknown[], nameCol: number, priceCol: number): boole
 // label so following products inherit it as their category for grouping, or null for normal rows.
 function sectionLabel(row: unknown[], priceColIndex: number): string | null {
   if (priceColIndex !== -1 && parsePrice(row[priceColIndex]) !== null) return null;
-  const texts = row.map((c) => String(c ?? "").trim()).filter(Boolean);
+  // Ignore zero/placeholder filler cells ("0", "0.00", "-", "£0") when counting meaningful
+  // text. Some suppliers (e.g. Indonesia Plants) write section headers as a single label with
+  // 0s padding the price/total columns rather than leaving them blank — without this they'd
+  // read as 5-cell rows and never qualify as a section.
+  const texts = row
+    .map((c) => String(c ?? "").trim())
+    .filter((s) => s !== "" && !/^[0\s.,£$€\-]+$/.test(s));
   if (texts.length === 0 || texts.length > 2) return null;
-  const label = texts.reduce((a, b) => (b.length > a.length ? b : a), "");
+  // The section name is the leftmost label, not the longest. Suppliers tag the header row with
+  // an aside in a later column (e.g. Vietnam's "TETRAS" in col 1 with "HALF BOX OFFER" in the
+  // SOURCE col) — picking the longest grabbed the aside instead of the genus.
+  const label = texts[0];
   if (label.length < 2 || /^[\d.,£$€\-/]+$/.test(label)) return null;
   return label;
 }
@@ -520,7 +539,22 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     }
   }
 
-  const packCols = detectPackColumns(headers);
+  // Drop phantom pack columns: some sheets carry a fraction legend off to the side (e.g. a "1 box"
+  // / "1/8" reference table) whose header matches but which has no per-product counts. Keep only
+  // columns that actually hold numbers in the data rows, and de-dupe repeated fractions (leftmost).
+  const seenFractions = new Set<string>();
+  const packCols = detectPackColumns(headers).filter((c) => {
+    if (seenFractions.has(c.fraction)) return false;
+    let withData = 0;
+    for (let r = headerRowIndex + 1; r < Math.min(headerRowIndex + 40, data.length); r++) {
+      const v = data[r]?.[c.colIndex];
+      const num = typeof v === "number" ? v : parseInt(String(v ?? "").replace(/[^\d]/g, ""), 10);
+      if (!isNaN(num) && num > 0) withData++;
+    }
+    if (withData < 3) return false;
+    seenFractions.add(c.fraction);
+    return true;
+  });
   const packColSet = new Set(packCols.map((c) => c.colIndex));
 
   if (!meta.name) meta.name = detectShipmentName(data, headerRowIndex, filename);

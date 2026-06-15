@@ -22,6 +22,7 @@ export async function GET() {
         id: o.id,
         status: o.status,
         shipmentName: o.shipment?.name || null,
+        currency: o.shipment?.currency || null,
         itemCount: o.items?.length || 0,
         total: totals.total,
         createdAt: o.createdAt,

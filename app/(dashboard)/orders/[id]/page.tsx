@@ -8,10 +8,7 @@ import { userHasPermission, Permission } from "@/app/lib/permissions";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import PaymentSection from "@/app/components/PaymentSection";
 import DoaItemPicker, { type DoaPickerOption } from "@/app/components/DoaItemPicker";
-
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { formatMoney } from "@/app/lib/currency";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -36,6 +33,8 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<UserOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [creditLoading, setCreditLoading] = useState(false);
+  // Money shows in the order's shipment currency (blank → £).
+  const money = (n: number) => formatMoney(n, order?.shipment?.currency);
 
   const [doaClaim, setDoaClaim] = useState<DoaClaimDetail | null>(null);
   const [showDoaForm, setShowDoaForm] = useState(false);
@@ -94,6 +93,7 @@ export default function OrderDetailPage() {
       customerEmail: user?.email || "",
       customerCompanyName: user?.companyName,
       shipmentName: order.shipment?.name || "Direct Order",
+      currency: order.shipment?.currency,
       items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
@@ -273,9 +273,9 @@ export default function OrderDetailPage() {
                   </p>
                 )}
               </div>
-              <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p></div>
+              <div className="w-24 text-right"><p className="text-white/60 text-sm tabular-nums">{money(Number(item.unitPrice))}</p></div>
               <div className="w-16 text-center"><p className="text-white/60 text-sm">{item.quantity}</p></div>
-              <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(item.quantity * Number(item.unitPrice))}</p></div>
+              <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{money(item.quantity * Number(item.unitPrice))}</p></div>
             </div>
             {item.substituteName && (
               <p className="text-amber-300/60 text-[11px] mt-1">Substitute if unavailable: {item.substituteName}</p>
@@ -286,52 +286,52 @@ export default function OrderDetailPage() {
         <div className="p-4 md:p-6 space-y-2">
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>Subtotal</span>
-            <span className="tabular-nums">{formatPrice(order.totals.grossSubtotal)}</span>
+            <span className="tabular-nums">{money(order.totals.grossSubtotal)}</span>
           </div>
           {order.totals.discount > 0 && (
             <>
               <div className="flex items-center justify-between text-green-400 text-sm">
                 <span>Discount ({Number(order.discountPercent)}%)</span>
-                <span className="tabular-nums">-{formatPrice(order.totals.discount)}</span>
+                <span className="tabular-nums">-{money(order.totals.discount)}</span>
               </div>
               <div className="flex items-center justify-between text-white/60 text-sm">
                 <span>Subtotal after discount</span>
-                <span className="tabular-nums">{formatPrice(order.totals.subtotal)}</span>
+                <span className="tabular-nums">{money(order.totals.subtotal)}</span>
               </div>
             </>
           )}
           {order.totals.freight > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
-              <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${formatPrice(freightPerBox)})` : ""}</span>
-              <span className="tabular-nums">{formatPrice(order.totals.freight)}</span>
+              <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${money(freightPerBox)})` : ""}</span>
+              <span className="tabular-nums">{money(order.totals.freight)}</span>
             </div>
           )}
           {order.totals.delivery > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
-              <span className="tabular-nums">{formatPrice(order.totals.delivery)}</span>
+              <span className="tabular-nums">{money(order.totals.delivery)}</span>
             </div>
           )}
           {order.includeShipping && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Shipping</span>
-              <span className="tabular-nums">{formatPrice(order.totals.shipping)}</span>
+              <span className="tabular-nums">{money(order.totals.shipping)}</span>
             </div>
           )}
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>VAT (20%)</span>
-            <span className="tabular-nums">{formatPrice(order.totals.vat)}</span>
+            <span className="tabular-nums">{money(order.totals.vat)}</span>
           </div>
           {order.totals.credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>
-              <span className="tabular-nums">-{formatPrice(order.totals.credit)}</span>
+              <span className="tabular-nums">-{money(order.totals.credit)}</span>
             </div>
           )}
           <div className="h-px bg-white/10" />
           <div className="flex items-center justify-between">
             <span className="text-white font-semibold">Grand Total</span>
-            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{formatPrice(order.totals.total)}</span>
+            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{money(order.totals.total)}</span>
           </div>
         </div>
       </div>
@@ -375,7 +375,7 @@ export default function OrderDetailPage() {
             />
             <div>
               <p className="text-emerald-400 font-medium text-sm">Use account credit</p>
-              <p className="text-emerald-400/60 text-xs">{formatPrice(Number(order.applicableCredit))} available - will be applied against this order</p>
+              <p className="text-emerald-400/60 text-xs">{money(Number(order.applicableCredit))} available - will be applied against this order</p>
             </div>
             {creditLoading && <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin ml-auto" />}
           </label>
@@ -394,7 +394,7 @@ export default function OrderDetailPage() {
             />
             <div>
               <p className="text-emerald-400 font-medium text-sm">Account credit applied</p>
-              <p className="text-emerald-400/60 text-xs">{formatPrice(Number(order.creditApplied))} credit applied to this order</p>
+              <p className="text-emerald-400/60 text-xs">{money(Number(order.creditApplied))} credit applied to this order</p>
             </div>
             {creditLoading && <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin ml-auto" />}
           </label>

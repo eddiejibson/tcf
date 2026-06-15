@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { AdminOrderDetail, EditableOrderItem, UserListItem } from "@/app/lib/types";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import { estimateFreight } from "@/app/lib/freight";
+import { formatMoney } from "@/app/lib/currency";
 import ProductSearch, { type ProductSearchItem } from "@/app/components/ProductSearch";
 import CustomerPicker from "@/app/components/CustomerPicker";
 import Toast, { useToast } from "@/app/components/Toast";
@@ -15,9 +16,6 @@ interface CatalogOption extends ProductSearchItem {
   surcharge: number;
 }
 
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -39,6 +37,8 @@ export default function AdminOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
+  // Money shows in the order's shipment currency (blank → £).
+  const money = (n: number) => formatMoney(n, order?.shipment?.currency);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<EditableOrderItem[]>([]);
@@ -323,6 +323,7 @@ export default function AdminOrderDetailPage() {
       customerEmail: order.user?.email || "",
       customerCompanyName: order.user?.companyName || null,
       shipmentName: order.shipment?.name || "Direct Order",
+      currency: order.shipment?.currency,
       items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
@@ -552,7 +553,7 @@ export default function AdminOrderDetailPage() {
           <div className="flex items-center justify-between mb-3">
             <p className="text-white/50 text-xs uppercase tracking-wider font-medium">Payments</p>
             {order.remainingBalance > 0 && (
-              <span className="text-amber-300 text-xs font-medium">{formatPrice(order.remainingBalance)} remaining</span>
+              <span className="text-amber-300 text-xs font-medium">{money(order.remainingBalance)} remaining</span>
             )}
           </div>
           {order.payments?.length > 0 ? (
@@ -581,7 +582,7 @@ export default function AdminOrderDetailPage() {
                         Confirm Received
                       </button>
                     )}
-                    <span className="text-white font-medium text-sm tabular-nums">{formatPrice(Number(p.amount))}</span>
+                    <span className="text-white font-medium text-sm tabular-nums">{money(Number(p.amount))}</span>
                   </div>
                 </div>
               ))}
@@ -646,12 +647,12 @@ export default function AdminOrderDetailPage() {
                 <div key={r.itemId} className="px-4 md:px-6 py-3 border-b border-white/5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-white/90 text-sm truncate">{r.itemName} <span className="text-white/40">@ {formatPrice(r.itemPrice)}</span></p>
+                      <p className="text-white/90 text-sm truncate">{r.itemName} <span className="text-white/40">@ {money(r.itemPrice)}</span></p>
                       {r.matched ? (
                         <p className="text-green-400 text-xs mt-1 truncate">
                           → {r.matched.catalogName}
                           {r.matched.catalogLatinName && <span className="italic text-green-400/70"> · {r.matched.catalogLatinName}</span>}
-                          <span className="text-white/40"> @ {formatPrice(r.matched.catalogPrice)}</span>
+                          <span className="text-white/40"> @ {money(r.matched.catalogPrice)}</span>
                         </p>
                       ) : (
                         <p className="text-white/40 text-xs mt-1">No confident match</p>
@@ -728,7 +729,7 @@ export default function AdminOrderDetailPage() {
               {isEditable ? (
                 <input type="number" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(index, "unitPrice", e.target.value)} className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#0984E3]/50" />
               ) : (
-                <p className="text-white/60 text-sm tabular-nums">{formatPrice(Number(item.unitPrice))}</p>
+                <p className="text-white/60 text-sm tabular-nums">{money(Number(item.unitPrice))}</p>
               )}
             </div>
             <div className="w-16 text-center">
@@ -747,7 +748,7 @@ export default function AdminOrderDetailPage() {
                 <p className="text-white/60 text-sm text-center">{item.quantity}</p>
               )}
             </div>
-            <div className="w-28 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice((item.quantity * Number(item.unitPrice)) * (1 + (Number(item.surcharge) || 0) / 100))}</p></div>
+            <div className="w-28 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{money((item.quantity * Number(item.unitPrice)) * (1 + (Number(item.surcharge) || 0) / 100))}</p></div>
             {isEditable && (
               <div className="w-16 text-right">
                 <button onClick={() => removeItem(index)} className="text-red-400/60 hover:text-red-400 text-xs transition-colors">Remove</button>
@@ -827,11 +828,11 @@ export default function AdminOrderDetailPage() {
             <span className="tabular-nums">
               {discountPct > 0 ? (
                 <>
-                  <span className="line-through text-white/30 mr-2">{formatPrice(grossSubtotal)}</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span className="line-through text-white/30 mr-2">{money(grossSubtotal)}</span>
+                  <span>{money(subtotal)}</span>
                 </>
               ) : (
-                formatPrice(subtotal)
+                money(subtotal)
               )}
             </span>
           </div>
@@ -863,12 +864,12 @@ export default function AdminOrderDetailPage() {
                     <span className="text-white/40 text-xs">%</span>
                   </div>
                   <span className="tabular-nums text-green-400 w-24 text-right">
-                    {discountPct > 0 ? `-${formatPrice(discountAmount)}` : formatPrice(0)}
+                    {discountPct > 0 ? `-${money(discountAmount)}` : money(0)}
                   </span>
                 </>
               ) : (
                 <span className="tabular-nums text-green-400">
-                  {discountPct > 0 ? `${discountPct}% · -${formatPrice(discountAmount)}` : "—"}
+                  {discountPct > 0 ? `${discountPct}% · -${money(discountAmount)}` : "—"}
                 </span>
               )}
             </div>
@@ -885,40 +886,40 @@ export default function AdminOrderDetailPage() {
                 className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
               />
             ) : (
-              <span className="tabular-nums">{formatPrice(freight)}</span>
+              <span className="tabular-nums">{money(freight)}</span>
             )}
           </div>
           {delivery > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
-              <span className="tabular-nums">{formatPrice(delivery)}</span>
+              <span className="tabular-nums">{money(delivery)}</span>
             </div>
           )}
           <div className="flex items-center justify-between text-white/60 text-sm">
             {isEditable ? (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
-                Shipping (£30.00)
+                Shipping ({money(30)})
               </label>
             ) : (
               <span>Shipping</span>
             )}
-            <span className="tabular-nums">{formatPrice(shipping)}</span>
+            <span className="tabular-nums">{money(shipping)}</span>
           </div>
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>VAT (20%)</span>
-            <span className="tabular-nums">{formatPrice(vat)}</span>
+            <span className="tabular-nums">{money(vat)}</span>
           </div>
           {credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>
-              <span className="tabular-nums">-{formatPrice(credit)}</span>
+              <span className="tabular-nums">-{money(credit)}</span>
             </div>
           )}
           <div className="h-px bg-white/10" />
           <div className="flex items-center justify-between">
             <span className="text-white font-semibold">Grand Total</span>
-            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{formatPrice(total)}</span>
+            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{money(total)}</span>
           </div>
         </div>
       </div>

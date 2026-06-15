@@ -3,6 +3,7 @@
 import CustomerPicker from "@/app/components/CustomerPicker";
 import ProductSearch from "@/app/components/ProductSearch";
 import { DELIVERY_DOOR_RATE, DELIVERY_MILE_RATE, deliveryRate, deliveryEnabled } from "@/app/lib/delivery";
+import { formatMoney } from "@/app/lib/currency";
 import {
   buildOrdersFromRawData,
   parsePackingList,
@@ -21,9 +22,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -208,6 +206,8 @@ export default function AdminShipmentDetailPage() {
   const [shipment, setShipment] = useState<AdminShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  // All money on this page shows in the shipment's currency label (blank → £).
+  const money = (n: number) => formatMoney(n, shipment?.currency);
 
   // Packing list flow state
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
@@ -1622,10 +1622,10 @@ export default function AdminShipmentDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
           <div>
             <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-1">
-              Freight Cost
+              Freight Cost <span className="text-white/30 normal-case tracking-normal">per box</span>
             </p>
             <p className="text-white font-semibold">
-              {formatPrice(Number(shipment.freightCost))}
+              {formatMoney(Number(shipment.freightCost), shipment.currency)}
             </p>
           </div>
           <div>
@@ -1645,6 +1645,14 @@ export default function AdminShipmentDetailPage() {
             </p>
           </div>
         </div>
+        {shipment.notes && shipment.notes.trim() && (
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="text-white/50 text-xs uppercase tracking-wider font-medium mb-1.5">
+              Customer Notes <span className="text-[#0984E3] normal-case tracking-normal">· shown to customers</span>
+            </p>
+            <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap break-words">{shipment.notes}</p>
+          </div>
+        )}
       </div>
 
       {/* Top Picks */}
@@ -1803,7 +1811,7 @@ export default function AdminShipmentDetailPage() {
                             </p>
                           )}
                           <p className="text-white/40 text-xs mt-0.5">
-                            {o.itemCount} items - {formatPrice(o.total)}
+                            {o.itemCount} items - {money(o.total)}
                           </p>
                         </div>
                       </div>
@@ -2161,7 +2169,7 @@ export default function AdminShipmentDetailPage() {
                           >
                             #{o.id.slice(0, 8).toUpperCase()} —{" "}
                             {o.userCompanyName || o.userEmail} ({o.itemCount}{" "}
-                            items, {formatPrice(o.total)})
+                            items, {money(o.total)})
                           </option>
                         ))}
                       </select>
@@ -2433,7 +2441,7 @@ export default function AdminShipmentDetailPage() {
                         <div className="w-24">
                           {item.status === "removed" ? (
                             <p className="text-white/30 text-sm tabular-nums">
-                              {formatPrice(Number(item.unitPrice))}
+                              {money(Number(item.unitPrice))}
                             </p>
                           ) : (
                             <input
@@ -2478,7 +2486,7 @@ export default function AdminShipmentDetailPage() {
                         </div>
                         <div className="w-28 text-right">
                           <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
-                            {formatPrice(
+                            {money(
                               item.quantity * Number(item.unitPrice),
                             )}
                           </p>
@@ -2569,7 +2577,7 @@ export default function AdminShipmentDetailPage() {
                         <div className="flex items-center justify-between text-sm text-white/60">
                           <span>Subtotal (ex VAT)</span>
                           <span className="tabular-nums">
-                            {formatPrice(subtotal)}
+                            {money(subtotal)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-sm text-white/60 gap-3">
@@ -2621,8 +2629,8 @@ export default function AdminShipmentDetailPage() {
                               ) {
                                 return (
                                   <span className="text-[10px] text-white/30 tabular-nums">
-                                    {formatPrice(ppbNum)} × {boxesNum} ={" "}
-                                    {formatPrice(ppbNum * boxesNum)}
+                                    {money(ppbNum)} × {boxesNum} ={" "}
+                                    {money(ppbNum * boxesNum)}
                                   </span>
                                 );
                               }
@@ -2673,7 +2681,7 @@ export default function AdminShipmentDetailPage() {
                             <span className="flex flex-col">
                               Mileage
                               <span className="text-[10px] text-white/30">
-                                {formatPrice(mileRate)}/mile, one way
+                                {money(mileRate)}/mile, one way
                               </span>
                             </span>
                             <input
@@ -2699,13 +2707,13 @@ export default function AdminShipmentDetailPage() {
                                   (reviewDeliveryMethod === "door" || reviewDeliveryMethod === "both") &&
                                   !isNaN(boxesNum) && boxesNum > 0
                                 ) {
-                                  parts.push(`${formatPrice(doorRate)} × ${boxesNum}`);
+                                  parts.push(`${money(doorRate)} × ${boxesNum}`);
                                 }
                                 if (
                                   (reviewDeliveryMethod === "mileage" || reviewDeliveryMethod === "both") &&
                                   !isNaN(milesNum) && milesNum > 0
                                 ) {
-                                  parts.push(`${formatPrice(mileRate)} × ${milesNum}mi`);
+                                  parts.push(`${money(mileRate)} × ${milesNum}mi`);
                                 }
                                 return (
                                   <span className="text-[10px] text-white/30 tabular-nums">
@@ -2734,10 +2742,10 @@ export default function AdminShipmentDetailPage() {
                               }
                               className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
                             />
-                            Shipping (£30.00)
+                            Shipping ({money(30)})
                           </label>
                           <span className="tabular-nums">
-                            {formatPrice(shippingNum)}
+                            {money(shippingNum)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-white/10">
@@ -2745,7 +2753,7 @@ export default function AdminShipmentDetailPage() {
                             Total (ex VAT)
                           </span>
                           <span className="text-[#0984E3] font-bold text-lg tabular-nums">
-                            {formatPrice(total)}
+                            {money(total)}
                           </span>
                         </div>
                       </div>
@@ -2925,10 +2933,10 @@ export default function AdminShipmentDetailPage() {
                       {showDiscount ? (
                         <>
                           <p className="text-white/40 text-xs line-through tabular-nums">
-                            {formatPrice(rowTotal)}
+                            {money(rowTotal)}
                           </p>
                           <p className="text-green-400 text-sm font-semibold tabular-nums">
-                            {formatPrice(discountedRowTotal)}
+                            {money(discountedRowTotal)}
                           </p>
                           <p className="text-green-400/60 text-[10px] tabular-nums mt-0.5">
                             −{discountPct}% discount
@@ -2937,12 +2945,12 @@ export default function AdminShipmentDetailPage() {
                       ) : (
                         <>
                           <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
-                            {formatPrice(rowTotal)}
+                            {money(rowTotal)}
                           </p>
                           {(entryFreight > 0 || entryShipping > 0) && (
                             <p className="text-white/40 text-[10px] tabular-nums mt-0.5">
-                              {formatPrice(subtotal)} +{" "}
-                              {formatPrice(entryFreight + entryShipping)} fees
+                              {money(subtotal)} +{" "}
+                              {money(entryFreight + entryShipping)} fees
                             </p>
                           )}
                         </>
@@ -2981,12 +2989,12 @@ export default function AdminShipmentDetailPage() {
                     return (
                       <span>
                         {queuedCount} queued ·{" "}
-                        <span className="line-through text-white/30">{formatPrice(grossTotal)}</span>{" "}
-                        <span className="text-green-400">{formatPrice(netTotal)}</span> total (ex VAT)
+                        <span className="line-through text-white/30">{money(grossTotal)}</span>{" "}
+                        <span className="text-green-400">{money(netTotal)}</span> total (ex VAT)
                       </span>
                     );
                   }
-                  return <span>{queuedCount} queued · {formatPrice(grossTotal)} total (ex VAT)</span>;
+                  return <span>{queuedCount} queued · {money(grossTotal)} total (ex VAT)</span>;
                 })()}
               </div>
               {applyProgress && (

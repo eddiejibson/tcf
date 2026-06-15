@@ -6,6 +6,7 @@ import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
 import { sendWithRetry, from } from "./email.service";
 import { generateShipmentListPdfBuffer, getShipmentListPdfData } from "./shipment-list-pdf.service";
+import { formatMoney } from "../../app/lib/currency";
 import { log } from "../logger";
 
 export interface ShipmentEmailData {
@@ -14,6 +15,7 @@ export interface ShipmentEmailData {
   deadlineRaw: string;
   shipmentDate: string;
   freightCost: number;
+  currency: string | null;
   productCount: number;
   featuredProducts: {
     name: string;
@@ -24,8 +26,8 @@ export interface ShipmentEmailData {
   }[];
 }
 
-function fmtPrice(n: number): string {
-  return `\u00A3${Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function fmtPrice(n: number, currency?: string | null): string {
+  return formatMoney(n, currency);
 }
 
 function fmtDate(d: Date | string): string {
@@ -62,7 +64,7 @@ function buildGallery(imageUrls: string[]): string {
   `;
 }
 
-function buildProductCards(products: ShipmentEmailData["featuredProducts"]): string {
+function buildProductCards(products: ShipmentEmailData["featuredProducts"], currency?: string | null): string {
   if (products.length === 0) return "";
 
   // Use table-based layout for equal height cards
@@ -74,7 +76,7 @@ function buildProductCards(products: ShipmentEmailData["featuredProducts"]): str
           <p style="margin:0;font-size:14px;font-weight:700;color:#E6EDF3;line-height:1.3;">${esc(p.name)}</p>
           ${p.latinName ? `<p style="margin:3px 0 0;font-size:11px;color:#8B949E;font-style:italic;">${esc(p.latinName)}</p>` : ""}
           ${details ? `<p style="margin:4px 0 0;font-size:11px;color:#6E7681;">${esc(details)}</p>` : ""}
-          <p style="margin:10px 0 0;font-size:16px;font-weight:700;color:#0984E3;">${fmtPrice(p.price)}</p>
+          <p style="margin:10px 0 0;font-size:16px;font-weight:700;color:#0984E3;">${fmtPrice(p.price, currency)}</p>
         </div>
       </td>
     `;
@@ -104,7 +106,7 @@ function buildProductCards(products: ShipmentEmailData["featuredProducts"]): str
 
 function renderAnnouncementMjml(data: ShipmentEmailData, intro: string, baseUrl: string, shipmentId: string, imageUrls: string[]): string {
   const gallery = buildGallery(imageUrls);
-  const topPicks = buildProductCards(data.featuredProducts);
+  const topPicks = buildProductCards(data.featuredProducts, data.currency);
 
   return `
     <mjml>
@@ -153,7 +155,7 @@ function renderAnnouncementMjml(data: ShipmentEmailData, intro: string, baseUrl:
             <mj-text font-size="10px" color="#6E7681" text-transform="uppercase" letter-spacing="1px" padding="0">Order Deadline</mj-text>
             <mj-text font-size="15px" color="#F59E0B" font-weight="600" padding="4px 0 14px 0">${esc(data.deadline)}</mj-text>
             <mj-text font-size="10px" color="#6E7681" text-transform="uppercase" letter-spacing="1px" padding="0">Freight / Box</mj-text>
-            <mj-text font-size="15px" color="#FFFFFF" font-weight="600" padding="4px 0 0 0">${fmtPrice(data.freightCost)}</mj-text>
+            <mj-text font-size="15px" color="#FFFFFF" font-weight="600" padding="4px 0 0 0">${fmtPrice(data.freightCost, data.currency)}</mj-text>
           </mj-column>
         </mj-section>
 
@@ -194,7 +196,7 @@ function renderReminderMjml(data: ShipmentEmailData, intro: string, baseUrl: str
   const days = daysUntil(data.deadlineRaw);
   const urgency = days <= 1 ? "Final Day!" : days <= 3 ? `${days} Days Left` : `${days} Days Remaining`;
   const gallery = buildGallery(imageUrls);
-  const topPicks = buildProductCards(data.featuredProducts);
+  const topPicks = buildProductCards(data.featuredProducts, data.currency);
 
   return `
     <mjml>
@@ -312,6 +314,7 @@ export async function getShipmentEmailData(shipmentId: string): Promise<Shipment
     deadlineRaw: shipment.deadline instanceof Date ? shipment.deadline.toISOString() : String(shipment.deadline),
     shipmentDate: fmtDate(shipment.shipmentDate),
     freightCost: Number(shipment.freightCost),
+    currency: shipment.currency ?? null,
     productCount: products.length,
     featuredProducts: featured.map((p) => ({
       name: p.name,

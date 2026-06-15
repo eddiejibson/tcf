@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { UserOrderListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonOrderList } from "@/app/components/dashboard/Skeleton";
+import { formatMoney } from "@/app/lib/currency";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -21,10 +22,6 @@ const statusLabels: Record<string, string> = {
   AWAITING_FULFILLMENT: "FULFILLMENT",
   AWAITING_PAYMENT: "AWAITING PAYMENT",
 };
-
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<UserOrderListItem[]>([]);
@@ -87,7 +84,7 @@ export default function OrdersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[#0984E3] font-semibold tabular-nums whitespace-nowrap">{formatPrice(o.total)}</span>
+                  <span className="text-[#0984E3] font-semibold tabular-nums whitespace-nowrap">{formatMoney(o.total, o.currency)}</span>
                   <span className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
                 </div>
               </div>

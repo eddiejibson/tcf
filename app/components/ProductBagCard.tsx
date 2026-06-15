@@ -1,10 +1,8 @@
 "use client";
 
 import { bagHeadcount, bagBoxFill, bagCount, type PackOption, type BagSelection } from "@/app/lib/bags";
+import { formatMoney } from "@/app/lib/currency";
 
-function fmt(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 function toTitleCase(s: string) {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -35,14 +33,16 @@ interface Props {
   bags: BagSelection;
   onChange: (fraction: string, next: number) => void;
   unavailable?: boolean;
+  currency?: string | null;
 }
 
-export default function ProductBagCard({ name, latinName, size, variant, unitPrice, packOptions, bags, onChange, unavailable }: Props) {
+export default function ProductBagCard({ name, latinName, size, variant, unitPrice, packOptions, bags, onChange, unavailable, currency }: Props) {
   const fish = bagHeadcount(packOptions, bags);
   const fill = bagBoxFill(packOptions, bags);
   const bagsN = bagCount(bags);
   const lineTotal = fish * unitPrice;
   const active = bagsN > 0;
+  const fmt = (n: number) => formatMoney(n, currency);
 
   return (
     <div className={`px-4 md:px-5 py-3.5 transition-colors ${unavailable ? "opacity-30" : active ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}>
@@ -74,7 +74,7 @@ export default function ProductBagCard({ name, latinName, size, variant, unitPri
               }`}
             >
               <div className="flex flex-col min-w-0">
-                <span className="text-white text-sm font-semibold leading-none">{opt.fraction} bag</span>
+                <span className="text-white text-sm font-semibold leading-none">{opt.fraction === "1/1" ? "Full box" : `${opt.fraction} bag`}</span>
                 <span className="text-white/40 text-[11px] mt-1">{opt.headcount} fish</span>
               </div>
               <div className="ml-auto">

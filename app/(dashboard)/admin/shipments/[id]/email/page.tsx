@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatMoney } from "@/app/lib/currency";
 
 export default function ShipmentEmailPage() {
   const params = useParams();
@@ -11,6 +12,7 @@ export default function ShipmentEmailPage() {
     shipmentName: string;
     deadline: string;
     productCount: number;
+    currency: string | null;
     featuredProducts: { name: string; price: number }[];
     recipientCount: number;
   } | null>(null);
@@ -218,7 +220,7 @@ export default function ShipmentEmailPage() {
                 {shipmentData.featuredProducts.map((p, i) => (
                   <div key={i} className="flex items-center justify-between py-1">
                     <span className="text-white/70 text-sm">{p.name}</span>
-                    <span className="text-[#0984E3] text-sm font-medium tabular-nums">£{Number(p.price).toFixed(2)}</span>
+                    <span className="text-[#0984E3] text-sm font-medium tabular-nums">{formatMoney(Number(p.price), shipmentData.currency)}</span>
                   </div>
                 ))}
               </div>
@@ -275,7 +277,7 @@ export default function ShipmentEmailPage() {
                 if (picks.length > 0) {
                   msg += "\n⭐ *Top Picks*\n";
                   picks.forEach((p) => {
-                    msg += `  • ${p.name} — £${Number(p.price).toFixed(2)}\n`;
+                    msg += `  • ${p.name} — ${formatMoney(Number(p.price), shipmentData.currency)}\n`;
                   });
                 }
 

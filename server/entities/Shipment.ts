@@ -36,6 +36,17 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "varchar", nullable: true })
   sourceFilename: string;
 
+  // Public, customer-facing notes shown at the top of the shipment (pricing notes, delivery
+  // info, deadlines etc.). Admin-editable on create/edit. NOT the same as per-product supplier
+  // notes parsed from Excel, which stay admin-only.
+  @Column({ type: "text", nullable: true })
+  notes: string | null;
+
+  // Free-text currency label for how prices display on this shipment (e.g. "£", "$", "GBP",
+  // "USD"). Null = fall back to "£" (unchanged default). Display-only; amounts stay raw numbers.
+  @Column({ type: "varchar", nullable: true })
+  currency: string | null;
+
   // When true, customers order this shipment by fractional bags (1/12, 1/6, …) rather than
   // by raw headcount. Defaulted on at import when products carry packOptions; admin can toggle.
   @Column({ type: "boolean", default: false })

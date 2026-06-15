@@ -6,6 +6,8 @@
 // an ESTIMATE; the final figure is confirmed by an admin at packing-list review — the
 // same pattern freight already uses, because final box count / mileage land then.
 
+import { formatMoney } from "./currency";
+
 export type DeliveryBasis = "per_box" | "per_mile" | "per_order" | "per_item" | "percent";
 
 export interface DeliveryTier {
@@ -101,16 +103,17 @@ export function computeDeliveryTotal(
   return { amount: round2(amount), hasUnconfirmed };
 }
 
-export function deliveryRateLabel(opt: DeliveryOption): string {
+export function deliveryRateLabel(opt: DeliveryOption, currency?: string | null): string {
+  const amt = formatMoney(opt.rate, currency);
   switch (opt.basis) {
     case "per_box":
-      return `£${opt.rate.toFixed(2)} per box`;
+      return `${amt} per box`;
     case "per_mile":
-      return `£${opt.rate.toFixed(2)} per mile`;
+      return `${amt} per mile`;
     case "per_item":
-      return `£${opt.rate.toFixed(2)} per item`;
+      return `${amt} per item`;
     case "per_order":
-      return `£${opt.rate.toFixed(2)} flat`;
+      return `${amt} flat`;
     case "percent":
       return `${opt.rate}% of goods`;
     default:

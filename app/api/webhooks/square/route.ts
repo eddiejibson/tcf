@@ -122,7 +122,7 @@ async function sendPaidNotification(orderId: string) {
         adminEmails,
         fullOrder.user!.email,
         fullOrder.id.slice(0, 8).toUpperCase(),
-        formatPrice(totals.total),
+        formatPrice(totals.total, fullOrder.shipment?.currency),
         "CARD",
         fullOrder.id,
       );

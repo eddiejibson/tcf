@@ -1,6 +1,7 @@
 "use client";
 
 import type { DeliveryOption } from "@/app/lib/delivery";
+import { DEFAULT_CURRENCY } from "@/app/lib/currency";
 
 function unitText(o: DeliveryOption): string {
   switch (o.basis) {
@@ -18,10 +19,13 @@ function unitText(o: DeliveryOption): string {
 export default function DeliveryOptionsEditor({
   options,
   onChange,
+  currency,
 }: {
   options: DeliveryOption[];
   onChange: (options: DeliveryOption[]) => void;
+  currency?: string | null;
 }) {
+  const sym = (currency ?? "").trim() || DEFAULT_CURRENCY;
   const update = (id: string, patch: Partial<DeliveryOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
   const anyOn = options.some((o) => o.enabled);
@@ -48,7 +52,7 @@ export default function DeliveryOptionsEditor({
             <span className="text-white/40 text-xs shrink-0">Free</span>
           ) : (
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-white/40 text-sm">£</span>
+              <span className="text-white/40 text-sm">{sym}</span>
               <input
                 type="number"
                 step="0.01"

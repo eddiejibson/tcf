@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { formatMoney } from "./currency";
 
 export interface InvoiceItem {
   name: string;
@@ -16,6 +17,8 @@ export interface InvoiceData {
   customerEmail: string;
   customerCompanyName?: string | null;
   shipmentName: string | null;
+  /** Currency label for amounts (free text, e.g. "£", "$", "GBP"). Blank/undefined → "£". */
+  currency?: string | null;
   items: InvoiceItem[];
   subtotal: number;
   vat: number;
@@ -37,10 +40,6 @@ const LIGHT_BG: [number, number, number] = [246, 248, 252];
 const BORDER: [number, number, number] = [225, 228, 235];
 const WHITE: [number, number, number] = [255, 255, 255];
 
-function fmtPrice(n: number): string {
-  return `\u00A3${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 async function loadLogoDataUrl(): Promise<string | null> {
   try {
     const res = await fetch("/images/logo-invoice.png");
@@ -57,6 +56,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
 }
 
 export async function generateInvoice(data: InvoiceData): Promise<void> {
+  const fmtPrice = (n: number): string => formatMoney(n, data.currency);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;
   const m = 20;

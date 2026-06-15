@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { AdminOrderListItem } from "@/app/lib/types";
 import { AnimatedList, AnimatedListItem } from "@/app/components/dashboard/AnimatedList";
 import { SkeletonTable } from "@/app/components/dashboard/Skeleton";
+import { formatMoney } from "@/app/lib/currency";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -22,10 +23,6 @@ const statusLabels: Record<string, string> = {
   AWAITING_FULFILLMENT: "FULFILLMENT",
   AWAITING_PAYMENT: "AWAITING PAYMENT",
 };
-
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 export default function AdminOrdersPage() {
   const router = useRouter();
@@ -127,7 +124,7 @@ export default function AdminOrdersPage() {
                 </div>
                 <div className="w-40"><p className="text-white/60 text-sm truncate">{o.shipmentName || "Direct Order"}</p></div>
                 <div className="w-20 text-center"><p className="text-white/60 text-sm">{o.itemCount}</p></div>
-                <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatPrice(o.total)}</p></div>
+                <div className="w-24 text-right"><p className="text-[#0984E3] text-sm font-semibold tabular-nums">{formatMoney(o.total, o.currency)}</p></div>
                 <div className="w-36 text-center">
                   <span className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${statusColors[o.status] || "bg-white/10 text-white/60"}`}>{statusLabels[o.status] || o.status}</span>
                 </div>

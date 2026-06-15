@@ -143,6 +143,8 @@ export default function NewShipmentPage() {
   const [items, setItems] = useState<ItemWithId[]>([]);
   const [fractionalBagsEnabled, setFractionalBagsEnabled] = useState(false);
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>(DEFAULT_DELIVERY_OPTIONS);
+  const [notes, setNotes] = useState("");
+  const [currency, setCurrency] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [mappingsOpen, setMappingsOpen] = useState(false);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping>({ name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 });
@@ -278,6 +280,8 @@ export default function NewShipmentPage() {
           margin: parseFloat(margin) || 0,
           fractionalBagsEnabled,
           deliveryOptions,
+          notes,
+          currency,
           products: validItems.map((i) => ({
             name: i.name,
             latinName: i.latinName || null,
@@ -364,7 +368,7 @@ export default function NewShipmentPage() {
                 <input value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!name ? "border-red-500/50" : "border-white/10"}`} />
               </div>
               <div>
-                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Freight Cost</label>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Freight Cost <span className="text-white/25 normal-case tracking-normal">per box{currency.trim() ? ` (${currency.trim()})` : ""}</span></label>
                 <input type="number" step="0.01" value={freightCost} onChange={(e) => setFreightCost(e.target.value)} className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!freightCost ? "border-amber-500/50" : "border-white/10"}`} />
               </div>
               <div>
@@ -375,6 +379,22 @@ export default function NewShipmentPage() {
                 <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Shipment Date</label>
                 <input type="date" value={shipmentDate} onChange={(e) => setShipmentDate(e.target.value)} className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!shipmentDate ? "border-red-500/50" : "border-white/10"}`} />
               </div>
+              <div>
+                <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Currency <span className="text-white/25 normal-case tracking-normal">(optional)</span></label>
+                <input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="£ (default)" maxLength={8} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50" />
+                <p className="text-white/30 text-xs mt-1.5">How prices display, e.g. £, $, GBP, USD. Leave blank for £.</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Shipment Notes <span className="text-white/25 normal-case tracking-normal">(shown to customers)</span></label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={5}
+                placeholder="Pricing notes, delivery info, deadlines, anything customers should read before ordering. This shows at the top of the shipment for everyone."
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50 resize-y leading-relaxed"
+              />
+              <p className="text-white/30 text-xs mt-1.5">Public to all customers. Keep supplier-only notes out of here.</p>
             </div>
             {items.length > 0 && (
               <div className="mt-4 pt-4 border-t border-white/10">
@@ -417,7 +437,7 @@ export default function NewShipmentPage() {
             {items.length > 0 && (
               <div className="mt-4 pt-4 border-t border-white/10">
                 <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Delivery options (optional)</label>
-                <DeliveryOptionsEditor options={deliveryOptions} onChange={setDeliveryOptions} />
+                <DeliveryOptionsEditor options={deliveryOptions} onChange={setDeliveryOptions} currency={currency} />
               </div>
             )}
           </div>

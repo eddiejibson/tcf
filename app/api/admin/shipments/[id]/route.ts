@@ -73,6 +73,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     margin: shipment.margin,
     fractionalBagsEnabled: shipment.fractionalBagsEnabled,
     deliveryOptions: shipment.deliveryOptions,
+    notes: shipment.notes,
+    currency: shipment.currency,
     sourceFilename: shipment.sourceFilename,
     createdAt: shipment.createdAt,
     products: shipment.products.map((p) => ({
@@ -130,7 +132,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const shipment = await repo.findOneBy({ id });
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
-  const { name, deadline, shipmentDate, freightCost, margin, status, products, fractionalBagsEnabled, deliveryOptions } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, fractionalBagsEnabled, deliveryOptions, notes, currency } = body;
   if (name !== undefined) shipment.name = name;
   if (deadline !== undefined) shipment.deadline = new Date(deadline);
   if (shipmentDate !== undefined) shipment.shipmentDate = new Date(shipmentDate);
@@ -138,6 +140,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (margin !== undefined) shipment.margin = margin;
   if (fractionalBagsEnabled !== undefined) shipment.fractionalBagsEnabled = fractionalBagsEnabled;
   if (deliveryOptions !== undefined) shipment.deliveryOptions = deliveryOptions;
+  if (notes !== undefined) shipment.notes = notes?.trim() ? notes.trim() : null;
+  if (currency !== undefined) shipment.currency = currency?.trim() ? currency.trim() : null;
   if (status !== undefined) shipment.status = status;
 
   if (products !== undefined && Array.isArray(products)) {
@@ -195,6 +199,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...(shipmentDate !== undefined ? { shipmentDate } : {}),
       ...(freightCost !== undefined ? { freightCost } : {}),
       ...(margin !== undefined ? { margin } : {}),
+      ...(notes !== undefined ? { notesUpdated: true } : {}),
       ...(status !== undefined ? { status } : {}),
       ...(products !== undefined ? { productsReplaced: true, productCount: Array.isArray(products) ? products.length : 0 } : {}),
     },

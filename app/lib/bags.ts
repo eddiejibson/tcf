@@ -49,10 +49,16 @@ export function hasAnyBags(sel: BagSelection | undefined): boolean {
 // that fit in a fraction-of-a-box bag. The fraction set varies by supplier, so this stays generic.
 export const PACK_FRACTION_RE = /^\s*(\d{1,2})\s*\/\s*(\d{1,3})\s*(?:th)?\s*(?:qty|quantity|pcs|pieces|bag|bags|box)?\s*$/i;
 
+// A whole-box column: "FULL BOX", "1 box", "whole box", "full". Counts as the 1/1 pack option so a
+// box that lists Full / 1/4 / 1/8 offers all three and box-fill maths treats a full box as 1.0.
+export const FULL_BOX_RE = /^\s*(?:full(?:[\s_-]*box)?|whole[\s_-]*box|1\s*box)\s*$/i;
+
 export function detectPackColumns(headers: string[]): { colIndex: number; fraction: string; denom: number }[] {
   const cols: { colIndex: number; fraction: string; denom: number }[] = [];
   for (let i = 0; i < headers.length; i++) {
-    const m = String(headers[i] || "").trim().match(PACK_FRACTION_RE);
+    const h = String(headers[i] || "").trim();
+    if (FULL_BOX_RE.test(h)) { cols.push({ colIndex: i, fraction: "1/1", denom: 1 }); continue; }
+    const m = h.match(PACK_FRACTION_RE);
     if (!m) continue;
     const num = parseInt(m[1], 10);
     const denom = parseInt(m[2], 10);

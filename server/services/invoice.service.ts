@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
+import { formatMoney } from "../../app/lib/currency";
 
 const BRAND: [number, number, number] = [9, 132, 227];
 const DARK: [number, number, number] = [26, 31, 38];
@@ -8,10 +9,6 @@ const GRAY: [number, number, number] = [120, 130, 145];
 const LIGHT_BG: [number, number, number] = [246, 248, 252];
 const BORDER: [number, number, number] = [225, 228, 235];
 const WHITE: [number, number, number] = [255, 255, 255];
-
-function fmtPrice(n: number): string {
-  return `\u00A3${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function loadLogoDataUrl(): string | null {
   try {
@@ -24,6 +21,7 @@ function loadLogoDataUrl(): string | null {
 }
 
 export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> {
+  const fmtPrice = (n: number): string => formatMoney(n, data.currency);
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;

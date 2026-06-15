@@ -18,6 +18,7 @@ export async function GET() {
         userEmail: o.user?.email,
         userCompanyName: o.user?.companyName || null,
         shipmentName: o.shipment?.name || null,
+        currency: o.shipment?.currency || null,
         itemCount: o.items?.length || 0,
         total: totals.total,
         includeShipping: o.includeShipping,

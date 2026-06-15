@@ -239,6 +239,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           customerEmail: resendOrder.user.email,
           customerCompanyName: resendOrder.user.companyName,
           shipmentName: resendOrder.shipment?.name || "Direct Order",
+          currency: resendOrder.shipment?.currency ?? null,
           items: resendOrder.items.map((i) => ({
             name: i.name,
             latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -262,7 +263,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         await sendOrderAcceptedWithInvoice(
           resendOrder.user.email,
           resendOrder.shipment?.name || "Direct Order",
-          formatPrice(totals.total),
+          formatPrice(totals.total, resendOrder.shipment?.currency),
           resendOrder.id,
           orderRef,
           pdfBuffer,

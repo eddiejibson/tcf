@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await request.json();
-  const { name, deadline, shipmentDate, freightCost, margin, status, products, sourceFilename, fractionalBagsEnabled, deliveryOptions } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, sourceFilename, fractionalBagsEnabled, deliveryOptions, notes, currency } = body;
 
   if (!name || !deadline || !shipmentDate) {
     return NextResponse.json({ error: "Name, deadline, and shipment date are required" }, { status: 400 });
@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
     sourceFilename,
     fractionalBagsEnabled: !!fractionalBagsEnabled,
     deliveryOptions: deliveryOptions ?? null,
+    notes: notes?.trim() ? notes.trim() : null,
+    currency: currency?.trim() ? currency.trim() : null,
     createdById: admin.userId,
     products: products?.map((p: { name: string; latinName?: string | null; variant?: string | null; price: number; size?: string | null; qtyPerBox: number; availableQty?: number | null; originalRow?: Record<string, unknown> | null; packOptions?: { fraction: string; headcount: number }[] | null; category?: string | null }) => ({
       name: p.name,

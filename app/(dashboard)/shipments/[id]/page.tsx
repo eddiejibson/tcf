@@ -10,6 +10,7 @@ import CustomerPicker from "@/app/components/CustomerPicker";
 import ProductBagCard from "@/app/components/ProductBagCard";
 import BoxFillMeter from "@/app/components/BoxFillMeter";
 import { bagHeadcount, bagBoxFill, hasAnyBags } from "@/app/lib/bags";
+import { formatMoney } from "@/app/lib/currency";
 import React, {
   useCallback,
   useDeferredValue,
@@ -19,10 +20,6 @@ import React, {
   useState,
   useTransition,
 } from "react";
-
-function formatPrice(n: number) {
-  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function toTitleCase(str: string) {
   return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -36,10 +33,12 @@ function SubstitutePicker({
   products,
   onSelect,
   onClose,
+  currency,
 }: {
   products: SerializedProduct[];
   onSelect: (p: SerializedProduct) => void;
   onClose: () => void;
+  currency?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [filteredProducts, setFilteredProducts] = useState(products);
@@ -131,7 +130,7 @@ function SubstitutePicker({
                       </span>
                     )}
                     <span className="text-white/30 text-[11px]">
-                      {formatPrice(Number(p.price))}
+                      {formatMoney(Number(p.price), currency)}
                     </span>
                   </div>
                 </div>
@@ -313,6 +312,8 @@ export default function ShipmentDetailPage() {
   };
 
   const fractional = !!shipment?.fractionalBagsEnabled;
+  // Prices display in the shipment's currency label (free text, e.g. "£", "$", "GBP"); blank → "£".
+  const money = (n: number) => formatMoney(n, shipment?.currency);
   const getBags = (id: string): Record<string, number> => bagCart.get(id) || {};
   const setBag = (productId: string, fraction: string, next: number) => {
     setBagCart((prev) => {
@@ -339,12 +340,19 @@ export default function ShipmentDetailPage() {
   const totalBoxFill =
     fractional && shipment ? shipment.products.reduce((s, p) => s + productBoxFill(p), 0) : 0;
 
+  // Freight estimate. Non-fractional shipments size boxes from qtyPerBox; fractional shipments
+  // size them from the bag box-fill (Σ bags × fraction value), rounded up to whole boxes — so
+  // half-empty boxes still bill a whole box, which nudges customers to top up to a full box.
   const freightEst = shipment && !fractional
     ? estimateFreight(
         shipment.products.map((p) => ({ quantity: getQty(p.id), qtyPerBox: p.qtyPerBox })),
         Number(shipment.freightCost),
       )
-    : { totalBoxes: Math.ceil(totalBoxFill), freight: 0, hasUnknownBoxItems: false };
+    : (() => {
+        const boxes = Math.ceil(totalBoxFill);
+        const fc = Number(shipment?.freightCost) || 0;
+        return { totalBoxes: boxes, freight: boxes > 0 && fc > 0 ? boxes * fc : 0, hasUnknownBoxItems: false };
+      })();
 
   const totalBoxes = freightEst.totalBoxes;
   const hasUnknownBoxItems = freightEst.hasUnknownBoxItems;
@@ -365,6 +373,7 @@ export default function ShipmentDetailPage() {
       deadline: new Date(shipment.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       shipmentDate: new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       freightCostPerBox: Number(shipment.freightCost),
+      currency: shipment.currency,
       products: shipment.products.map((p) => ({
         id: p.id,
         name: p.name,
@@ -588,6 +597,22 @@ export default function ShipmentDetailPage() {
         </div>
       </div>
 
+      {shipment.notes && shipment.notes.trim() && (
+        <div className="bg-[#0984E3]/[0.07] border border-[#0984E3]/25 rounded-[20px] p-4 md:p-5 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-[#0984E3]/15 flex items-center justify-center mt-0.5">
+              <svg className="w-4 h-4 text-[#0984E3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[#0984E3] text-[11px] uppercase tracking-wider font-semibold mb-1.5">Please read</p>
+              <p className="text-white/85 text-sm leading-relaxed whitespace-pre-wrap break-words">{shipment.notes}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {submitError && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-4 mb-4">
           <div className="flex items-start justify-between gap-3">
@@ -629,7 +654,7 @@ export default function ShipmentDetailPage() {
                 Subtotal
               </p>
               <p className="text-white text-sm font-semibold tabular-nums">
-                {formatPrice(subtotal)}
+                {money(subtotal)}
               </p>
             </div>
             <div>
@@ -637,16 +662,16 @@ export default function ShipmentDetailPage() {
                 VAT (20%)
               </p>
               <p className="text-white/60 text-sm tabular-nums">
-                {formatPrice(vat)}
+                {money(vat)}
               </p>
             </div>
-            {(estimatedFreight > 0 || hasUnknownBoxItems) && cart.size > 0 && (
+            {(estimatedFreight > 0 || hasUnknownBoxItems) && (
               <div>
                 <p className="text-white/40 text-[10px] uppercase tracking-wider font-medium">
                   Est. Freight
                 </p>
                 <p className="text-white/40 text-sm tabular-nums">
-                  {estimatedFreight > 0 ? `~${formatPrice(estimatedFreight)}` : "—"}
+                  {estimatedFreight > 0 ? `~${money(estimatedFreight)}` : "—"}
                 </p>
                 {hasUnknownBoxItems && (
                   <p className="text-amber-300/60 text-[10px] mt-0.5">Partial — some items have unknown box qty</p>
@@ -658,7 +683,7 @@ export default function ShipmentDetailPage() {
                 Total
               </p>
               <p className="text-[#0984E3] text-sm md:text-lg font-bold tabular-nums">
-                {formatPrice(total)}
+                {money(total)}
               </p>
             </div>
             <p className="hidden md:block text-white/30 text-xs self-center">
@@ -678,7 +703,7 @@ export default function ShipmentDetailPage() {
                   className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
                 />
                 <span className="text-emerald-400 text-xs font-medium">
-                  Use credit ({formatPrice(user.creditBalance)})
+                  Use credit ({formatMoney(user.creditBalance)})
                 </span>
               </label>
             )}
@@ -701,7 +726,7 @@ export default function ShipmentDetailPage() {
         <div className="sticky top-14 md:top-0 z-30 -mx-4 md:-mx-8 px-4 md:px-8 py-2.5 mb-4 bg-[#111518]/95 backdrop-blur-xl border-b border-white/10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <p className="text-[#0984E3] text-sm font-bold tabular-nums">{formatPrice(total)}</p>
+              <p className="text-[#0984E3] text-sm font-bold tabular-nums">{money(total)}</p>
               <p className="text-white/30 text-xs">{orderItemCount} items{totalBoxes > 0 ? ` · ${totalBoxes} boxes` : ""}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -741,7 +766,7 @@ export default function ShipmentDetailPage() {
                 <button key={p.id} onClick={() => { setCart(new Map(cart).set(p.id, qty + 1)); }} className="shrink-0 bg-white/5 border border-white/10 hover:border-amber-500/20 rounded-xl p-3 text-left transition-all min-w-[160px]">
                   <p className="text-white/90 text-sm font-semibold truncate">{toTitleCase(p.name)}</p>
                   {p.latinName && <p className="text-white/30 text-[10px] italic truncate">{p.latinName}</p>}
-                  <p className="text-[#0984E3] text-sm font-bold mt-1 tabular-nums">{formatPrice(discount > 0 ? applyDiscount(Number(p.price), discount) : Number(p.price))}</p>
+                  <p className="text-[#0984E3] text-sm font-bold mt-1 tabular-nums">{money(discount > 0 ? applyDiscount(Number(p.price), discount) : Number(p.price))}</p>
                   {qty > 0 && <p className="text-amber-300 text-[10px] font-medium mt-0.5">{qty} in order</p>}
                 </button>
               );
@@ -832,6 +857,7 @@ export default function ShipmentDetailPage() {
                       bags={getBags(product.id)}
                       onChange={(fr, next) => setBag(product.id, fr, next)}
                       unavailable={isUnavailable(product)}
+                      currency={shipment.currency}
                     />
                   </React.Fragment>
                 );
@@ -924,12 +950,12 @@ export default function ShipmentDetailPage() {
                       <div className="text-right shrink-0 w-16">
                         {discount > 0 ? (
                           <>
-                            <p className="text-white/30 text-[10px] tabular-nums line-through">{formatPrice(Number(product.price))}</p>
-                            <p className="text-[#0984E3] text-xs tabular-nums font-medium">{formatPrice(applyDiscount(Number(product.price), discount))}</p>
+                            <p className="text-white/30 text-[10px] tabular-nums line-through">{money(Number(product.price))}</p>
+                            <p className="text-[#0984E3] text-xs tabular-nums font-medium">{money(applyDiscount(Number(product.price), discount))}</p>
                           </>
                         ) : (
                           <p className="text-white/60 text-xs tabular-nums">
-                            {formatPrice(Number(product.price))}
+                            {money(Number(product.price))}
                           </p>
                         )}
                       </div>
@@ -969,7 +995,7 @@ export default function ShipmentDetailPage() {
                       <div className="text-right shrink-0 w-20">
                         {qty > 0 ? (
                           <p className="text-[#0984E3] text-sm font-semibold tabular-nums">
-                            {formatPrice(lineTotal)}
+                            {money(lineTotal)}
                           </p>
                         ) : (
                           <p className="text-white/20 text-sm tabular-nums">
@@ -1004,12 +1030,12 @@ export default function ShipmentDetailPage() {
                           )}
                           {discount > 0 ? (
                             <>
-                              <span className="text-white/30 text-[10px] tabular-nums line-through">{formatPrice(Number(product.price))}</span>
-                              <span className="text-[#0984E3] text-xs tabular-nums font-medium">{formatPrice(applyDiscount(Number(product.price), discount))}</span>
+                              <span className="text-white/30 text-[10px] tabular-nums line-through">{money(Number(product.price))}</span>
+                              <span className="text-[#0984E3] text-xs tabular-nums font-medium">{money(applyDiscount(Number(product.price), discount))}</span>
                             </>
                           ) : (
                             <span className="text-white/50 text-xs tabular-nums font-medium">
-                              {formatPrice(Number(product.price))}
+                              {money(Number(product.price))}
                             </span>
                           )}
                           {product.size && (
@@ -1039,7 +1065,7 @@ export default function ShipmentDetailPage() {
                         </div>
                         {qty > 0 && (
                           <p className="text-[#0984E3] text-xs font-bold tabular-nums mt-1">
-                            Total: {formatPrice(lineTotal)}
+                            Total: {money(lineTotal)}
                           </p>
                         )}
                       </div>
@@ -1139,6 +1165,7 @@ export default function ShipmentDetailPage() {
             setPickerForProduct(null);
           }}
           onClose={() => setPickerForProduct(null)}
+          currency={shipment.currency}
         />
       )}
 
@@ -1163,17 +1190,17 @@ export default function ShipmentDetailPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/50">Subtotal ({cart.size} items)</span>
-                  <span className="text-white font-medium tabular-nums">{formatPrice(subtotal)}</span>
+                  <span className="text-white/50">Subtotal ({orderItemCount} items)</span>
+                  <span className="text-white font-medium tabular-nums">{money(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">VAT (20%)</span>
-                  <span className="text-white/60 tabular-nums">{formatPrice(vat)}</span>
+                  <span className="text-white/60 tabular-nums">{money(vat)}</span>
                 </div>
                 {(estimatedFreight > 0 || hasUnknownBoxItems) && (
                   <div className="flex justify-between text-sm">
                     <span className="text-white/50">Est. Freight{totalBoxes > 0 ? ` (${totalBoxes} boxes)` : ""}{hasUnknownBoxItems ? " *" : ""}</span>
-                    <span className="text-white/40 tabular-nums">{estimatedFreight > 0 ? `~${formatPrice(estimatedFreight)}` : "TBC"}</span>
+                    <span className="text-white/40 tabular-nums">{estimatedFreight > 0 ? `~${money(estimatedFreight)}` : "TBC"}</span>
                   </div>
                 )}
                 {hasUnknownBoxItems && (
@@ -1181,7 +1208,7 @@ export default function ShipmentDetailPage() {
                 )}
                 <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
                   <span className="text-white/70 font-medium">Total</span>
-                  <span className="text-[#0984E3] font-bold tabular-nums">{formatPrice(total)}</span>
+                  <span className="text-[#0984E3] font-bold tabular-nums">{money(total)}</span>
                 </div>
               </div>
               <div className="bg-white/5 rounded-xl p-3.5 mb-5 space-y-3">

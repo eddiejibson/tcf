@@ -1,10 +1,12 @@
 import ExcelJS from "exceljs";
+import { excelMoneyFormat } from "./currency";
 
 export interface ShipmentExportData {
   shipmentName: string;
   deadline: string;
   shipmentDate: string;
   freightCostPerBox: number;
+  currency?: string | null;
   products: {
     id: string;
     name: string;
@@ -48,6 +50,7 @@ function applyRow(row: ExcelJS.Row, fill: Fill, border: Border, cols: number) {
 }
 
 export async function generateShipmentSheet(data: ShipmentExportData): Promise<void> {
+  const cf = excelMoneyFormat(data.currency);
   const COLS = 11; // A-K, col K is hidden helper for box calc
   const wb = new ExcelJS.Workbook();
   wb.creator = "The Coral Farm";
@@ -114,7 +117,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
   r6.height = 20;
   r6.getCell(1).value = "  Freight/Box";  r6.getCell(1).font = metaFont(true);
   r6.getCell(2).value = data.freightCostPerBox;  r6.getCell(2).font = metaFont(false);
-  r6.getCell(2).numFmt = "\"£\"#,##0.00";
+  r6.getCell(2).numFmt = cf;
   r6.getCell(5).value = "Ships";  r6.getCell(5).font = metaFont(true);
   r6.getCell(6).value = data.shipmentDate;  r6.getCell(6).font = metaFont(false);
   applyRow(r6, cardFill, thinBorder, COLS);
@@ -166,7 +169,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
     row.getCell(4).font = { size: 9, color: { argb: TEXT_DIM }, name: "Calibri" }; // Variant
     row.getCell(5).font = { size: 9, color: { argb: TEXT_DIM }, name: "Calibri" }; // Size
     row.getCell(6).font = { size: 10, color: { argb: TEXT }, name: "Calibri" }; // Price
-    row.getCell(6).numFmt = "\"£\"#,##0.00";
+    row.getCell(6).numFmt = cf;
     row.getCell(6).alignment = { horizontal: "right" };
     row.getCell(7).font = { size: 9, color: { argb: TEXT_MUTED }, name: "Calibri" }; // Qty/Box
     row.getCell(7).alignment = { horizontal: "right" };
@@ -185,7 +188,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
 
     // Line Total
     row.getCell(10).font = { size: 10, bold: true, color: { argb: ACCENT }, name: "Calibri" };
-    row.getCell(10).numFmt = "\"£\"#,##0.00";
+    row.getCell(10).numFmt = cf;
     row.getCell(10).alignment = { horizontal: "right" };
 
     // Hidden col K: boxes for this row = IF qty filled AND qtyPerBox is number > 1, qty/qtyPerBox, else 0
@@ -210,11 +213,11 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
 
   const summaryDefs: { label: string; formula?: string; fmt: string; bold?: boolean; color?: string }[] = [
     { label: "Items Ordered", formula: `IFERROR(SUM(${qtyRange}),0)`, fmt: "#,##0" },
-    { label: "Subtotal", formula: `IFERROR(SUM(${totalRange}),0)`, fmt: "\"£\"#,##0.00" },
+    { label: "Subtotal", formula: `IFERROR(SUM(${totalRange}),0)`, fmt: cf },
     { label: "Est. Boxes", formula: `IFERROR(CEILING(SUM(${helperRange}),1),0)`, fmt: "#,##0" },
-    { label: "Est. Freight", fmt: "\"£\"#,##0.00" },
-    { label: "VAT (20%)", fmt: "\"£\"#,##0.00" },
-    { label: "Grand Total", fmt: "\"£\"#,##0.00", bold: true, color: ACCENT },
+    { label: "Est. Freight", fmt: cf },
+    { label: "VAT (20%)", fmt: cf },
+    { label: "Grand Total", fmt: cf, bold: true, color: ACCENT },
   ];
 
   summaryDefs.forEach((def, i) => {

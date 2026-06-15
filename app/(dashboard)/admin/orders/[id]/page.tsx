@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { AdminOrderDetail, EditableOrderItem, UserListItem } from "@/app/lib/types";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import { estimateFreight } from "@/app/lib/freight";
-import { formatMoney } from "@/app/lib/currency";
+import { formatMoney, resolveFreightCurrency, sameCurrency } from "@/app/lib/currency";
 import ProductSearch, { type ProductSearchItem } from "@/app/components/ProductSearch";
 import CustomerPicker from "@/app/components/CustomerPicker";
 import Toast, { useToast } from "@/app/components/Toast";
@@ -324,9 +324,12 @@ export default function AdminOrderDetailPage() {
       customerCompanyName: order.user?.companyName || null,
       shipmentName: order.shipment?.name || "Direct Order",
       currency: order.shipment?.currency,
+      freightCurrency: order.shipment?.freightCurrency,
       items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
+      itemsVat: order.totals.itemsVat,
+      logisticsVat: order.totals.logisticsVat,
       shipping: order.totals.shipping,
       freight: order.totals.freight,
       delivery: order.totals.delivery,
@@ -410,9 +413,14 @@ export default function AdminOrderDetailPage() {
   const shipping = includeShipping ? 30 : 0;
   const freight = parseFloat(freightCharge) || 0;
   const delivery = Number(order?.deliveryCharge) || 0;
-  const vat = (subtotal + shipping + freight + delivery) * 0.2;
+  const logistics = shipping + freight + delivery;
+  const itemsVat = subtotal * 0.2;
+  const logisticsVat = logistics * 0.2;
+  const vat = itemsVat + logisticsVat;
   const credit = Number(order?.creditApplied) || 0;
-  const total = subtotal + shipping + freight + delivery + vat - credit;
+  const total = subtotal + logistics + vat - credit;
+  const freightMoney = (n: number) => formatMoney(n, resolveFreightCurrency(order?.shipment?.currency, order?.shipment?.freightCurrency));
+  const splitCurrency = !sameCurrency(order?.shipment?.currency, order?.shipment?.freightCurrency);
   const isEditable = ["SUBMITTED", "AWAITING_FULFILLMENT", "ACCEPTED", "AWAITING_PAYMENT"].includes(order.status) || (order.status === "DRAFT" && !!order.shipmentId);
   // Items on this order that have neither productId nor catalogProductId — these are the
   // legacy free-text rows where latin name / category can't resolve.
@@ -874,6 +882,12 @@ export default function AdminOrderDetailPage() {
               )}
             </div>
           </div>
+          {splitCurrency && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Items VAT (20%)</span>
+              <span className="tabular-nums">{money(itemsVat)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-white/60 text-sm">
             <span>{isEditable ? "Freight Charge" : "Freight"}</span>
             {isEditable ? (
@@ -886,30 +900,37 @@ export default function AdminOrderDetailPage() {
                 className="w-28 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white text-sm text-right focus:outline-none focus:border-[#0984E3]/50 tabular-nums"
               />
             ) : (
-              <span className="tabular-nums">{money(freight)}</span>
+              <span className="tabular-nums">{freightMoney(freight)}</span>
             )}
           </div>
           {delivery > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
-              <span className="tabular-nums">{money(delivery)}</span>
+              <span className="tabular-nums">{freightMoney(delivery)}</span>
             </div>
           )}
           <div className="flex items-center justify-between text-white/60 text-sm">
             {isEditable ? (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer" />
-                Shipping ({money(30)})
+                Shipping ({freightMoney(30)})
               </label>
             ) : (
               <span>Shipping</span>
             )}
-            <span className="tabular-nums">{money(shipping)}</span>
+            <span className="tabular-nums">{freightMoney(shipping)}</span>
           </div>
-          <div className="flex items-center justify-between text-white/60 text-sm">
-            <span>VAT (20%)</span>
-            <span className="tabular-nums">{money(vat)}</span>
-          </div>
+          {!splitCurrency ? (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>VAT (20%)</span>
+              <span className="tabular-nums">{money(vat)}</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Logistics VAT (20%)</span>
+              <span className="tabular-nums">{freightMoney(logisticsVat)}</span>
+            </div>
+          )}
           {credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>
@@ -918,8 +939,8 @@ export default function AdminOrderDetailPage() {
           )}
           <div className="h-px bg-white/10" />
           <div className="flex items-center justify-between">
-            <span className="text-white font-semibold">Grand Total</span>
-            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{money(total)}</span>
+            <span className="text-white font-semibold">Grand Total{splitCurrency ? " (nominal)" : ""}</span>
+            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{splitCurrency ? "~" : ""}{money(total)}</span>
           </div>
         </div>
       </div>

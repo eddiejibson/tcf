@@ -3,7 +3,7 @@
 import CustomerPicker from "@/app/components/CustomerPicker";
 import ProductSearch from "@/app/components/ProductSearch";
 import { DELIVERY_DOOR_RATE, DELIVERY_MILE_RATE, deliveryRate, deliveryEnabled } from "@/app/lib/delivery";
-import { formatMoney } from "@/app/lib/currency";
+import { formatMoney, resolveFreightCurrency, sameCurrency } from "@/app/lib/currency";
 import {
   buildOrdersFromRawData,
   parsePackingList,
@@ -210,8 +210,11 @@ export default function AdminShipmentDetailPage() {
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
-  // All money on this page shows in the shipment's currency label (blank → £).
+  // Item amounts use the shipment's item currency; freight/delivery/shipping use the freight
+  // currency (falls back to item currency). When they differ, order totals show a split.
   const money = (n: number) => formatMoney(n, shipment?.currency);
+  const freightMoney = (n: number) => formatMoney(n, resolveFreightCurrency(shipment?.currency, shipment?.freightCurrency));
+  const splitCurrency = !sameCurrency(shipment?.currency, shipment?.freightCurrency);
 
   // Packing list flow state
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
@@ -1657,7 +1660,7 @@ export default function AdminShipmentDetailPage() {
               Freight Cost <span className="text-white/30 normal-case tracking-normal">per box</span>
             </p>
             <p className="text-white font-semibold">
-              {formatMoney(Number(shipment.freightCost), shipment.currency)}
+              {freightMoney(Number(shipment.freightCost))}
             </p>
           </div>
           <div>
@@ -1696,7 +1699,7 @@ export default function AdminShipmentDetailPage() {
           <textarea
             value={notesDraft}
             onChange={(e) => setNotesDraft(e.target.value)}
-            rows={4}
+            rows={6}
             placeholder="Pricing notes, delivery info, deadlines, anything customers should read before ordering. Shows at the top of the shipment for everyone. Leave blank for none."
             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50 resize-y leading-relaxed"
           />
@@ -2677,8 +2680,8 @@ export default function AdminShipmentDetailPage() {
                               ) {
                                 return (
                                   <span className="text-[10px] text-white/30 tabular-nums">
-                                    {money(ppbNum)} × {boxesNum} ={" "}
-                                    {money(ppbNum * boxesNum)}
+                                    {freightMoney(ppbNum)} × {boxesNum} ={" "}
+                                    {freightMoney(ppbNum * boxesNum)}
                                   </span>
                                 );
                               }
@@ -2729,7 +2732,7 @@ export default function AdminShipmentDetailPage() {
                             <span className="flex flex-col">
                               Mileage
                               <span className="text-[10px] text-white/30">
-                                {money(mileRate)}/mile, one way
+                                {freightMoney(mileRate)}/mile, one way
                               </span>
                             </span>
                             <input
@@ -2755,13 +2758,13 @@ export default function AdminShipmentDetailPage() {
                                   (reviewDeliveryMethod === "door" || reviewDeliveryMethod === "both") &&
                                   !isNaN(boxesNum) && boxesNum > 0
                                 ) {
-                                  parts.push(`${money(doorRate)} × ${boxesNum}`);
+                                  parts.push(`${freightMoney(doorRate)} × ${boxesNum}`);
                                 }
                                 if (
                                   (reviewDeliveryMethod === "mileage" || reviewDeliveryMethod === "both") &&
                                   !isNaN(milesNum) && milesNum > 0
                                 ) {
-                                  parts.push(`${money(mileRate)} × ${milesNum}mi`);
+                                  parts.push(`${freightMoney(mileRate)} × ${milesNum}mi`);
                                 }
                                 return (
                                   <span className="text-[10px] text-white/30 tabular-nums">
@@ -2790,18 +2793,18 @@ export default function AdminShipmentDetailPage() {
                               }
                               className="w-4 h-4 rounded bg-white/5 border-white/20 text-[#0984E3] focus:ring-[#0984E3]/30 focus:ring-offset-0 cursor-pointer"
                             />
-                            Shipping ({money(30)})
+                            Shipping ({freightMoney(30)})
                           </label>
                           <span className="tabular-nums">
-                            {money(shippingNum)}
+                            {freightMoney(shippingNum)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-white/10">
                           <span className="text-white/50 text-xs">
-                            Total (ex VAT)
+                            Total (ex VAT){splitCurrency ? " · nominal" : ""}
                           </span>
                           <span className="text-[#0984E3] font-bold text-lg tabular-nums">
-                            {money(total)}
+                            {splitCurrency ? "~" : ""}{money(total)}
                           </span>
                         </div>
                       </div>

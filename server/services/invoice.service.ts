@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { InvoiceData } from "../../app/lib/generate-invoice";
-import { formatMoney } from "../../app/lib/currency";
+import { formatMoney, resolveFreightCurrency, sameCurrency } from "../../app/lib/currency";
 
 const BRAND: [number, number, number] = [9, 132, 227];
 const DARK: [number, number, number] = [26, 31, 38];
@@ -22,6 +22,8 @@ function loadLogoDataUrl(): string | null {
 
 export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> {
   const fmtPrice = (n: number): string => formatMoney(n, data.currency);
+  const fmtFreight = (n: number): string => formatMoney(n, resolveFreightCurrency(data.currency, data.freightCurrency));
+  const splitCurrency = !sameCurrency(data.currency, data.freightCurrency);
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const pw = 210;
@@ -290,16 +292,25 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   } else {
     drawTotalRow("Subtotal", fmtPrice(data.subtotal));
   }
+  if (splitCurrency && data.itemsVat != null && data.itemsVat > 0) {
+    drawTotalRow("Items VAT (20%)", fmtPrice(data.itemsVat));
+  }
   if (data.freight && data.freight > 0) {
-    drawTotalRow("Freight", fmtPrice(data.freight));
+    drawTotalRow("Freight", fmtFreight(data.freight));
   }
   if (data.delivery && data.delivery > 0) {
-    drawTotalRow("Delivery", fmtPrice(data.delivery));
+    drawTotalRow("Delivery", fmtFreight(data.delivery));
   }
   if (data.includeShipping) {
-    drawTotalRow("Shipping", fmtPrice(data.shipping));
+    drawTotalRow("Shipping", fmtFreight(data.shipping));
   }
-  drawTotalRow("VAT (20%)", fmtPrice(data.vat));
+  if (splitCurrency) {
+    if (data.logisticsVat != null && data.logisticsVat > 0) {
+      drawTotalRow("Logistics VAT (20%)", fmtFreight(data.logisticsVat));
+    }
+  } else {
+    drawTotalRow("VAT (20%)", fmtPrice(data.vat));
+  }
   if (data.credit && data.credit > 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -325,8 +336,8 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...WHITE);
-  doc.text("TOTAL", totLabelX, y + 1.5);
-  doc.text(fmtPrice(data.total), totValueX, y + 1.5, { align: "right" });
+  doc.text(splitCurrency ? "TOTAL (NOMINAL)" : "TOTAL", totLabelX, y + 1.5);
+  doc.text(`${splitCurrency ? "~" : ""}${fmtPrice(data.total)}`, totValueX, y + 1.5, { align: "right" });
 
   // ─── BANK DETAILS SECTION ─────────────────────────────────────────────
   y += 20;

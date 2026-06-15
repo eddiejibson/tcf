@@ -33,10 +33,16 @@ export function calculateOrderTotals(items: { unitPrice: number; quantity: numbe
   const freight = Number(freightCharge) || 0;
   // Delivery (last-mile) is admin-set at review; defaults to 0 so existing callers are unchanged.
   const delivery = Number(deliveryCharge) || 0;
-  const vat = (subtotal + shipping + freight + delivery) * VAT_RATE;
+  // Logistics groups freight + delivery + flat shipping. VAT is split so a shipment with a
+  // separate freight currency can show items VAT (item currency) and logistics VAT (freight
+  // currency) independently. `vat`/`total` are unchanged sums for back-compat.
+  const logistics = shipping + freight + delivery;
+  const itemsVat = subtotal * VAT_RATE;
+  const logisticsVat = logistics * VAT_RATE;
+  const vat = itemsVat + logisticsVat;
   const credit = Number(creditApplied) || 0;
-  const total = subtotal + shipping + freight + delivery + vat - credit;
-  return { subtotal, grossSubtotal, discount, vat, shipping, freight, delivery, credit, total };
+  const total = subtotal + logistics + vat - credit;
+  return { subtotal, grossSubtotal, discount, vat, itemsVat, logisticsVat, logistics, shipping, freight, delivery, credit, total };
 }
 
 export function formatPrice(price: number, currency?: string | null): string {
@@ -323,6 +329,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         customerCompanyName: order.user!.companyName,
         shipmentName: order.shipment?.name || "Catalog Order",
         currency: order.shipment?.currency ?? null,
+        freightCurrency: order.shipment?.freightCurrency ?? null,
         items: order.items.map((i) => ({
           name: i.name,
           latinName: i.catalogProduct?.latinName || i.product?.latinName || null,
@@ -333,6 +340,8 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, in
         })),
         subtotal: totals.subtotal,
         vat: totals.vat,
+        itemsVat: totals.itemsVat,
+        logisticsVat: totals.logisticsVat,
         shipping: totals.shipping,
         freight: totals.freight,
         delivery: totals.delivery,

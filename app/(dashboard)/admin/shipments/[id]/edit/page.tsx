@@ -35,6 +35,7 @@ export default function EditShipmentPage() {
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>(DEFAULT_DELIVERY_OPTIONS);
   const [notes, setNotes] = useState("");
   const [currency, setCurrency] = useState("");
+  const [freightCurrency, setFreightCurrency] = useState("");
   const [items, setItems] = useState<EditItem[]>([]);
   const [itemSearch, setItemSearch] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -53,6 +54,7 @@ export default function EditShipmentPage() {
       setDeliveryOptions(resolveDeliveryOptions(data.deliveryOptions));
       setNotes(data.notes || "");
       setCurrency(data.currency || "");
+      setFreightCurrency(data.freightCurrency || "");
       setItems(
         data.products.map((p) => ({
           _id: nextItemId++,
@@ -115,6 +117,7 @@ export default function EditShipmentPage() {
           deliveryOptions,
           notes,
           currency,
+          freightCurrency,
           products: validItems.map((i) => ({
             ...(i.dbId ? { id: i.dbId } : {}),
             name: i.name,
@@ -179,9 +182,14 @@ export default function EditShipmentPage() {
               <input type="date" value={shipmentDate} onChange={(e) => setShipmentDate(e.target.value)} className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white text-sm focus:outline-none focus:border-[#0984E3]/50 ${!shipmentDate ? "border-red-500/50" : "border-white/10"}`} />
             </div>
             <div>
-              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Currency <span className="text-white/25 normal-case tracking-normal">(optional)</span></label>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Item Currency <span className="text-white/25 normal-case tracking-normal">(optional)</span></label>
               <input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="£ (default)" maxLength={8} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50" />
-              <p className="text-white/30 text-xs mt-1.5">How prices display, e.g. £, $, GBP, USD. Leave blank for £.</p>
+              <p className="text-white/30 text-xs mt-1.5">How item prices display, e.g. £, $, GBP, USD. Leave blank for £.</p>
+            </div>
+            <div>
+              <label className="text-white/50 text-xs uppercase tracking-wider font-medium block mb-2">Freight Currency <span className="text-white/25 normal-case tracking-normal">(optional)</span></label>
+              <input value={freightCurrency} onChange={(e) => setFreightCurrency(e.target.value)} placeholder={currency.trim() || "£"} maxLength={8} className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/50" />
+              <p className="text-white/30 text-xs mt-1.5">For freight, delivery and shipping. Leave blank to match the item currency.</p>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-white/10">

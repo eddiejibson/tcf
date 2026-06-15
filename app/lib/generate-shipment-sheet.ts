@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { excelMoneyFormat } from "./currency";
+import { excelMoneyFormat, resolveFreightCurrency } from "./currency";
 
 export interface ShipmentExportData {
   shipmentName: string;
@@ -7,6 +7,7 @@ export interface ShipmentExportData {
   shipmentDate: string;
   freightCostPerBox: number;
   currency?: string | null;
+  freightCurrency?: string | null;
   products: {
     id: string;
     name: string;
@@ -51,6 +52,7 @@ function applyRow(row: ExcelJS.Row, fill: Fill, border: Border, cols: number) {
 
 export async function generateShipmentSheet(data: ShipmentExportData): Promise<void> {
   const cf = excelMoneyFormat(data.currency);
+  const cff = excelMoneyFormat(resolveFreightCurrency(data.currency, data.freightCurrency));
   const COLS = 11; // A-K, col K is hidden helper for box calc
   const wb = new ExcelJS.Workbook();
   wb.creator = "The Coral Farm";
@@ -117,7 +119,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
   r6.height = 20;
   r6.getCell(1).value = "  Freight/Box";  r6.getCell(1).font = metaFont(true);
   r6.getCell(2).value = data.freightCostPerBox;  r6.getCell(2).font = metaFont(false);
-  r6.getCell(2).numFmt = cf;
+  r6.getCell(2).numFmt = cff;
   r6.getCell(5).value = "Ships";  r6.getCell(5).font = metaFont(true);
   r6.getCell(6).value = data.shipmentDate;  r6.getCell(6).font = metaFont(false);
   applyRow(r6, cardFill, thinBorder, COLS);
@@ -215,7 +217,7 @@ export async function generateShipmentSheet(data: ShipmentExportData): Promise<v
     { label: "Items Ordered", formula: `IFERROR(SUM(${qtyRange}),0)`, fmt: "#,##0" },
     { label: "Subtotal", formula: `IFERROR(SUM(${totalRange}),0)`, fmt: cf },
     { label: "Est. Boxes", formula: `IFERROR(CEILING(SUM(${helperRange}),1),0)`, fmt: "#,##0" },
-    { label: "Est. Freight", fmt: cf },
+    { label: "Est. Freight", fmt: cff },
     { label: "VAT (20%)", fmt: cf },
     { label: "Grand Total", fmt: cf, bold: true, color: ACCENT },
   ];

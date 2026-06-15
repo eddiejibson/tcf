@@ -10,7 +10,7 @@ import CustomerPicker from "@/app/components/CustomerPicker";
 import ProductBagCard from "@/app/components/ProductBagCard";
 import BoxFillMeter from "@/app/components/BoxFillMeter";
 import { bagHeadcount, bagBoxFill, hasAnyBags } from "@/app/lib/bags";
-import { formatMoney } from "@/app/lib/currency";
+import { formatMoney, resolveFreightCurrency } from "@/app/lib/currency";
 import React, {
   useCallback,
   useDeferredValue,
@@ -312,8 +312,10 @@ export default function ShipmentDetailPage() {
   };
 
   const fractional = !!shipment?.fractionalBagsEnabled;
-  // Prices display in the shipment's currency label (free text, e.g. "£", "$", "GBP"); blank → "£".
+  // Item prices use the shipment's item currency; the freight estimate uses the freight currency
+  // (which falls back to the item currency). Free text, e.g. "£", "$", "GBP"; blank → "£".
   const money = (n: number) => formatMoney(n, shipment?.currency);
+  const freightMoney = (n: number) => formatMoney(n, resolveFreightCurrency(shipment?.currency, shipment?.freightCurrency));
   const getBags = (id: string): Record<string, number> => bagCart.get(id) || {};
   const setBag = (productId: string, fraction: string, next: number) => {
     setBagCart((prev) => {
@@ -374,6 +376,7 @@ export default function ShipmentDetailPage() {
       shipmentDate: new Date(shipment.shipmentDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
       freightCostPerBox: Number(shipment.freightCost),
       currency: shipment.currency,
+      freightCurrency: shipment.freightCurrency,
       products: shipment.products.map((p) => ({
         id: p.id,
         name: p.name,
@@ -671,7 +674,7 @@ export default function ShipmentDetailPage() {
                   Est. Freight
                 </p>
                 <p className="text-white/40 text-sm tabular-nums">
-                  {estimatedFreight > 0 ? `~${money(estimatedFreight)}` : "—"}
+                  {estimatedFreight > 0 ? `~${freightMoney(estimatedFreight)}` : "—"}
                 </p>
                 {hasUnknownBoxItems && (
                   <p className="text-amber-300/60 text-[10px] mt-0.5">Partial — some items have unknown box qty</p>
@@ -1200,7 +1203,7 @@ export default function ShipmentDetailPage() {
                 {(estimatedFreight > 0 || hasUnknownBoxItems) && (
                   <div className="flex justify-between text-sm">
                     <span className="text-white/50">Est. Freight{totalBoxes > 0 ? ` (${totalBoxes} boxes)` : ""}{hasUnknownBoxItems ? " *" : ""}</span>
-                    <span className="text-white/40 tabular-nums">{estimatedFreight > 0 ? `~${money(estimatedFreight)}` : "TBC"}</span>
+                    <span className="text-white/40 tabular-nums">{estimatedFreight > 0 ? `~${freightMoney(estimatedFreight)}` : "TBC"}</span>
                   </div>
                 )}
                 {hasUnknownBoxItems && (

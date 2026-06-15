@@ -3,7 +3,7 @@ import path from "path";
 import { getDb } from "../db/data-source";
 import { Shipment } from "../entities/Shipment";
 import { Product } from "../entities/Product";
-import { formatMoney } from "../../app/lib/currency";
+import { formatMoney, resolveFreightCurrency } from "../../app/lib/currency";
 
 const BRAND: [number, number, number] = [9, 132, 227];
 const DARK: [number, number, number] = [13, 17, 23];
@@ -35,6 +35,7 @@ export interface ShipmentListPdfData {
   shipmentDate: string;
   freightCostPerBox: number;
   currency: string | null;
+  freightCurrency: string | null;
   products: {
     name: string;
     latinName: string | null;
@@ -48,6 +49,7 @@ export interface ShipmentListPdfData {
 
 export async function generateShipmentListPdfBuffer(data: ShipmentListPdfData): Promise<Buffer> {
   const fmtPrice = (n: number): string => formatMoney(n, data.currency);
+  const fmtFreight = (n: number): string => formatMoney(n, resolveFreightCurrency(data.currency, data.freightCurrency));
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
   const pw = 297;
@@ -95,7 +97,7 @@ export async function generateShipmentListPdfBuffer(data: ShipmentListPdfData): 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...TEXT_DIM);
-  doc.text(`Deadline: ${data.deadline}  ·  Ships: ${data.shipmentDate}  ·  Freight/Box: ${fmtPrice(data.freightCostPerBox)}`, pw - m, 19, { align: "right" });
+  doc.text(`Deadline: ${data.deadline}  ·  Ships: ${data.shipmentDate}  ·  Freight/Box: ${fmtFreight(data.freightCostPerBox)}`, pw - m, 19, { align: "right" });
 
   // ─── COLUMN LAYOUT ───────────────────────────────────────────────────
   // Total content width: cw (~273mm)
@@ -263,6 +265,7 @@ export async function getShipmentListPdfData(shipmentId: string): Promise<Shipme
     shipmentDate: fmtDate(shipment.shipmentDate),
     freightCostPerBox: Number(shipment.freightCost),
     currency: shipment.currency ?? null,
+    freightCurrency: shipment.freightCurrency ?? null,
     products: products.map((p) => ({
       name: p.name,
       latinName: p.latinName,

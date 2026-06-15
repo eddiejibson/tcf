@@ -8,7 +8,7 @@ import { userHasPermission, Permission } from "@/app/lib/permissions";
 import { generateInvoice } from "@/app/lib/generate-invoice";
 import PaymentSection from "@/app/components/PaymentSection";
 import DoaItemPicker, { type DoaPickerOption } from "@/app/components/DoaItemPicker";
-import { formatMoney } from "@/app/lib/currency";
+import { formatMoney, resolveFreightCurrency, sameCurrency } from "@/app/lib/currency";
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-white/10 text-white/60",
@@ -33,8 +33,11 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<UserOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [creditLoading, setCreditLoading] = useState(false);
-  // Money shows in the order's shipment currency (blank → £).
+  // Item amounts use the shipment's item currency; freight/delivery/shipping use the freight
+  // currency (which falls back to the item currency). When they differ, totals show a split.
   const money = (n: number) => formatMoney(n, order?.shipment?.currency);
+  const freightMoney = (n: number) => formatMoney(n, resolveFreightCurrency(order?.shipment?.currency, order?.shipment?.freightCurrency));
+  const splitCurrency = !sameCurrency(order?.shipment?.currency, order?.shipment?.freightCurrency);
 
   const [doaClaim, setDoaClaim] = useState<DoaClaimDetail | null>(null);
   const [showDoaForm, setShowDoaForm] = useState(false);
@@ -94,11 +97,15 @@ export default function OrderDetailPage() {
       customerCompanyName: user?.companyName,
       shipmentName: order.shipment?.name || "Direct Order",
       currency: order.shipment?.currency,
+      freightCurrency: order.shipment?.freightCurrency,
       items: order.items.map((i) => ({ name: i.name, latinName: i.latinName, categoryName: i.categoryName, quantity: i.quantity, unitPrice: Number(i.unitPrice), surcharge: Number(i.surcharge) || 0 })),
       subtotal: order.totals.subtotal,
       vat: order.totals.vat,
+      itemsVat: order.totals.itemsVat,
+      logisticsVat: order.totals.logisticsVat,
       shipping: order.totals.shipping,
       freight: order.totals.freight,
+      delivery: order.totals.delivery,
       credit: order.totals.credit,
       total: order.totals.total,
       includeShipping: order.includeShipping,
@@ -300,28 +307,42 @@ export default function OrderDetailPage() {
               </div>
             </>
           )}
+          {!splitCurrency && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>VAT (20%)</span>
+              <span className="tabular-nums">{money(order.totals.vat)}</span>
+            </div>
+          )}
+          {splitCurrency && order.totals.itemsVat > 0 && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Items VAT (20%)</span>
+              <span className="tabular-nums">{money(order.totals.itemsVat)}</span>
+            </div>
+          )}
           {order.totals.freight > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
-              <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${money(freightPerBox)})` : ""}</span>
-              <span className="tabular-nums">{money(order.totals.freight)}</span>
+              <span>Freight{showBoxBreakdown ? ` (${boxCount} × ${freightMoney(freightPerBox)})` : ""}</span>
+              <span className="tabular-nums">{freightMoney(order.totals.freight)}</span>
             </div>
           )}
           {order.totals.delivery > 0 && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Delivery{order.deliveryMiles ? ` (${order.deliveryMiles} mi)` : ""}</span>
-              <span className="tabular-nums">{money(order.totals.delivery)}</span>
+              <span className="tabular-nums">{freightMoney(order.totals.delivery)}</span>
             </div>
           )}
           {order.includeShipping && (
             <div className="flex items-center justify-between text-white/60 text-sm">
               <span>Shipping</span>
-              <span className="tabular-nums">{money(order.totals.shipping)}</span>
+              <span className="tabular-nums">{freightMoney(order.totals.shipping)}</span>
             </div>
           )}
-          <div className="flex items-center justify-between text-white/60 text-sm">
-            <span>VAT (20%)</span>
-            <span className="tabular-nums">{money(order.totals.vat)}</span>
-          </div>
+          {splitCurrency && order.totals.logisticsVat > 0 && (
+            <div className="flex items-center justify-between text-white/60 text-sm">
+              <span>Logistics VAT (20%)</span>
+              <span className="tabular-nums">{freightMoney(order.totals.logisticsVat)}</span>
+            </div>
+          )}
           {order.totals.credit > 0 && (
             <div className="flex items-center justify-between text-emerald-400 text-sm">
               <span>Account Credit</span>
@@ -330,8 +351,8 @@ export default function OrderDetailPage() {
           )}
           <div className="h-px bg-white/10" />
           <div className="flex items-center justify-between">
-            <span className="text-white font-semibold">Grand Total</span>
-            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{money(order.totals.total)}</span>
+            <span className="text-white font-semibold">Grand Total{splitCurrency ? " (nominal)" : ""}</span>
+            <span className="text-[#0984E3] font-bold text-lg tabular-nums">{splitCurrency ? "~" : ""}{money(order.totals.total)}</span>
           </div>
         </div>
       </div>

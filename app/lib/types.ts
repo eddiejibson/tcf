@@ -77,6 +77,9 @@ export interface OrderTotals {
   grossSubtotal: number;
   discount: number;
   vat: number;
+  itemsVat: number;
+  logisticsVat: number;
+  logistics: number;
   shipping: number;
   freight: number;
   delivery: number;
@@ -150,6 +153,7 @@ export interface AdminShipmentDetail {
   deliveryOptions?: DeliveryOption[] | null;
   notes?: string | null;
   currency?: string | null;
+  freightCurrency?: string | null;
   sourceFilename: string | null;
   createdAt: string;
   products: AdminShipmentDetailProduct[];
@@ -192,7 +196,7 @@ export type AddressSummary = {
 
 export type AdminOrderDetail = SerializedOrder & {
   user: { email: string; companyName: string | null } | null;
-  shipment: { name: string; freightCost: number; currency: string | null } | null;
+  shipment: { name: string; freightCost: number; currency: string | null; freightCurrency: string | null } | null;
   items: OrderItemWithMeta[];
   payments: SerializedOrderPayment[];
   totals: OrderTotals;
@@ -205,7 +209,7 @@ export type ShipmentListItem = Pick<SerializedShipment, "id" | "name" | "deadlin
   productCount: number;
 };
 
-export type ShipmentDetail = Pick<SerializedShipment, "id" | "name" | "deadline" | "shipmentDate" | "freightCost" | "fractionalBagsEnabled" | "notes" | "currency"> & {
+export type ShipmentDetail = Pick<SerializedShipment, "id" | "name" | "deadline" | "shipmentDate" | "freightCost" | "fractionalBagsEnabled" | "notes" | "currency" | "freightCurrency"> & {
   products: SerializedProduct[];
 };
 
@@ -217,7 +221,7 @@ export type UserOrderListItem = Pick<SerializedOrder, "id" | "status" | "created
 };
 
 export type UserOrderDetail = SerializedOrder & {
-  shipment: { name: string; freightCost: number; currency: string | null } | null;
+  shipment: { name: string; freightCost: number; currency: string | null; freightCurrency: string | null } | null;
   items: OrderItemWithMeta[];
   payments: SerializedOrderPayment[];
   totals: OrderTotals;

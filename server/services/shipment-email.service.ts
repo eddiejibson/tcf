@@ -6,7 +6,7 @@ import { Product } from "../entities/Product";
 import { User, UserRole } from "../entities/User";
 import { sendWithRetry, from } from "./email.service";
 import { generateShipmentListPdfBuffer, getShipmentListPdfData } from "./shipment-list-pdf.service";
-import { formatMoney } from "../../app/lib/currency";
+import { formatMoney, resolveFreightCurrency } from "../../app/lib/currency";
 import { log } from "../logger";
 
 export interface ShipmentEmailData {
@@ -16,6 +16,7 @@ export interface ShipmentEmailData {
   shipmentDate: string;
   freightCost: number;
   currency: string | null;
+  freightCurrency: string | null;
   productCount: number;
   featuredProducts: {
     name: string;
@@ -155,7 +156,7 @@ function renderAnnouncementMjml(data: ShipmentEmailData, intro: string, baseUrl:
             <mj-text font-size="10px" color="#6E7681" text-transform="uppercase" letter-spacing="1px" padding="0">Order Deadline</mj-text>
             <mj-text font-size="15px" color="#F59E0B" font-weight="600" padding="4px 0 14px 0">${esc(data.deadline)}</mj-text>
             <mj-text font-size="10px" color="#6E7681" text-transform="uppercase" letter-spacing="1px" padding="0">Freight / Box</mj-text>
-            <mj-text font-size="15px" color="#FFFFFF" font-weight="600" padding="4px 0 0 0">${fmtPrice(data.freightCost, data.currency)}</mj-text>
+            <mj-text font-size="15px" color="#FFFFFF" font-weight="600" padding="4px 0 0 0">${fmtPrice(data.freightCost, resolveFreightCurrency(data.currency, data.freightCurrency))}</mj-text>
           </mj-column>
         </mj-section>
 
@@ -315,6 +316,7 @@ export async function getShipmentEmailData(shipmentId: string): Promise<Shipment
     shipmentDate: fmtDate(shipment.shipmentDate),
     freightCost: Number(shipment.freightCost),
     currency: shipment.currency ?? null,
+    freightCurrency: shipment.freightCurrency ?? null,
     productCount: products.length,
     featuredProducts: featured.map((p) => ({
       name: p.name,

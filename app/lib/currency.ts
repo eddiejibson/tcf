@@ -22,3 +22,21 @@ export function excelMoneyFormat(currency?: string | null): string {
   const prefix = /[a-z]/i.test(cur) ? `${cur} ` : cur;
   return `"${prefix}"#,##0.00`;
 }
+
+/** Normalise a currency label for comparison/display (blank → "£"). */
+export function resolveCurrency(currency?: string | null): string {
+  return (currency ?? "").trim() || DEFAULT_CURRENCY;
+}
+
+/**
+ * The freight/logistics currency: its own label if set, otherwise the item currency, otherwise £.
+ * Lets a shipment price freight in a different currency from its items.
+ */
+export function resolveFreightCurrency(itemCurrency?: string | null, freightCurrency?: string | null): string {
+  return (freightCurrency ?? "").trim() || resolveCurrency(itemCurrency);
+}
+
+/** True when item and freight currencies resolve to the same label (the common single-currency case). */
+export function sameCurrency(itemCurrency?: string | null, freightCurrency?: string | null): boolean {
+  return resolveCurrency(itemCurrency) === resolveFreightCurrency(itemCurrency, freightCurrency);
+}

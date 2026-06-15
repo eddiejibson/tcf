@@ -42,10 +42,16 @@ export class Shipment extends BaseEntityWithUpdate {
   @Column({ type: "text", nullable: true })
   notes: string | null;
 
-  // Free-text currency label for how prices display on this shipment (e.g. "£", "$", "GBP",
+  // Free-text currency label for how ITEM prices display on this shipment (e.g. "£", "$", "GBP",
   // "USD"). Null = fall back to "£" (unchanged default). Display-only; amounts stay raw numbers.
   @Column({ type: "varchar", nullable: true })
   currency: string | null;
+
+  // Free-text currency label for FREIGHT/logistics (freight per box, delivery, shipping). Null =
+  // fall back to the item `currency`. When it differs from `currency`, order totals split into
+  // an items block (item currency) and a logistics block (freight currency) with a nominal total.
+  @Column({ type: "varchar", nullable: true })
+  freightCurrency: string | null;
 
   // When true, customers order this shipment by fractional bags (1/12, 1/6, …) rather than
   // by raw headcount. Defaulted on at import when products carry packOptions; admin can toggle.

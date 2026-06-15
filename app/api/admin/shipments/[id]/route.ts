@@ -75,6 +75,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     deliveryOptions: shipment.deliveryOptions,
     notes: shipment.notes,
     currency: shipment.currency,
+    freightCurrency: shipment.freightCurrency,
     sourceFilename: shipment.sourceFilename,
     createdAt: shipment.createdAt,
     products: shipment.products.map((p) => ({
@@ -132,7 +133,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const shipment = await repo.findOneBy({ id });
   if (!shipment) return NextResponse.json({ error: "Shipment not found" }, { status: 404 });
 
-  const { name, deadline, shipmentDate, freightCost, margin, status, products, fractionalBagsEnabled, deliveryOptions, notes, currency } = body;
+  const { name, deadline, shipmentDate, freightCost, margin, status, products, fractionalBagsEnabled, deliveryOptions, notes, currency, freightCurrency } = body;
   if (name !== undefined) shipment.name = name;
   if (deadline !== undefined) shipment.deadline = new Date(deadline);
   if (shipmentDate !== undefined) shipment.shipmentDate = new Date(shipmentDate);
@@ -142,38 +143,74 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (deliveryOptions !== undefined) shipment.deliveryOptions = deliveryOptions;
   if (notes !== undefined) shipment.notes = notes?.trim() ? notes.trim() : null;
   if (currency !== undefined) shipment.currency = currency?.trim() ? currency.trim() : null;
+  if (freightCurrency !== undefined) shipment.freightCurrency = freightCurrency?.trim() ? freightCurrency.trim() : null;
   if (status !== undefined) shipment.status = status;
 
   if (products !== undefined && Array.isArray(products)) {
+    type IncomingProduct = {
+      id?: string;
+      name: string;
+      latinName?: string | null;
+      variant?: string | null;
+      price: number;
+      size?: string | null;
+      qtyPerBox?: number | null;
+      availableQty?: number | null;
+    };
+    const incoming = products as IncomingProduct[];
+    const toUpdate = incoming.filter((p) => p.id);
+    const toInsert = incoming.filter((p) => !p.id);
+    const keepIds = toUpdate.map((p) => p.id as string);
+
+    // Large shipments carry thousands of products; doing one query per product
+    // made this take ~30s. Batch into three set-based statements instead.
     await db.transaction(async (manager) => {
       await manager.save(Shipment, shipment);
 
-      const existingProducts = await manager.find(Product, { where: { shipmentId: id } });
-      const incomingIds = new Set(
-        products.filter((p: { id?: string }) => p.id).map((p: { id: string }) => p.id)
+      // Soft-delete products not in the incoming list. Order items keep their
+      // productId — the soft-deleted row stays around for history.
+      await manager.query(
+        `UPDATE products SET "deletedAt" = now()
+         WHERE "shipmentId" = $1 AND "deletedAt" IS NULL AND id <> ALL($2::uuid[])`,
+        [id, keepIds]
       );
 
-      // Soft-delete products not in incoming list. Order items keep their
-      // productId — the soft-deleted product stays around for history.
-      const toDelete = existingProducts.filter((p) => !incomingIds.has(p.id));
-      for (const p of toDelete) {
-        await manager.getRepository(Product).softDelete(p.id);
+      // Bulk-update existing products in a single round-trip via unnest().
+      if (toUpdate.length > 0) {
+        await manager.query(
+          `UPDATE products AS p SET
+             name = v.name,
+             "latinName" = v.latin_name,
+             variant = v.variant,
+             price = v.price,
+             size = v.size,
+             "qtyPerBox" = v.qty_per_box,
+             "availableQty" = v.available_qty,
+             "updatedAt" = now()
+           FROM unnest(
+             $2::uuid[], $3::text[], $4::text[], $5::text[],
+             $6::numeric[], $7::text[], $8::int[], $9::int[]
+           ) AS v(id, name, latin_name, variant, price, size, qty_per_box, available_qty)
+           WHERE p.id = v.id AND p."shipmentId" = $1`,
+          [
+            id,
+            toUpdate.map((p) => p.id),
+            toUpdate.map((p) => p.name),
+            toUpdate.map((p) => p.latinName ?? null),
+            toUpdate.map((p) => p.variant ?? null),
+            toUpdate.map((p) => p.price),
+            toUpdate.map((p) => p.size ?? null),
+            toUpdate.map((p) => p.qtyPerBox || null),
+            toUpdate.map((p) => p.availableQty ?? null),
+          ]
+        );
       }
 
-      // Update existing and create new
-      for (const p of products) {
-        if (p.id) {
-          await manager.update(Product, p.id, {
-            name: p.name,
-            latinName: p.latinName ?? null,
-            variant: p.variant ?? null,
-            price: p.price,
-            size: p.size ?? null,
-            qtyPerBox: p.qtyPerBox || null,
-            availableQty: p.availableQty ?? null,
-          });
-        } else {
-          const newProduct = manager.create(Product, {
+      // Bulk-insert new products — TypeORM emits a multi-row INSERT.
+      if (toInsert.length > 0) {
+        await manager.insert(
+          Product,
+          toInsert.map((p) => ({
             shipmentId: id,
             name: p.name,
             latinName: p.latinName ?? null,
@@ -182,9 +219,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             size: p.size ?? null,
             qtyPerBox: p.qtyPerBox || null,
             availableQty: p.availableQty ?? null,
-          });
-          await manager.save(Product, newProduct);
-        }
+          }))
+        );
       }
     });
   } else {
@@ -205,21 +241,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     },
   });
 
-  const updated = await repo.findOne({ where: { id }, relations: ["products"] });
+  // Return only the shipment's scalar fields. Callers (notes save, edit save,
+  // status change) don't read the product list back, so reloading + serialising
+  // thousands of products here was pure waste.
   return NextResponse.json({
-    ...updated,
-    products: updated?.products.map((p) => ({
-      id: p.id,
-      name: p.name,
-      latinName: p.latinName,
-      variant: p.variant,
-      price: p.price,
-      size: p.size,
-      qtyPerBox: p.qtyPerBox,
-      availableQty: p.availableQty,
-      featured: p.featured || false,
-      category: p.category,
-      originalRow: p.originalRow || null,
-    })),
+    id: shipment.id,
+    name: shipment.name,
+    status: shipment.status,
+    deadline: shipment.deadline,
+    shipmentDate: shipment.shipmentDate,
+    freightCost: shipment.freightCost,
+    margin: shipment.margin,
+    fractionalBagsEnabled: shipment.fractionalBagsEnabled,
+    deliveryOptions: shipment.deliveryOptions,
+    notes: shipment.notes,
+    currency: shipment.currency,
+    freightCurrency: shipment.freightCurrency,
   });
 }

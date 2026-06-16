@@ -8,6 +8,7 @@ import { sendWithRetry, from } from "./email.service";
 import { generateShipmentListPdfBuffer, getShipmentListPdfData } from "./shipment-list-pdf.service";
 import { formatMoney, resolveFreightCurrency } from "../../app/lib/currency";
 import { log } from "../logger";
+import { MoreThanOrEqual } from "typeorm";
 
 export interface ShipmentEmailData {
   shipmentName: string;
@@ -384,6 +385,196 @@ export async function sendShipmentEmail(
         .catch((e) => {
           failed++;
           log.error("Shipment email send failed", e, { meta: { email, shipmentId } });
+        }),
+    );
+    await Promise.all(promises);
+    if (i + 3 < recipients.length) await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  return { sent, failed };
+}
+
+// ─── Summary email (digest of all active shipments) ─────────────────────────
+
+export interface SummaryShipmentItem {
+  id: string;
+  shipmentName: string;
+  deadline: string;
+  daysUntil: number;
+  productCount: number;
+  freightCost: number;
+  currency: string | null;
+  freightCurrency: string | null;
+}
+
+export interface SummaryEmailData {
+  shipments: SummaryShipmentItem[];
+  count: number;
+}
+
+// Active = status ACTIVE and deadline today-or-later. Mirrors getActiveShipments()
+// in order.service, re-queried here to avoid importing that module's heavy graph.
+export async function getSummaryEmailData(): Promise<SummaryEmailData> {
+  const db = await getDb();
+  const shipments = await db.getRepository(Shipment).find({
+    where: {
+      status: "ACTIVE" as never,
+      deadline: MoreThanOrEqual(new Date(new Date().toISOString().split("T")[0])),
+    },
+    relations: ["products"],
+    order: { deadline: "ASC" },
+  });
+
+  const items: SummaryShipmentItem[] = shipments.map((s) => ({
+    id: s.id,
+    shipmentName: s.name,
+    deadline: fmtDate(s.deadline),
+    daysUntil: daysUntil(s.deadline),
+    productCount: s.products?.length || 0,
+    freightCost: Number(s.freightCost),
+    currency: s.currency ?? null,
+    freightCurrency: s.freightCurrency ?? null,
+  }));
+
+  return { shipments: items, count: items.length };
+}
+
+function buildSummaryRows(shipments: SummaryShipmentItem[], baseUrl: string): string {
+  return shipments.map((s) => {
+    const days = s.daysUntil;
+    const urgencyColor = days <= 1 ? "#EF4444" : days <= 3 ? "#F59E0B" : "#3FB950";
+    const urgencyLabel = days <= 0 ? "Last day to order" : days === 1 ? "1 day left" : `${days} days left`;
+    const freight = fmtPrice(s.freightCost, resolveFreightCurrency(s.currency, s.freightCurrency));
+    return `
+      <mj-section background-color="#161B22" padding="0 18px 12px 18px">
+        <mj-column background-color="#1E2430" border-radius="12px" padding="16px 18px">
+          <mj-text font-size="16px" font-weight="700" color="#E6EDF3" padding="0" line-height="1.3">${esc(s.shipmentName)}</mj-text>
+          <mj-text font-size="12px" color="#8B949E" padding="8px 0 0 0" line-height="1.6"><span style="color:${urgencyColor};font-weight:700;">${urgencyLabel}</span> &nbsp;&middot;&nbsp; Deadline ${esc(s.deadline)} &nbsp;&middot;&nbsp; ${s.productCount} product${s.productCount === 1 ? "" : "s"} &nbsp;&middot;&nbsp; Freight ${freight}/box</mj-text>
+          <mj-text padding="12px 0 0 0"><a href="${baseUrl}/login?to=/shipments/${s.id}" style="color:#0984E3;font-size:13px;font-weight:600;text-decoration:none;">View &amp; order &rarr;</a></mj-text>
+        </mj-column>
+      </mj-section>
+    `;
+  }).join("");
+}
+
+function renderSummaryMjml(data: SummaryEmailData, intro: string, baseUrl: string, imageUrls: string[]): string {
+  const gallery = buildGallery(imageUrls);
+  const rows = buildSummaryRows(data.shipments, baseUrl);
+  const count = data.count;
+
+  return `
+    <mjml>
+      <mj-head>
+        <mj-attributes>
+          <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" />
+          <mj-text line-height="1.5" />
+          <mj-body background-color="#0D1117" />
+        </mj-attributes>
+      </mj-head>
+      <mj-body background-color="#0D1117">
+        <mj-section background-color="#0984E3" padding="0"><mj-column><mj-spacer height="4px" /></mj-column></mj-section>
+
+        <!-- Header with logo -->
+        <mj-section background-color="#161B22" padding="28px 24px 20px 24px">
+          <mj-column width="40px" padding="0 12px 0 0">
+            <mj-image src="${LOGO_URL}" alt="TCF" width="32px" padding="0" />
+          </mj-column>
+          <mj-column padding="0">
+            <mj-text font-size="20px" font-weight="800" color="#FFFFFF" padding="0">THE CORAL FARM</mj-text>
+            <mj-text font-size="10px" color="#0984E3" padding="2px 0 0 0" letter-spacing="1.5px">TRADE PORTAL</mj-text>
+          </mj-column>
+        </mj-section>
+
+        ${gallery}
+
+        <!-- Hero -->
+        <mj-section background-color="#161B22" padding="4px 24px 24px 24px">
+          <mj-column>
+            <mj-text font-size="12px" font-weight="700" color="#0984E3" padding="0 0 6px 0" letter-spacing="1.5px" text-transform="uppercase">${count} Shipment${count === 1 ? "" : "s"} Open for Order</mj-text>
+            <mj-text font-size="24px" font-weight="700" color="#FFFFFF" padding="0" line-height="1.2">Current Available Shipments</mj-text>
+            <mj-text font-size="14px" color="#8B949E" padding="12px 0 0 0">${esc(intro).split(/\n\n+/).map(p => `<p style="margin:0 0 12px 0;">${p.replace(/\n/g, "<br>")}</p>`).join("")}</mj-text>
+          </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#161B22" padding="0 24px 16px 24px"><mj-column><mj-divider border-color="#30363D" border-width="1px" padding="0" /></mj-column></mj-section>
+
+        ${rows}
+
+        <!-- CTA -->
+        <mj-section background-color="#0D1117" padding="20px 24px 28px 24px">
+          <mj-column>
+            <mj-button background-color="#0984E3" color="#FFFFFF" font-size="15px" font-weight="600" border-radius="12px" padding="0" inner-padding="14px 36px" href="${baseUrl}/login?to=/shipments">
+              View All Shipments &amp; Order
+            </mj-button>
+            <mj-text font-size="12px" color="#484F58" padding="14px 0 0 0" align="center">Log in to the trade portal to browse all stock and place your order.</mj-text>
+          </mj-column>
+        </mj-section>
+
+        <mj-section background-color="#0D1117" padding="0 24px 28px 24px">
+          <mj-column>
+            <mj-divider border-color="#21262D" border-width="1px" padding="0 0 14px 0" />
+            <mj-text font-size="11px" color="#484F58" align="center" padding="0">The Coral Farm · Premium Marine Livestock · thecoralfarm.co.uk</mj-text>
+          </mj-column>
+        </mj-section>
+      </mj-body>
+    </mjml>
+  `;
+}
+
+export function renderSummaryEmail(
+  data: SummaryEmailData,
+  intro: string,
+  subjectOverride?: string,
+  imageUrls: string[] = [],
+): { html: string; subject: string } {
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "https://thecoralfarm.co.uk";
+  const mjmlString = renderSummaryMjml(data, intro, baseUrl, imageUrls);
+  const { html } = mjml2html(mjmlString, { minify: true });
+  const count = data.count;
+  const subject = subjectOverride || `${count} Open Shipment${count === 1 ? "" : "s"} — The Coral Farm`;
+  return { html, subject };
+}
+
+export async function sendSummaryEmail(
+  intro: string,
+  subjectOverride?: string,
+  testEmails?: string[],
+  imageUrls?: string[],
+): Promise<{ sent: number; failed: number }> {
+  const data = await getSummaryEmailData();
+  const { html, subject } = renderSummaryEmail(data, intro, subjectOverride, imageUrls);
+  const baseUrl = process.env.MAGIC_LINK_BASE_URL || "https://thecoralfarm.co.uk";
+
+  let recipients: string[];
+  if (testEmails && testEmails.length > 0) {
+    recipients = testEmails;
+  } else {
+    const db = await getDb();
+    const users = await db.getRepository(User).find({ where: { role: UserRole.USER } });
+    recipients = users.map((u) => u.email);
+  }
+
+  const textBody = `${intro}\n\n${data.shipments
+    .map((s) => `• ${s.shipmentName} — deadline ${s.deadline} (${s.productCount} products)`)
+    .join("\n")}\n\nView online: ${baseUrl}/login?to=/shipments`;
+
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < recipients.length; i += 3) {
+    const batch = recipients.slice(i, i + 3);
+    const promises = batch.map((email) =>
+      sendWithRetry({
+        from: from(),
+        to: email,
+        subject,
+        html,
+        text: textBody,
+      })
+        .then(() => { sent++; })
+        .catch((e) => {
+          failed++;
+          log.error("Summary email send failed", e, { meta: { email } });
         }),
     );
     await Promise.all(promises);

@@ -64,12 +64,21 @@ export default function AdminShipmentsPage() {
           <h1 className="text-2xl font-bold text-white">Shipments</h1>
           <p className="text-white/50 text-sm mt-1">Manage incoming shipments and products</p>
         </div>
-        <Link
-          href="/admin/shipments/new"
-          className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all"
-        >
-          Create Shipment
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/admin/shipments/summary-email"
+            className="px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+            Email Summary
+          </Link>
+          <Link
+            href="/admin/shipments/new"
+            className="px-4 py-2.5 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white text-sm font-medium rounded-xl transition-all"
+          >
+            Create Shipment
+          </Link>
+        </div>
       </div>
 
       {loading ? (

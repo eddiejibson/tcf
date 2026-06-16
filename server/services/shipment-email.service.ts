@@ -402,9 +402,6 @@ export interface SummaryShipmentItem {
   deadline: string;
   daysUntil: number;
   productCount: number;
-  freightCost: number;
-  currency: string | null;
-  freightCurrency: string | null;
 }
 
 export interface SummaryEmailData {
@@ -431,9 +428,6 @@ export async function getSummaryEmailData(): Promise<SummaryEmailData> {
     deadline: fmtDate(s.deadline),
     daysUntil: daysUntil(s.deadline),
     productCount: s.products?.length || 0,
-    freightCost: Number(s.freightCost),
-    currency: s.currency ?? null,
-    freightCurrency: s.freightCurrency ?? null,
   }));
 
   return { shipments: items, count: items.length };
@@ -444,12 +438,11 @@ function buildSummaryRows(shipments: SummaryShipmentItem[], baseUrl: string): st
     const days = s.daysUntil;
     const urgencyColor = days <= 1 ? "#EF4444" : days <= 3 ? "#F59E0B" : "#3FB950";
     const urgencyLabel = days <= 0 ? "Last day to order" : days === 1 ? "1 day left" : `${days} days left`;
-    const freight = fmtPrice(s.freightCost, resolveFreightCurrency(s.currency, s.freightCurrency));
     return `
       <mj-section background-color="#161B22" padding="0 18px 12px 18px">
         <mj-column background-color="#1E2430" border-radius="12px" padding="16px 18px">
           <mj-text font-size="16px" font-weight="700" color="#E6EDF3" padding="0" line-height="1.3">${esc(s.shipmentName)}</mj-text>
-          <mj-text font-size="12px" color="#8B949E" padding="8px 0 0 0" line-height="1.6"><span style="color:${urgencyColor};font-weight:700;">${urgencyLabel}</span> &nbsp;&middot;&nbsp; Deadline ${esc(s.deadline)} &nbsp;&middot;&nbsp; ${s.productCount} product${s.productCount === 1 ? "" : "s"} &nbsp;&middot;&nbsp; Freight ${freight}/box</mj-text>
+          <mj-text font-size="12px" color="#8B949E" padding="8px 0 0 0" line-height="1.6"><span style="color:${urgencyColor};font-weight:700;">${urgencyLabel}</span> &nbsp;&middot;&nbsp; Deadline ${esc(s.deadline)} &nbsp;&middot;&nbsp; ${s.productCount} product${s.productCount === 1 ? "" : "s"}</mj-text>
           <mj-text padding="12px 0 0 0"><a href="${baseUrl}/login?to=/shipments/${s.id}" style="color:#0984E3;font-size:13px;font-weight:600;text-decoration:none;">View &amp; order &rarr;</a></mj-text>
         </mj-column>
       </mj-section>

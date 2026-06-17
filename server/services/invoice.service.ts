@@ -341,6 +341,17 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
 
   // ─── BANK DETAILS SECTION ─────────────────────────────────────────────
   y += 20;
+
+  // The footer is pinned to the bottom of the page (fY). The payment-details
+  // block needs ~37mm; if it would run into the footer on a long invoice,
+  // push it onto a fresh page so the two never overlap.
+  const fY = 278;
+  const bankBlockH = 37;
+  if (y + bankBlockH > fY - 6) {
+    doc.addPage();
+    y = 24;
+  }
+
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.3);
   doc.line(m, y, pw - m, y);
@@ -371,8 +382,6 @@ export async function generateInvoiceBuffer(data: InvoiceData): Promise<Buffer> 
   });
 
   // ─── FOOTER ───────────────────────────────────────────────────────────
-  const fY = 278;
-
   doc.setFillColor(...BRAND);
   doc.rect(m, fY - 2, cw, 0.5, "F");
 

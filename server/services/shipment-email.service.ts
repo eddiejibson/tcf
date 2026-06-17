@@ -442,7 +442,7 @@ function buildSummaryRows(shipments: SummaryShipmentItem[], baseUrl: string): st
       <mj-section background-color="#161B22" padding="0 18px 12px 18px">
         <mj-column background-color="#1E2430" border-radius="12px" padding="16px 18px">
           <mj-text font-size="16px" font-weight="700" color="#E6EDF3" padding="0" line-height="1.3">${esc(s.shipmentName)}</mj-text>
-          <mj-text font-size="12px" color="#8B949E" padding="8px 0 0 0" line-height="1.6"><span style="color:${urgencyColor};font-weight:700;">${urgencyLabel}</span> &nbsp;&middot;&nbsp; Deadline ${esc(s.deadline)} &nbsp;&middot;&nbsp; ${s.productCount} product${s.productCount === 1 ? "" : "s"}</mj-text>
+          <mj-text font-size="12px" color="#8B949E" padding="8px 0 0 0" line-height="1.6"><span style="color:${urgencyColor};font-weight:700;">${urgencyLabel}</span> &nbsp;&middot;&nbsp; Deadline ${esc(s.deadline)} &nbsp;&middot;&nbsp; ${s.productCount} item${s.productCount === 1 ? "" : "s"}</mj-text>
           <mj-text padding="12px 0 0 0"><a href="${baseUrl}/login?to=/shipments/${s.id}" style="color:#0984E3;font-size:13px;font-weight:600;text-decoration:none;">View &amp; order &rarr;</a></mj-text>
         </mj-column>
       </mj-section>
@@ -548,7 +548,7 @@ export async function sendSummaryEmail(
   }
 
   const textBody = `${intro}\n\n${data.shipments
-    .map((s) => `• ${s.shipmentName} — deadline ${s.deadline} (${s.productCount} products)`)
+    .map((s) => `• ${s.shipmentName} — deadline ${s.deadline} (${s.productCount} items)`)
     .join("\n")}\n\nView online: ${baseUrl}/login?to=/shipments`;
 
   let sent = 0;

@@ -42,6 +42,21 @@ function toList(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+/**
+ * Cloudflare's Email Sending API requires `from` as an object
+ * ({ address, name }) — an RFC5322 "Name <email>" string is rejected with
+ * email.sending.error.invalid_request_schema. Parse our string form into it.
+ */
+function parseFromAddress(input: string): { address: string; name?: string } {
+  const match = input.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) {
+    const name = match[1].replace(/^"(.*)"$/, "$1").trim();
+    const address = match[2].trim();
+    return name ? { address, name } : { address };
+  }
+  return { address: input.trim() };
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -60,7 +75,7 @@ async function sendOne(recipient: string, opts: MailOptions): Promise<void> {
 
   const body: Record<string, unknown> = {
     to: recipient,
-    from: fromHeader,
+    from: parseFromAddress(fromHeader),
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
@@ -73,6 +88,7 @@ async function sendOne(recipient: string, opts: MailOptions): Promise<void> {
       filename: a.filename,
       content: a.content.toString("base64"),
       type: a.contentType || "application/octet-stream",
+      disposition: "attachment",
     }));
   }
 

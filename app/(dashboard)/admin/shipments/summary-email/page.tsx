@@ -160,7 +160,7 @@ export default function ShipmentSummaryEmailPage() {
                   <div key={s.id} className="flex items-center justify-between gap-3 py-1">
                     <div className="min-w-0">
                       <p className="text-white/80 text-sm font-medium truncate">{s.shipmentName}</p>
-                      <p className="text-white/40 text-xs mt-0.5">Deadline {s.deadline} · {s.productCount} products</p>
+                      <p className="text-white/40 text-xs mt-0.5">Deadline {s.deadline} · {s.productCount} items</p>
                     </div>
                     <span className={`text-xs font-medium shrink-0 ${dayColor(s.daysUntil)}`}>{dayLabel(s.daysUntil)}</span>
                   </div>
@@ -251,7 +251,7 @@ export default function ShipmentSummaryEmailPage() {
                 let msg = intro + "\n\n";
                 msg += "📋 *Current Shipments*\n\n";
                 data.shipments.forEach((s) => {
-                  msg += `• *${s.shipmentName}* — deadline ${s.deadline} (${s.productCount} products)\n`;
+                  msg += `• *${s.shipmentName}* — deadline ${s.deadline} (${s.productCount} items)\n`;
                 });
                 msg += `\n👉 *Order here:* ${link}`;
 

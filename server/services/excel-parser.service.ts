@@ -203,6 +203,49 @@ function parseSize(value: unknown): string | null {
   return str;
 }
 
+// Spreadsheet error markers (broken VLOOKUPs etc.) and their PDF equivalents leak
+// in as cell text. Blank them so they never become product names or get stored.
+const ERROR_MARKER_RE = /^#(n\/?a|ref!?|value!?|div\/0!?|name\??|null!?|num!?|spill!?|calc!?)$/i;
+function cleanErrorMarker(v: unknown): unknown {
+  return typeof v === "string" && ERROR_MARKER_RE.test(v.trim()) ? "" : v;
+}
+
+// Totals/summary lines ("Total", "SUBTOTAL", "Total fish in this box") sit between
+// paginated sections — never products or section headers. Only treated as a total
+// when the name cell is empty, so a real product named "Total ..." still parses.
+const TOTALS_RE = /^(sub[\s-]*total|grand[\s-]*total|total)\b/i;
+function isTotalsRow(row: unknown[], nameCol: number): boolean {
+  if (nameCol >= 0 && String(row[nameCol] ?? "").trim()) return false;
+  return row.some((c) => TOTALS_RE.test(String(c ?? "").trim()));
+}
+
+// Packing lists group items under container headers ("BOX 3", "CARTON 12 C-2").
+// The marker word sits in its own short cell, so a fish named "Box Crab" (a full
+// name in one cell) won't match. "bag" is deliberately excluded — it collides with
+// this app's fractional-bag ordering. Returns the header text to use as a category.
+const CONTAINER_RE = /^(box|carton|case|ctn|crate|pallet)\s*\d*$/i;
+function containerLabel(row: unknown[]): string | null {
+  const nonEmpty = row.map((c) => String(c ?? "").trim()).filter((c) => c !== "");
+  if (nonEmpty.length === 0 || nonEmpty.length > 3) return null;
+  return CONTAINER_RE.test(nonEmpty[0]) ? nonEmpty.join(" ") : null;
+}
+
+// True when a row restates the column header — paginated PDFs and multi-section
+// sheets repeat it per section. Requires EVERY non-empty header column to be
+// restated (and at least two of them), so a real product is never dropped, even
+// when the header was mis-detected on non-list data (e.g. a survey export).
+function isRepeatedHeaderRow(row: unknown[], headers: string[]): boolean {
+  let headerCells = 0;
+  let matches = 0;
+  for (let c = 0; c < headers.length; c++) {
+    const h = headers[c]?.trim().toLowerCase();
+    if (!h) continue;
+    headerCells++;
+    if (String(row[c] ?? "").trim().toLowerCase() === h) matches++;
+  }
+  return headerCells >= 2 && matches === headerCells;
+}
+
 const MONTH_MAP: Record<string, number> = {
   january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
   july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
@@ -497,23 +540,43 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+  return buildShipmentFromGrid(data, filename, columnOverrides);
+}
+
+// PDF parsing lives in pdf-grid.service (parsePdfBuffer) so that pdfjs never enters
+// the client bundle — the new-shipment page imports THIS module for client-side
+// Excel parsing, but PDFs are reconstructed into a grid and fed to
+// buildShipmentFromGrid (below) entirely server-side.
+
+const FILE_EXT_RE = /\.(xlsx?|xls|pdf|csv)$/i;
+
+// Core list parser shared by Excel and PDF. Operates purely on a 2-D cell grid:
+// detects the header row, maps columns, and extracts products. Resilient to the
+// repeated headers, error markers and totals rows that paginated/multi-section
+// lists (especially PDFs) carry.
+export function buildShipmentFromGrid(rawData: unknown[][], filename?: string, columnOverrides?: Partial<ColumnMapping>): ParsedShipment {
+  const data = rawData.map((r) => (Array.isArray(r) ? r.map(cleanErrorMarker) : r)) as unknown[][];
 
   const warnings: string[] = [];
   const meta = extractMetadata(data);
 
   if (filename) {
-    const dateMatch = filename.match(/(\d{2})\.(\d{2})\.(\d{2})\.(xlsx?|xls)$/i);
+    const dateMatch = filename.match(/(\d{2})\.(\d{2})\.(\d{2})\.(xlsx?|xls|pdf)$/i);
     if (dateMatch) {
       const [, day, month, year] = dateMatch;
       const d = new Date(Date.UTC(2000 + parseInt(year), parseInt(month) - 1, parseInt(day)));
       if (!meta.deadline) meta.deadline = d.toISOString().split("T")[0];
     }
+    // Natural-date filenames ("CF-Packing list-18-June-2026.pdf") carry the ship date.
+    const naturalName = filename.replace(FILE_EXT_RE, "").replace(/[._-]+/g, " ");
+    const naturalDate = parseNaturalDate(naturalName);
+    if (naturalDate && !meta.shipmentDate) meta.shipmentDate = naturalDate;
   }
 
   const emptyMappings: ColumnMapping = { name: -1, latinName: -1, variant: -1, price: -1, size: -1, qtyPerBox: -1, stock: -1 };
 
   if (data.length < 2) {
-    return { ...meta, name: meta.name || filename?.replace(/\.(xlsx?|xls)$/i, "") || null, items: [], warnings: [...warnings, "No data rows found"], headers: [], columnMappings: emptyMappings };
+    return { ...meta, name: meta.name || filename?.replace(FILE_EXT_RE, "") || null, items: [], warnings: [...warnings, "No data rows found"], headers: [], columnMappings: emptyMappings };
   }
 
   const headerRowIndex = findHeaderRow(data);
@@ -559,7 +622,7 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
 
   if (!meta.name) meta.name = detectShipmentName(data, headerRowIndex, filename);
   if (!meta.name) {
-    meta.name = filename?.replace(/\s*\d{2}\.\d{2}\.\d{2}\.(xlsx?|xls)$/i, "").replace(/\.(xlsx?|xls)$/i, "").trim() || null;
+    meta.name = filename?.replace(/\s*\d{2}\.\d{2}\.\d{2}\.(xlsx?|xls|pdf)$/i, "").replace(FILE_EXT_RE, "").trim() || null;
     if (meta.name) warnings.push("Shipment name guessed from filename");
   }
 
@@ -652,6 +715,15 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     const row = data[i];
     if (!row || row.length === 0) continue;
 
+    // Totals rows are neither products nor section headers.
+    if (isTotalsRow(row, nameColIndex)) continue;
+    // Skip rows that restate the column header (paginated PDFs / multi-section sheets).
+    if (isRepeatedHeaderRow(row, headers)) continue;
+
+    // Container headers ("BOX 3 C-2") group the rows beneath them.
+    const container = containerLabel(row);
+    if (container !== null) { currentCategory = container; continue; }
+
     // Sparse, price-less rows are section headers; following products inherit them as category.
     const sec = sectionLabel(row, priceColIndex);
     if (sec !== null) { currentCategory = sec; continue; }
@@ -710,7 +782,12 @@ export function parseExcelBuffer(buffer: Buffer | ArrayBuffer, filename?: string
     items.push({ name: rawName, latinName, variant, price, size: finalSize, qtyPerBox, packOptions: packOptions.length ? packOptions : undefined, category: currentCategory, availableQty, originalRow, warnings: itemWarnings });
   }
 
-  const rawRows = data.slice(headerRowIndex + 1);
+  // rawRows backs the client-side column-remap UI. Drop structural rows that are
+  // never products under any mapping (repeated headers, container markers, totals)
+  // so remapping a paginated PDF doesn't resurface them as junk items.
+  const rawRows = data
+    .slice(headerRowIndex + 1)
+    .filter((row) => Array.isArray(row) && row.length > 0 && !isTotalsRow(row, nameColIndex) && !isRepeatedHeaderRow(row, headers) && containerLabel(row) === null);
 
   return {
     name: meta.name,

@@ -180,9 +180,24 @@ export default function NewShipmentPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const { parseExcelBuffer } = await import("@/server/services/excel-parser.service");
-      const arrayBuffer = await file.arrayBuffer();
-      const data: ParsedShipment = parseExcelBuffer(arrayBuffer, file.name);
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+      let data: ParsedShipment;
+      if (isPdf) {
+        // PDFs are reconstructed server-side (pdfjs runs in Node), returning the
+        // same ParsedShipment shape the client parser produces for Excel.
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/admin/shipments/upload", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          throw new Error(err?.error || "Failed to parse PDF");
+        }
+        data = await res.json();
+      } else {
+        const { parseExcelBuffer } = await import("@/server/services/excel-parser.service");
+        const arrayBuffer = await file.arrayBuffer();
+        data = parseExcelBuffer(arrayBuffer, file.name);
+      }
       setParsed(data);
       // Default fractional-bag ordering on when the list carries pack quantities.
       setFractionalBagsEnabled((data.items || []).some((it) => it.packOptions && it.packOptions.length > 0));
@@ -195,9 +210,12 @@ export default function NewShipmentPage() {
       rawRowsRef.current = data.rawRows || [];
       applyMarginAndSet(data.items, margin);
     } catch (err) {
-      console.error("Failed to parse spreadsheet:", err);
+      console.error("Failed to parse file:", err);
+      alert(err instanceof Error ? err.message : "Failed to parse file. Check the file and try again.");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // allow re-selecting the same file after an error
     }
-    setUploading(false);
   };
 
   const handleMappingChange = (key: keyof ColumnMapping, value: number) => {
@@ -331,8 +349,8 @@ export default function NewShipmentPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
           </div>
-          <h3 className="text-white font-semibold text-lg mb-2">Upload Price List</h3>
-          <p className="text-white/50 text-sm mb-6">Upload an Excel (.xlsx/.xls) file to auto-extract products</p>
+          <h3 className="text-white font-semibold text-lg mb-2">Upload Price / Packing List</h3>
+          <p className="text-white/50 text-sm mb-6">Upload an Excel (.xlsx/.xls) or PDF file to auto-extract products</p>
           <label className="inline-block px-6 py-3 bg-[#0984E3] hover:bg-[#0984E3]/90 text-white font-medium rounded-xl transition-all cursor-pointer">
             {uploading ? (
               <div className="flex items-center gap-2">
@@ -340,7 +358,7 @@ export default function NewShipmentPage() {
                 Parsing...
               </div>
             ) : "Choose File"}
-            <input type="file" accept=".xlsx,.xls" onChange={handleUpload} className="hidden" />
+            <input type="file" accept=".xlsx,.xls,.pdf,application/pdf" onChange={handleUpload} className="hidden" />
           </label>
           <div className="mt-6">
             <button

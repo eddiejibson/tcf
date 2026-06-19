@@ -845,177 +845,36 @@ function detectSheet(sheetName: string, data: unknown[][]): DetectedSheet | null
 
 // --- Main parser ---
 
+// Parse a packing list (Excel or PDF) into orders + items. Excel is read in the
+// browser; PDFs are reconstructed into a grid server-side (pdfjs runs in Node) and
+// returned in the same shape — see parsePdfPackingList.
 export function parsePackingList(file: File): Promise<PackingListResult> {
+  const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+  return isPdf ? parsePdfPackingList(file) : parseExcelPackingList(file);
+}
+
+async function parsePdfPackingList(file: File): Promise<PackingListResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/packing-list/parse-pdf", { method: "POST", body: fd });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to parse PDF packing list");
+  }
+  return res.json();
+}
+
+function parseExcelPackingList(file: File): Promise<PackingListResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const arrayData = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(arrayData, { type: "array" });
-        const warnings: string[] = [];
-
-        // Identify data sheets. Each sheet that passes detection is treated as its own order
-        // (using its sheet name as the label) — this is how suppliers often deliver multi-order
-        // invoices (e.g. an invoice workbook with a COVER sheet plus one sheet per customer).
-        const dataSheets: DetectedSheet[] = [];
-        for (const sheetName of workbook.SheetNames) {
-          if (SKIP_SHEET_PATTERN.test(sheetName.trim())) continue;
-          const sheet = workbook.Sheets[sheetName];
-          const sheetData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-          const detected = detectSheet(sheetName, sheetData);
-          if (detected) dataSheets.push(detected);
-        }
-
-        // Fallback: no data sheets found — use first sheet regardless (preserves legacy behavior
-        // for single-sheet uploads that have unusual headers).
-        if (dataSheets.length === 0) {
-          const firstName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[firstName];
-          const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-          if (data.length < 2) {
-            resolve({ orders: [], headers: [], rawRows: [], columnMappings: { name: 0, size: -1, qty: -1, cost: -1 }, separators: [], headerRowIndex: 0, warnings: ["No data rows found"] });
-            return;
-          }
-          const headerRowIndex = findHeaderRow(data);
-          const detected = detectColumnsSmart(data, headerRowIndex);
-          dataSheets.push({
-            name: firstName,
-            data,
-            headerRowIndex,
-            headers: detected.headers,
-            mappings: { name: detected.name, size: detected.size, qty: detected.qty, cost: detected.cost },
-          });
-        }
-
-        // --- Multi-sheet mode: each sheet is one order; combine with sheet-name separators ---
-        if (dataSheets.length > 1) {
-          const first = dataSheets[0];
-          const headers = first.headers;
-          const unifiedMappings = first.mappings;
-
-          if (unifiedMappings.name < 0) warnings.push("Could not confidently detect name column");
-          if (unifiedMappings.qty < 0) warnings.push("Could not confidently detect quantity column");
-
-          const combinedRawRows: unknown[][] = [];
-          const separators: { rowIndex: number; label: string }[] = [];
-
-          for (const sheet of dataSheets) {
-            separators.push({ rowIndex: combinedRawRows.length, label: sheet.name });
-            combinedRawRows.push([sheet.name]);
-            for (let r = sheet.headerRowIndex + 1; r < sheet.data.length; r++) {
-              combinedRawRows.push(alignRowToMapping(sheet.data[r] || [], sheet.mappings, unifiedMappings, headers.length));
-            }
-          }
-
-          // headerRowIndex = -1 means separator rowIndex is a direct index into rawRows
-          // (buildOrdersFromRawData: relIndex = rowIndex - headerRowIndex - 1 = rowIndex).
-          const virtualHeaderRowIndex = -1;
-          const orders = buildOrdersFromRawData(combinedRawRows, unifiedMappings, separators, virtualHeaderRowIndex);
-
-          resolve({
-            orders,
-            headers,
-            rawRows: combinedRawRows,
-            columnMappings: unifiedMappings,
-            separators,
-            headerRowIndex: virtualHeaderRowIndex,
-            warnings,
-          });
-          return;
-        }
-
-        // --- Single-sheet mode: full detection (separators / multi-qty / order column) ---
-        const only = dataSheets[0];
-        const data = only.data;
-        const headerRowIndex = only.headerRowIndex;
-        const headers = only.headers;
-        const mappings = only.mappings;
-
-        if (mappings.name < 0) warnings.push("Could not confidently detect name column");
-        if (mappings.qty < 0) warnings.push("Could not confidently detect quantity column");
-
-        const totalCols = headers.length;
-        const separators: { rowIndex: number; label: string }[] = [];
-        for (let i = headerRowIndex + 1; i < data.length; i++) {
-          const row = data[i];
-          if (!row) continue;
-          const sep = isOrderSeparator(row, totalCols, mappings.qty);
-          if (sep) separators.push({ rowIndex: i, label: sep.label });
-        }
-
-        const rawRows = data.slice(headerRowIndex + 1);
-
-        // Check for multi-qty-column format (each column = an order)
-        const multiQtyCols = detectMultiQtyColumns(data, headerRowIndex, mappings.name, mappings.size);
-        if (multiQtyCols.length > 1 && separators.length < 2) {
-          const orders: PackingListOrder[] = [];
-          for (const qtyCol of multiQtyCols) {
-            const label = headers[qtyCol] || `Column ${qtyCol}`;
-            const colMappings: PackingColumnMapping = { name: mappings.name, size: mappings.size, qty: qtyCol, cost: mappings.cost };
-            const items: PackingListItem[] = [];
-            for (const row of rawRows) {
-              if (!row) continue;
-              if (isOrderSeparator(row, totalCols, qtyCol)) continue;
-              const item = extractItemFromRow(row, colMappings);
-              if (item) items.push(item);
-            }
-            if (items.length > 0) {
-              orders.push({ label, items });
-            }
-          }
-          mappings.qty = multiQtyCols[0];
-          resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
-          return;
-        }
-
-        // Check for order/customer column-based grouping (priority over separators)
-        const orderCol = detectOrderColumn(data, headerRowIndex, mappings.name, mappings.size, mappings.qty);
-        if (orderCol) {
-          const groups = new Map<string, unknown[][]>();
-          const groupOrder: string[] = [];
-
-          for (const row of rawRows) {
-            if (!row) continue;
-            if (isOrderSeparator(row, totalCols, mappings.qty)) continue;
-
-            const val = String(row[orderCol.colIndex] ?? "").trim();
-            if (!val) continue;
-
-            let key = val;
-            if (orderCol.type === "orderId") {
-              key = val.replace(/^#/, "").toUpperCase();
-            }
-
-            if (!groups.has(key)) {
-              groups.set(key, []);
-              groupOrder.push(key);
-            }
-            groups.get(key)!.push(row);
-          }
-
-          if (groups.size >= 2) {
-            const orders: PackingListOrder[] = [];
-            for (const key of groupOrder) {
-              const rows = groups.get(key)!;
-              const items: PackingListItem[] = [];
-              for (const row of rows) {
-                const item = extractItemFromRow(row, mappings);
-                if (item) items.push(item);
-              }
-              if (items.length > 0) {
-                orders.push({ label: key, items });
-              }
-            }
-
-            if (orders.length >= 2) {
-              resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
-              return;
-            }
-          }
-        }
-
-        const orders = buildOrdersFromRawData(rawRows, mappings, separators, headerRowIndex);
-        resolve({ orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings });
+        const workbook = XLSX.read(new Uint8Array(e.target?.result as ArrayBuffer), { type: "array" });
+        const sheets = workbook.SheetNames.map((name) => ({
+          name,
+          data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null }) as unknown[][],
+        }));
+        resolve(buildPackingListResult(sheets));
       } catch (err) {
         reject(err);
       }
@@ -1023,4 +882,167 @@ export function parsePackingList(file: File): Promise<PackingListResult> {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsArrayBuffer(file);
   });
+}
+
+// Core parser shared by the Excel and PDF paths. Takes already-extracted sheet grids
+// (one per worksheet for Excel; a single reconstructed grid for PDF) and produces the
+// orders/items, column mappings and raw rows the review UI needs.
+export function buildPackingListResult(sheets: { name: string; data: unknown[][] }[]): PackingListResult {
+  const warnings: string[] = [];
+
+  // Identify data sheets. Each sheet that passes detection is treated as its own order
+  // (using its sheet name as the label) — this is how suppliers often deliver multi-order
+  // invoices (e.g. an invoice workbook with a COVER sheet plus one sheet per customer).
+  const dataSheets: DetectedSheet[] = [];
+  for (const { name, data } of sheets) {
+    if (SKIP_SHEET_PATTERN.test(name.trim())) continue;
+    const detected = detectSheet(name, data);
+    if (detected) dataSheets.push(detected);
+  }
+
+  // Fallback: no data sheets found — use first sheet regardless (preserves legacy behavior
+  // for single-sheet uploads that have unusual headers).
+  if (dataSheets.length === 0) {
+    const first = sheets[0];
+    const data = first?.data ?? [];
+    if (data.length < 2) {
+      return { orders: [], headers: [], rawRows: [], columnMappings: { name: 0, size: -1, qty: -1, cost: -1 }, separators: [], headerRowIndex: 0, warnings: ["No data rows found"] };
+    }
+    const headerRowIndex = findHeaderRow(data);
+    const detected = detectColumnsSmart(data, headerRowIndex);
+    dataSheets.push({
+      name: first.name,
+      data,
+      headerRowIndex,
+      headers: detected.headers,
+      mappings: { name: detected.name, size: detected.size, qty: detected.qty, cost: detected.cost },
+    });
+  }
+
+  // --- Multi-sheet mode: each sheet is one order; combine with sheet-name separators ---
+  if (dataSheets.length > 1) {
+    const first = dataSheets[0];
+    const headers = first.headers;
+    const unifiedMappings = first.mappings;
+
+    if (unifiedMappings.name < 0) warnings.push("Could not confidently detect name column");
+    if (unifiedMappings.qty < 0) warnings.push("Could not confidently detect quantity column");
+
+    const combinedRawRows: unknown[][] = [];
+    const separators: { rowIndex: number; label: string }[] = [];
+
+    for (const sheet of dataSheets) {
+      separators.push({ rowIndex: combinedRawRows.length, label: sheet.name });
+      combinedRawRows.push([sheet.name]);
+      for (let r = sheet.headerRowIndex + 1; r < sheet.data.length; r++) {
+        combinedRawRows.push(alignRowToMapping(sheet.data[r] || [], sheet.mappings, unifiedMappings, headers.length));
+      }
+    }
+
+    // headerRowIndex = -1 means separator rowIndex is a direct index into rawRows
+    // (buildOrdersFromRawData: relIndex = rowIndex - headerRowIndex - 1 = rowIndex).
+    const virtualHeaderRowIndex = -1;
+    const orders = buildOrdersFromRawData(combinedRawRows, unifiedMappings, separators, virtualHeaderRowIndex);
+
+    return {
+      orders,
+      headers,
+      rawRows: combinedRawRows,
+      columnMappings: unifiedMappings,
+      separators,
+      headerRowIndex: virtualHeaderRowIndex,
+      warnings,
+    };
+  }
+
+  // --- Single-sheet mode: full detection (separators / multi-qty / order column) ---
+  const only = dataSheets[0];
+  const data = only.data;
+  const headerRowIndex = only.headerRowIndex;
+  const headers = only.headers;
+  const mappings = only.mappings;
+
+  if (mappings.name < 0) warnings.push("Could not confidently detect name column");
+  if (mappings.qty < 0) warnings.push("Could not confidently detect quantity column");
+
+  const totalCols = headers.length;
+  const separators: { rowIndex: number; label: string }[] = [];
+  for (let i = headerRowIndex + 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row) continue;
+    const sep = isOrderSeparator(row, totalCols, mappings.qty);
+    if (sep) separators.push({ rowIndex: i, label: sep.label });
+  }
+
+  const rawRows = data.slice(headerRowIndex + 1);
+
+  // Check for multi-qty-column format (each column = an order)
+  const multiQtyCols = detectMultiQtyColumns(data, headerRowIndex, mappings.name, mappings.size);
+  if (multiQtyCols.length > 1 && separators.length < 2) {
+    const orders: PackingListOrder[] = [];
+    for (const qtyCol of multiQtyCols) {
+      const label = headers[qtyCol] || `Column ${qtyCol}`;
+      const colMappings: PackingColumnMapping = { name: mappings.name, size: mappings.size, qty: qtyCol, cost: mappings.cost };
+      const items: PackingListItem[] = [];
+      for (const row of rawRows) {
+        if (!row) continue;
+        if (isOrderSeparator(row, totalCols, qtyCol)) continue;
+        const item = extractItemFromRow(row, colMappings);
+        if (item) items.push(item);
+      }
+      if (items.length > 0) {
+        orders.push({ label, items });
+      }
+    }
+    mappings.qty = multiQtyCols[0];
+    return { orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings };
+  }
+
+  // Check for order/customer column-based grouping (priority over separators)
+  const orderCol = detectOrderColumn(data, headerRowIndex, mappings.name, mappings.size, mappings.qty);
+  if (orderCol) {
+    const groups = new Map<string, unknown[][]>();
+    const groupOrder: string[] = [];
+
+    for (const row of rawRows) {
+      if (!row) continue;
+      if (isOrderSeparator(row, totalCols, mappings.qty)) continue;
+
+      const val = String(row[orderCol.colIndex] ?? "").trim();
+      if (!val) continue;
+
+      let key = val;
+      if (orderCol.type === "orderId") {
+        key = val.replace(/^#/, "").toUpperCase();
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+        groupOrder.push(key);
+      }
+      groups.get(key)!.push(row);
+    }
+
+    if (groups.size >= 2) {
+      const orders: PackingListOrder[] = [];
+      for (const key of groupOrder) {
+        const rows = groups.get(key)!;
+        const items: PackingListItem[] = [];
+        for (const row of rows) {
+          const item = extractItemFromRow(row, mappings);
+          if (item) items.push(item);
+        }
+        if (items.length > 0) {
+          orders.push({ label: key, items });
+        }
+      }
+
+      if (orders.length >= 2) {
+        return { orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings };
+      }
+    }
+  }
+
+  const orders = buildOrdersFromRawData(rawRows, mappings, separators, headerRowIndex);
+  return { orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings };
 }

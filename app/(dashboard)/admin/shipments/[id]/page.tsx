@@ -1822,7 +1822,7 @@ export default function AdminShipmentDetailPage() {
                     Upload Packing List
                     <input
                       type="file"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,.xls,.pdf,application/pdf"
                       onChange={handleUpload}
                       className="hidden"
                     />

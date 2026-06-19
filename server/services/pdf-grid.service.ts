@@ -326,6 +326,40 @@ export async function pdfBufferToGrid(buffer: Buffer | ArrayBuffer): Promise<unk
   return grid;
 }
 
+// Reduce a reconstructed PDF grid to just the product table: the column-header row
+// plus rows that carry a real positive quantity. PDFs interleave letterhead, footers,
+// repeated headers, box markers and per-box totals between products; the packing-list
+// parser would read those sparse rows as order separators and fragment/drop the list.
+// A packing list always states a quantity per item, so that's the reliable keep signal.
+export function pdfPackingTableRows(grid: unknown[][]): unknown[][] {
+  let headerIdx = -1;
+  let bestScore = 1;
+  const kw = new RegExp(HEADER_KEYWORDS.source, "gi");
+  for (let i = 0; i < Math.min(grid.length, 40); i++) {
+    const text = (grid[i] || []).map((c) => String(c ?? "")).join(" ");
+    const score = (text.match(kw) || []).length;
+    if (score > bestScore) {
+      bestScore = score;
+      headerIdx = i;
+    }
+  }
+  if (headerIdx === -1) return grid;
+
+  const header = grid[headerIdx] as unknown[];
+  const qtyCol = header.findIndex((c) => /\b(qty|quantity|pcs|pieces|count|units?)\b/i.test(String(c ?? "")));
+  if (qtyCol === -1) return grid;
+
+  const out: unknown[][] = [header];
+  for (let i = headerIdx + 1; i < grid.length; i++) {
+    const row = grid[i] || [];
+    // Skip per-box / grand totals — they carry a number but aren't products.
+    if (row.some((c) => /^(sub[\s-]?total|grand[\s-]?total|total)\b/i.test(String(c ?? "").trim()))) continue;
+    const q = String(row[qtyCol] ?? "").trim();
+    if (/^\d+$/.test(q) && parseInt(q) > 0) out.push(row);
+  }
+  return out;
+}
+
 // Parse a PDF price/packing list into a ParsedShipment by reconstructing its grid
 // and running it through the same column-detection pipeline Excel uploads use.
 export async function parsePdfBuffer(

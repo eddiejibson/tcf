@@ -171,6 +171,9 @@ interface OrderMapping {
   margin?: number; // percentage markup for new orders (defaults to shipment margin)
 }
 
+// Sentinel group key (box mode) for a box not yet assigned to any order.
+const UNASSIGNED_BOX = "__UNASSIGNED__";
+
 const PACKING_MAPPING_FIELDS: {
   key: keyof PackingColumnMapping;
   label: string;
@@ -228,7 +231,8 @@ export default function AdminShipmentDetailPage() {
   const [packingBoxes, setPackingBoxes] = useState<PackingBox[]>([]);
   // Group key per box, parallel to packingBoxes; orders are derived from this grouping.
   const [boxGroupKeys, setBoxGroupKeys] = useState<string[]>([]);
-  const [selectedBoxes, setSelectedBoxes] = useState<Set<number>>(new Set());
+  // Which group cards have their box checklist expanded (keyed by group label).
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   // Input for the "apply margin" controls in the review step (sits separately from the
@@ -723,7 +727,7 @@ export default function AdminShipmentDetailPage() {
         const orders = groupBoxesIntoOrders(boxes, keys);
         setPackingBoxes(boxes);
         setBoxGroupKeys(keys);
-        setSelectedBoxes(new Set());
+        setExpandedGroups(new Set());
         setPackingHeaders(result.headers);
         setPackingColumnMappings(result.columnMappings);
         setPackingWarnings(result.warnings);
@@ -911,9 +915,23 @@ export default function AdminShipmentDetailPage() {
     setFlowStep("mapping");
   };
 
-  // --- Box mode: regroup boxes and re-derive orders (preserving manual assignments) ---
+  // --- Box mode: regroup boxes into orders, preserving manual order assignments ---
+  // Boxes flagged UNASSIGNED_BOX belong to no order yet (shown in the Unassigned card).
   const regroupBoxes = (newKeys: string[]) => {
-    const orders = groupBoxesIntoOrders(packingBoxes, newKeys);
+    const assigned = packingBoxes
+      .map((b, i) => ({ b, key: newKeys[i] }))
+      .filter((x) => x.key !== UNASSIGNED_BOX);
+    const orders = groupBoxesIntoOrders(
+      assigned.map((x) => x.b),
+      assigned.map((x) => x.key),
+    );
+    // Keep existing cards in place (don't let them jump while editing); append new groups.
+    const prevOrder = packingOrders.map((o) => o.label);
+    orders.sort((a, b) => {
+      const ia = prevOrder.indexOf(a.label);
+      const ib = prevOrder.indexOf(b.label);
+      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
+    });
     const preserve = new Map<string, OrderMapping>();
     orderMappings.forEach((m) => {
       const label = packingOrders[m.packingOrderIndex]?.label;
@@ -924,32 +942,32 @@ export default function AdminShipmentDetailPage() {
     setOrderMappings(autoMatchOrders(orders, preserve));
   };
 
-  const toggleBoxSelect = (boxIndex: number) => {
-    setSelectedBoxes((prev) => {
+  const setBoxGroup = (boxIndex: number, groupKey: string) => {
+    regroupBoxes(boxGroupKeys.map((k, i) => (i === boxIndex ? groupKey : k)));
+  };
+
+  // Tick/untick a box inside a group's checklist: in-group → free it; otherwise → join.
+  const toggleBoxInGroup = (boxIndex: number, groupKey: string) => {
+    setBoxGroup(boxIndex, boxGroupKeys[boxIndex] === groupKey ? UNASSIGNED_BOX : groupKey);
+  };
+
+  // Put an unassigned box into a brand-new order group of its own.
+  const assignBoxToNewGroup = (boxIndex: number) => {
+    const base = packingBoxes[boxIndex]?.label || "Group";
+    const existing = new Set(boxGroupKeys);
+    let key = base;
+    let n = 2;
+    while (existing.has(key)) key = `${base} (${n++})`;
+    setBoxGroup(boxIndex, key);
+  };
+
+  const toggleGroupExpanded = (label: string) => {
+    setExpandedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(boxIndex)) next.delete(boxIndex);
-      else next.add(boxIndex);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
       return next;
     });
-  };
-
-  const moveSelectedBoxesToGroup = (targetKey: string) => {
-    if (selectedBoxes.size === 0) return;
-    regroupBoxes(boxGroupKeys.map((k, i) => (selectedBoxes.has(i) ? targetKey : k)));
-    setSelectedBoxes(new Set());
-  };
-
-  const moveSelectedBoxesToNewGroup = () => {
-    if (selectedBoxes.size === 0) return;
-    const firstSel = [...selectedBoxes].sort((a, b) => a - b)[0];
-    let key = packingBoxes[firstSel]?.label || "Group";
-    const existing = new Set(boxGroupKeys);
-    if (existing.has(key)) {
-      let n = 2;
-      while (existing.has(`${key} (${n})`)) n++;
-      key = `${key} (${n})`;
-    }
-    moveSelectedBoxesToGroup(key);
   };
 
   // --- Order mapping step ---
@@ -1588,7 +1606,7 @@ export default function AdminShipmentDetailPage() {
     setPackingWarnings([]);
     setPackingBoxes([]);
     setBoxGroupKeys([]);
-    setSelectedBoxes(new Set());
+    setExpandedGroups(new Set());
     packingRawRowsRef.current = [];
     packingSeparatorsRef.current = [];
   };
@@ -1626,6 +1644,8 @@ export default function AdminShipmentDetailPage() {
     });
     return m;
   }, [boxGroupKeys]);
+  // Boxes not yet assigned to any order (freed by unticking them from a group).
+  const unassignedBoxIdx = boxesByGroup.get(UNASSIGNED_BOX) || [];
 
   if (loading)
     return (
@@ -2248,7 +2268,7 @@ export default function AdminShipmentDetailPage() {
                 </h3>
                 <p className="text-white/50 text-sm mt-1">
                   {boxMode
-                    ? `${packingBoxes.length} boxes grouped by code into ${packingOrders.length} order${packingOrders.length !== 1 ? "s" : ""} — tick boxes to move them between groups`
+                    ? `${packingBoxes.length} boxes grouped by code into ${packingOrders.length} order${packingOrders.length !== 1 ? "s" : ""} — open an order to edit which boxes it holds`
                     : "Match to an existing order, or create a new one for a customer"}
                 </p>
               </div>
@@ -2270,41 +2290,42 @@ export default function AdminShipmentDetailPage() {
               </div>
             </div>
 
-            {/* Regroup toolbar — appears when boxes are multi-selected (box mode) */}
-            {boxMode && selectedBoxes.size > 0 && (
-              <div className="sticky top-2 z-10 mb-4 flex flex-wrap items-center gap-3 bg-[#0984E3]/15 border border-[#0984E3]/30 rounded-xl px-4 py-3 backdrop-blur-xl">
-                <span className="text-white text-sm font-medium">
-                  {selectedBoxes.size} box{selectedBoxes.size !== 1 ? "es" : ""} selected
-                </span>
-                <span className="text-white/40 text-xs">move to</span>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value) moveSelectedBoxesToGroup(e.target.value);
-                  }}
-                  className="px-3 py-1.5 bg-white/10 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#0984E3]/50 cursor-pointer"
-                >
-                  <option value="" className="bg-[#1a1f26]">
-                    Choose group…
-                  </option>
-                  {[...boxesByGroup.keys()].map((k) => (
-                    <option key={k} value={k} className="bg-[#1a1f26]">
-                      {k}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={moveSelectedBoxesToNewGroup}
-                  className="px-3 py-1.5 bg-green-500/20 text-green-400 text-xs font-medium rounded-lg hover:bg-green-500/30 transition-colors"
-                >
-                  + New group
-                </button>
-                <button
-                  onClick={() => setSelectedBoxes(new Set())}
-                  className="px-3 py-1.5 text-white/50 hover:text-white text-xs transition-colors"
-                >
-                  Clear
-                </button>
+            {/* Unassigned boxes — freed from a group; assign each to an order */}
+            {boxMode && unassignedBoxIdx.length > 0 && (
+              <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                <p className="text-amber-300 text-sm font-medium">
+                  {unassignedBoxIdx.length} box{unassignedBoxIdx.length !== 1 ? "es" : ""} not assigned to an order
+                </p>
+                <p className="text-amber-300/60 text-xs mt-0.5 mb-3">
+                  Assign each to an order, or tick it inside an order below. Unassigned boxes are left out of the review.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {unassignedBoxIdx.map((bi) => {
+                    const box = packingBoxes[bi];
+                    return (
+                      <div key={bi} className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg pl-2.5 pr-1 py-1">
+                        <span className="text-white/80 text-xs">
+                          {box.label}
+                          {box.code ? ` (${box.code})` : ""} · {box.items.reduce((s, it) => s + it.quantity, 0)}
+                        </span>
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") assignBoxToNewGroup(bi);
+                            else if (e.target.value) setBoxGroup(bi, e.target.value);
+                          }}
+                          className="px-2 py-1 bg-white/10 border border-white/10 rounded-md text-white text-xs focus:outline-none cursor-pointer"
+                        >
+                          <option value="" className="bg-[#1a1f26]">Assign to…</option>
+                          {packingOrders.map((o) => (
+                            <option key={o.label} value={o.label} className="bg-[#1a1f26]">{o.label}</option>
+                          ))}
+                          <option value="__new__" className="bg-[#1a1f26]">+ New order</option>
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -2331,35 +2352,66 @@ export default function AdminShipmentDetailPage() {
                             <> · {po.items.reduce((s, it) => s + it.quantity, 0)} qty</>
                           )}
                         </p>
-                        {boxMode && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {(boxesByGroup.get(po.label) || []).map((bi) => {
-                              const box = packingBoxes[bi];
-                              const sel = selectedBoxes.has(bi);
-                              return (
-                                <button
-                                  key={bi}
-                                  type="button"
-                                  onClick={() => toggleBoxSelect(bi)}
-                                  title={`${box.label}${box.code ? ` · ${box.code}` : ""} — ${box.items.reduce((s, it) => s + it.quantity, 0)} fish`}
-                                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors ${sel ? "bg-[#0984E3]/25 border-[#0984E3]/50 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:border-white/20"}`}
-                                >
-                                  <span
-                                    className={`w-3 h-3 rounded-[3px] border flex items-center justify-center ${sel ? "bg-[#0984E3] border-[#0984E3]" : "border-white/30"}`}
-                                  >
-                                    {sel && (
-                                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
-                                        <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
-                                    )}
-                                  </span>
-                                  {box.label}
-                                  <span className="text-white/30">{box.items.reduce((s, it) => s + it.quantity, 0)}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                        {boxMode && (() => {
+                          const ownIdx = boxesByGroup.get(po.label) || [];
+                          const expanded = expandedGroups.has(po.label);
+                          return (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleGroupExpanded(po.label)}
+                                className="inline-flex items-center gap-1 text-[#0984E3] hover:text-[#0984E3]/80 text-xs font-medium"
+                              >
+                                <svg className={`w-3 h-3 transition-transform ${expanded ? "rotate-90" : ""}`} viewBox="0 0 12 12" fill="none">
+                                  <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                {expanded ? "Done editing boxes" : `Edit boxes (${ownIdx.length})`}
+                              </button>
+                              {!expanded ? (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                  {ownIdx.map((bi) => {
+                                    const box = packingBoxes[bi];
+                                    return (
+                                      <span key={bi} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 text-xs">
+                                        {box.label}
+                                        <span className="text-white/30">{box.items.reduce((s, it) => s + it.quantity, 0)}</span>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="mt-1.5 flex flex-col gap-1 max-h-56 overflow-y-auto pr-1">
+                                  {[...ownIdx, ...unassignedBoxIdx].map((bi) => {
+                                    const box = packingBoxes[bi];
+                                    const inGroup = boxGroupKeys[bi] === po.label;
+                                    return (
+                                      <button
+                                        key={bi}
+                                        type="button"
+                                        onClick={() => toggleBoxInGroup(bi, po.label)}
+                                        className={`inline-flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs text-left transition-colors ${inGroup ? "bg-[#0984E3]/20 border-[#0984E3]/40 text-white" : "bg-white/5 border-white/10 text-white/55 hover:text-white hover:border-white/20"}`}
+                                      >
+                                        <span className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 ${inGroup ? "bg-[#0984E3] border-[#0984E3]" : "border-white/30"}`}>
+                                          {inGroup && (
+                                            <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                                              <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                          )}
+                                        </span>
+                                        <span className="flex-1">
+                                          {box.label}
+                                          {box.code ? ` · ${box.code}` : ""}
+                                          {!inGroup && <span className="text-amber-300/70"> · unassigned</span>}
+                                        </span>
+                                        <span className="text-white/30">{box.items.reduce((s, it) => s + it.quantity, 0)} fish</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       {/* Mode tabs */}
                       <div className="inline-flex bg-white/5 border border-white/10 rounded-lg p-0.5 text-xs">

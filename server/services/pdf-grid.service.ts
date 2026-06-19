@@ -27,16 +27,16 @@ type Cell = { x: number; text: string };
 const HEADER_KEYWORDS =
   /\b(code|name|common|scientific|latin|species|item|product|description|desc|price|cost|each|unit|amount|qty|quantity|pcs|pieces|stock|available|size|grade|box|variant|colou?r)\b/i;
 
-// ---- pdfjs loader -----------------------------------------------------------
+// ---- pdf loader -------------------------------------------------------------
 
-// Dynamically import the legacy build so Next's bundler never tries to pull the
-// browser worker into the server bundle. Cached after first load.
-let pdfjsLib: typeof import("pdfjs-dist/legacy/build/pdf.mjs") | null = null;
-async function getPdfjs() {
-  if (!pdfjsLib) {
-    pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  }
-  return pdfjsLib;
+// Load the PDF via unpdf — a serverless-friendly pdfjs build that runs without a
+// separate worker file. (Raw pdfjs-dist needs pdf.worker.mjs at runtime, which
+// Next's file tracing drops from the Lambda bundle → "Setting up fake worker
+// failed".) unpdf returns a standard pdfjs document proxy, so getPage/getTextContent
+// (and item.transform/width) work unchanged.
+async function loadPdfDocument(data: Uint8Array) {
+  const { getDocumentProxy } = await import("unpdf");
+  return getDocumentProxy(data);
 }
 
 // ---- geometry helpers -------------------------------------------------------
@@ -256,18 +256,13 @@ export class PdfParseError extends Error {
 }
 
 export async function pdfBufferToGrid(buffer: Buffer | ArrayBuffer): Promise<unknown[][]> {
-  const { getDocument } = await getPdfjs();
-  const data = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  // Copy into a standalone Uint8Array (unpdf/pdfjs detaches the buffer it's given).
+  const src = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const data = new Uint8Array(src);
 
   let doc;
   try {
-    doc = await getDocument({
-      data,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-      // text extraction only — no rendering, so no canvas needed
-    }).promise;
+    doc = await loadPdfDocument(data);
   } catch (e) {
     const name = (e as { name?: string })?.name;
     if (name === "PasswordException") throw new PdfParseError("This PDF is password-protected. Remove the password and upload it again.");

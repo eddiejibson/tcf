@@ -2268,7 +2268,7 @@ export default function AdminShipmentDetailPage() {
                 </h3>
                 <p className="text-white/50 text-sm mt-1">
                   {boxMode
-                    ? `${packingBoxes.length} boxes grouped by code into ${packingOrders.length} order${packingOrders.length !== 1 ? "s" : ""} — open an order to edit which boxes it holds`
+                    ? `${packingBoxes.length} boxes grouped by code into ${packingOrders.length} order${packingOrders.length !== 1 ? "s" : ""}`
                     : "Match to an existing order, or create a new one for a customer"}
                 </p>
               </div>

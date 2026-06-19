@@ -15,6 +15,15 @@ export interface PackingListOrder {
   items: PackingListItem[];
 }
 
+// A physical box from a packing list, with the destination/customer code printed on it
+// (e.g. "C-1"). Boxes sharing a code belong to the same customer, which drives the
+// default grouping into orders — adjustable by multi-selecting boxes in the UI.
+export interface PackingBox {
+  label: string; // e.g. "BOX 1"
+  code: string; // destination/customer code, e.g. "C-1" ("" if none printed)
+  items: PackingListItem[];
+}
+
 export interface PackingColumnMapping {
   name: number;
   size: number; // -1 if not mapped
@@ -30,6 +39,9 @@ export interface PackingListResult {
   separators: { rowIndex: number; label: string }[];
   headerRowIndex: number;
   warnings: string[];
+  // Present for box-structured PDFs (e.g. supplier packing lists). When set, the UI
+  // lets the admin regroup boxes (default grouping = by code) and assign each group.
+  boxes?: PackingBox[];
 }
 
 // --- Column header patterns ---
@@ -1045,4 +1057,108 @@ export function buildPackingListResult(sheets: { name: string; data: unknown[][]
 
   const orders = buildOrdersFromRawData(rawRows, mappings, separators, headerRowIndex);
   return { orders, headers, rawRows, columnMappings: mappings, separators, headerRowIndex, warnings };
+}
+
+// --- Box-structured packing lists (PDF supplier lists) ---
+
+// Recognise a box-header row ("BOX 3", "CARTON 12 C-2") and pull out the box label and
+// the destination/customer code (e.g. "C-1") printed alongside it.
+function parseBoxMarker(row: unknown[]): { label: string; code: string } | null {
+  const nonEmpty = row.map((c) => String(c ?? "").trim()).filter((c) => c !== "");
+  if (nonEmpty.length === 0 || nonEmpty.length > 4) return null;
+  // The marker cell must be just "BOX"/"BOX 3" — not a product code that happens to
+  // start with it (e.g. "BOX-2" is the supplier code for a boxfish, a real product).
+  if (!/^(box|carton|case|ctn|crate|pallet)\s*\d*$/i.test(nonEmpty[0])) return null;
+
+  // Box number is either glued to the marker ("BOX 3") or in the next cell ("BOX" | "3").
+  const inline = nonEmpty[0].match(/^(?:box|carton|case|ctn|crate|pallet)\s*(\d+)$/i);
+  const num = inline?.[1] ?? (/^\d+$/.test(nonEmpty[1] ?? "") ? nonEmpty[1] : "");
+  // Code is a short alphanumeric tag like "C-1" / "C1" / "A-2" (not the marker, not the number).
+  const code = nonEmpty.slice(1).find((c) => /^[A-Za-z]{1,4}[-\s]?\d{1,4}$/.test(c)) ?? "";
+  const label = num ? `BOX ${num}` : nonEmpty[0].toUpperCase();
+  return { label, code };
+}
+
+// Extract the physical boxes from a reconstructed PDF grid. Walks the whole grid (box
+// markers can precede the column header), tracking the current box and attaching each
+// product row to it. Items that appear before any box land in an "Unassigned" box.
+export function extractPackingBoxes(grid: unknown[][]): {
+  boxes: PackingBox[];
+  headers: string[];
+  columnMappings: PackingColumnMapping;
+  warnings: string[];
+} {
+  const headerRowIndex = findHeaderRow(grid);
+  const detected = detectColumnsSmart(grid, headerRowIndex);
+  const mappings: PackingColumnMapping = { name: detected.name, size: detected.size, qty: detected.qty, cost: detected.cost };
+  const warnings: string[] = [];
+  if (mappings.name < 0) warnings.push("Could not confidently detect name column");
+  if (mappings.qty < 0) warnings.push("Could not confidently detect quantity column");
+
+  const boxes: PackingBox[] = [];
+  let cur: PackingBox | null = null;
+  let unassigned: PackingBox | null = null;
+  for (const row of grid) {
+    if (!row || (row as unknown[]).length === 0) continue;
+    const marker = parseBoxMarker(row as unknown[]);
+    if (marker) {
+      cur = { label: marker.label, code: marker.code, items: [] };
+      boxes.push(cur);
+      continue;
+    }
+    const item = extractItemFromRow(row as unknown[], mappings);
+    if (!item) continue;
+    if (cur) {
+      cur.items.push(item);
+    } else {
+      if (!unassigned) { unassigned = { label: "Unassigned", code: "", items: [] }; boxes.unshift(unassigned); }
+      unassigned.items.push(item);
+    }
+  }
+
+  const withItems = boxes.filter((b) => b.items.length > 0);
+  // Display in box-number order (Unassigned last); grouping itself is order-independent.
+  withItems.sort((a, b) => {
+    const na = parseInt(a.label.replace(/\D/g, "")) || Infinity;
+    const nb = parseInt(b.label.replace(/\D/g, "")) || Infinity;
+    return na - nb;
+  });
+  return { boxes: withItems, headers: detected.headers, columnMappings: mappings, warnings };
+}
+
+// Combine duplicate products (same name + size) within a list, summing quantities — used
+// when several boxes for one customer are merged into a single order.
+export function mergePackingItems(items: PackingListItem[]): PackingListItem[] {
+  const byKey = new Map<string, PackingListItem>();
+  const order: string[] = [];
+  for (const it of items) {
+    const key = `${it.name.toLowerCase()}|${(it.size ?? "").toLowerCase()}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.quantity += it.quantity;
+      if (existing.unitCost == null && it.unitCost != null) existing.unitCost = it.unitCost;
+    } else {
+      byKey.set(key, { ...it });
+      order.push(key);
+    }
+  }
+  return order.map((k) => byKey.get(k)!);
+}
+
+// Group boxes into orders by a per-box group key (default = the box's code). Boxes with
+// the same key merge into one order; the order is labelled by that key.
+export function groupBoxesIntoOrders(boxes: PackingBox[], groupKeys: string[]): PackingListOrder[] {
+  const groups = new Map<string, PackingListItem[]>();
+  const keyOrder: string[] = [];
+  boxes.forEach((box, i) => {
+    const key = groupKeys[i] || box.code || box.label;
+    if (!groups.has(key)) { groups.set(key, []); keyOrder.push(key); }
+    groups.get(key)!.push(...box.items);
+  });
+  return keyOrder.map((key) => ({ label: key, items: mergePackingItems(groups.get(key)!) }));
+}
+
+// Default group key for a box: its code, or its label when no code is printed.
+export function defaultBoxGroupKey(box: PackingBox): string {
+  return box.code || box.label;
 }

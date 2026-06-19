@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/server/middleware/auth";
 import { pdfBufferToGrid, pdfPackingTableRows, PdfParseError } from "@/server/services/pdf-grid.service";
-import { buildPackingListResult } from "@/app/lib/parse-packing-list";
+import { buildPackingListResult, extractPackingBoxes, groupBoxesIntoOrders, defaultBoxGroupKey } from "@/app/lib/parse-packing-list";
 import { log } from "@/server/logger";
 
 // pdfjs runs on the server (Node), never the edge runtime.
 export const runtime = "nodejs";
 
-// Reconstructs an uploaded packing-list PDF into a cell grid and runs it through the
-// same parser the Excel path uses, returning an identical PackingListResult.
+// Reconstructs an uploaded packing-list PDF into a cell grid. Box-structured supplier
+// lists (e.g. "BOX 3  C-2") return their boxes so the admin can group/assign them;
+// otherwise it falls back to the flat single-table parse the Excel path uses.
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -24,8 +25,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No selectable text found in this PDF — it may be a scanned image. Upload the Excel version instead." }, { status: 422 });
     }
 
-    const tableRows = pdfPackingTableRows(grid);
-    const result = buildPackingListResult([{ name: file.name.replace(/\.pdf$/i, ""), data: tableRows }]);
+    const boxed = extractPackingBoxes(grid);
+    // Two or more boxes → box-grouping mode: default groups are by printed code.
+    if (boxed.boxes.length >= 2) {
+      const orders = groupBoxesIntoOrders(boxed.boxes, boxed.boxes.map(defaultBoxGroupKey));
+      return NextResponse.json({
+        orders,
+        boxes: boxed.boxes,
+        headers: boxed.headers,
+        columnMappings: boxed.columnMappings,
+        warnings: boxed.warnings,
+        rawRows: [],
+        separators: [],
+        headerRowIndex: -1,
+      });
+    }
+
+    // No box structure — parse as a flat single-table packing list.
+    const result = buildPackingListResult([{ name: file.name.replace(/\.pdf$/i, ""), data: pdfPackingTableRows(grid) }]);
     return NextResponse.json(result);
   } catch (e) {
     if (e instanceof PdfParseError) return NextResponse.json({ error: e.message }, { status: 422 });

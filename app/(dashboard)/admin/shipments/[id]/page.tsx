@@ -7,6 +7,9 @@ import { formatMoney, resolveFreightCurrency, sameCurrency } from "@/app/lib/cur
 import {
   buildOrdersFromRawData,
   parsePackingList,
+  groupBoxesIntoOrders,
+  defaultBoxGroupKey,
+  type PackingBox,
   type PackingColumnMapping,
   type PackingListItem,
   type PackingListOrder,
@@ -220,6 +223,12 @@ export default function AdminShipmentDetailPage() {
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
   const [packingOrders, setPackingOrders] = useState<PackingListOrder[]>([]);
   const [orderMappings, setOrderMappings] = useState<OrderMapping[]>([]);
+  // Box mode (PDF supplier packing lists): boxes are grouped into orders by their code,
+  // and the admin can multi-select boxes to move them between groups. Empty for Excel.
+  const [packingBoxes, setPackingBoxes] = useState<PackingBox[]>([]);
+  // Group key per box, parallel to packingBoxes; orders are derived from this grouping.
+  const [boxGroupKeys, setBoxGroupKeys] = useState<string[]>([]);
+  const [selectedBoxes, setSelectedBoxes] = useState<Set<number>>(new Set());
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   // Input for the "apply margin" controls in the review step (sits separately from the
@@ -705,12 +714,36 @@ export default function AdminShipmentDetailPage() {
 
     try {
       const result: PackingListResult = await parsePackingList(file);
+
+      // Box mode — a PDF supplier packing list grouped by boxes/codes. Columns are
+      // detected from the PDF, so we skip column mapping and go straight to grouping.
+      if (result.boxes && result.boxes.length > 0) {
+        const boxes = result.boxes;
+        const keys = boxes.map(defaultBoxGroupKey);
+        const orders = groupBoxesIntoOrders(boxes, keys);
+        setPackingBoxes(boxes);
+        setBoxGroupKeys(keys);
+        setSelectedBoxes(new Set());
+        setPackingHeaders(result.headers);
+        setPackingColumnMappings(result.columnMappings);
+        setPackingWarnings(result.warnings);
+        setPackingOrders(orders);
+        packingRawRowsRef.current = [];
+        packingSeparatorsRef.current = [];
+        packingHeaderRowIndexRef.current = -1;
+        setOrderMappings(autoMatchOrders(orders));
+        setFlowStep("mapping");
+        e.target.value = "";
+        return;
+      }
+
       if (result.rawRows.length === 0) {
         setParseError("No data found in the packing list.");
         return;
       }
 
       // Store raw data for remapping
+      setPackingBoxes([]);
       packingRawRowsRef.current = result.rawRows;
       packingSeparatorsRef.current = result.separators;
       packingHeaderRowIndexRef.current = result.headerRowIndex;
@@ -748,24 +781,31 @@ export default function AdminShipmentDetailPage() {
     setPackingOrders(newOrders);
   };
 
-  // --- Confirm columns and proceed to order mapping ---
-  const confirmColumns = () => {
-    if (packingOrders.length === 0) {
-      setParseError("No orders could be extracted with these column mappings.");
-      return;
-    }
-
-    // Track which system orders have already been matched to avoid double-mapping
+  // Auto-match each packing order to a system order. `preserve` keeps the admin's
+  // existing choices for unchanged group labels across a regroup (box mode).
+  const autoMatchOrders = (
+    orders: PackingListOrder[],
+    preserve?: Map<string, OrderMapping>,
+  ): OrderMapping[] => {
+    // Track which system orders are taken to avoid double-mapping; reserve preserved ones.
     const usedSystemOrderIds = new Set<string>();
+    if (preserve) {
+      for (const m of preserve.values()) {
+        if (m.type === "existing" && m.systemOrderId) usedSystemOrderIds.add(m.systemOrderId);
+      }
+    }
 
     // Precompute each packing order's product-id-to-qty map once (used by item-similarity step).
     // Supplier-authored invoices often use sheet codes (e.g. "AQUA", "RNG") that don't map to any
     // customer identifier — matching by overlapping products is the only signal left.
-    const packingProductMaps = packingOrders.map((po) =>
+    const packingProductMaps = orders.map((po) =>
       resolvePackingToProductQtys(po, shipment?.products || []),
     );
 
-    const mappings: OrderMapping[] = packingOrders.map((po, i) => {
+    return orders.map((po, i) => {
+      const kept = preserve?.get(po.label);
+      if (kept) return { ...kept, packingOrderIndex: i };
+
       const labelUpper = po.label.replace(/^#/, "").toUpperCase().trim();
       const labelLower = po.label.toLowerCase().trim();
       const available = processableOrders.filter(
@@ -859,8 +899,57 @@ export default function AdminShipmentDetailPage() {
         systemOrderId,
       };
     });
-    setOrderMappings(mappings);
+  };
+
+  // --- Confirm columns and proceed to order mapping ---
+  const confirmColumns = () => {
+    if (packingOrders.length === 0) {
+      setParseError("No orders could be extracted with these column mappings.");
+      return;
+    }
+    setOrderMappings(autoMatchOrders(packingOrders));
     setFlowStep("mapping");
+  };
+
+  // --- Box mode: regroup boxes and re-derive orders (preserving manual assignments) ---
+  const regroupBoxes = (newKeys: string[]) => {
+    const orders = groupBoxesIntoOrders(packingBoxes, newKeys);
+    const preserve = new Map<string, OrderMapping>();
+    orderMappings.forEach((m) => {
+      const label = packingOrders[m.packingOrderIndex]?.label;
+      if (label) preserve.set(label, m);
+    });
+    setBoxGroupKeys(newKeys);
+    setPackingOrders(orders);
+    setOrderMappings(autoMatchOrders(orders, preserve));
+  };
+
+  const toggleBoxSelect = (boxIndex: number) => {
+    setSelectedBoxes((prev) => {
+      const next = new Set(prev);
+      if (next.has(boxIndex)) next.delete(boxIndex);
+      else next.add(boxIndex);
+      return next;
+    });
+  };
+
+  const moveSelectedBoxesToGroup = (targetKey: string) => {
+    if (selectedBoxes.size === 0) return;
+    regroupBoxes(boxGroupKeys.map((k, i) => (selectedBoxes.has(i) ? targetKey : k)));
+    setSelectedBoxes(new Set());
+  };
+
+  const moveSelectedBoxesToNewGroup = () => {
+    if (selectedBoxes.size === 0) return;
+    const firstSel = [...selectedBoxes].sort((a, b) => a - b)[0];
+    let key = packingBoxes[firstSel]?.label || "Group";
+    const existing = new Set(boxGroupKeys);
+    if (existing.has(key)) {
+      let n = 2;
+      while (existing.has(`${key} (${n})`)) n++;
+      key = `${key} (${n})`;
+    }
+    moveSelectedBoxesToGroup(key);
   };
 
   // --- Order mapping step ---
@@ -1497,6 +1586,9 @@ export default function AdminShipmentDetailPage() {
     setPackingHeaders([]);
     setPackingColumnMappings({ name: 0, size: -1, qty: -1, cost: -1 });
     setPackingWarnings([]);
+    setPackingBoxes([]);
+    setBoxGroupKeys([]);
+    setSelectedBoxes(new Set());
     packingRawRowsRef.current = [];
     packingSeparatorsRef.current = [];
   };
@@ -1521,6 +1613,19 @@ export default function AdminShipmentDetailPage() {
     () => packingOrders.reduce((sum, o) => sum + o.items.length, 0),
     [packingOrders],
   );
+
+  // Box mode: PDF supplier packing list grouped into orders by box code.
+  const boxMode = packingBoxes.length > 0;
+  // Group key (= order label) → indices of boxes in that group.
+  const boxesByGroup = useMemo(() => {
+    const m = new Map<string, number[]>();
+    boxGroupKeys.forEach((k, i) => {
+      const arr = m.get(k);
+      if (arr) arr.push(i);
+      else m.set(k, [i]);
+    });
+    return m;
+  }, [boxGroupKeys]);
 
   if (loading)
     return (
@@ -2139,19 +2244,23 @@ export default function AdminShipmentDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h3 className="text-white font-semibold">
-                  Map Packing List Orders
+                  {boxMode ? "Assign Boxes to Orders" : "Map Packing List Orders"}
                 </h3>
                 <p className="text-white/50 text-sm mt-1">
-                  Match to an existing order, or create a new one for a customer
+                  {boxMode
+                    ? `${packingBoxes.length} boxes grouped by code into ${packingOrders.length} order${packingOrders.length !== 1 ? "s" : ""} — tick boxes to move them between groups`
+                    : "Match to an existing order, or create a new one for a customer"}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setFlowStep("column_mapping")}
-                  className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm transition-colors"
-                >
-                  Back to Columns
-                </button>
+                {!boxMode && (
+                  <button
+                    onClick={() => setFlowStep("column_mapping")}
+                    className="text-[#0984E3] hover:text-[#0984E3]/80 text-sm transition-colors"
+                  >
+                    Back to Columns
+                  </button>
+                )}
                 <button
                   onClick={resetFlow}
                   className="text-white/50 hover:text-white text-sm transition-colors"
@@ -2160,6 +2269,44 @@ export default function AdminShipmentDetailPage() {
                 </button>
               </div>
             </div>
+
+            {/* Regroup toolbar — appears when boxes are multi-selected (box mode) */}
+            {boxMode && selectedBoxes.size > 0 && (
+              <div className="sticky top-2 z-10 mb-4 flex flex-wrap items-center gap-3 bg-[#0984E3]/15 border border-[#0984E3]/30 rounded-xl px-4 py-3 backdrop-blur-xl">
+                <span className="text-white text-sm font-medium">
+                  {selectedBoxes.size} box{selectedBoxes.size !== 1 ? "es" : ""} selected
+                </span>
+                <span className="text-white/40 text-xs">move to</span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) moveSelectedBoxesToGroup(e.target.value);
+                  }}
+                  className="px-3 py-1.5 bg-white/10 border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#0984E3]/50 cursor-pointer"
+                >
+                  <option value="" className="bg-[#1a1f26]">
+                    Choose group…
+                  </option>
+                  {[...boxesByGroup.keys()].map((k) => (
+                    <option key={k} value={k} className="bg-[#1a1f26]">
+                      {k}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={moveSelectedBoxesToNewGroup}
+                  className="px-3 py-1.5 bg-green-500/20 text-green-400 text-xs font-medium rounded-lg hover:bg-green-500/30 transition-colors"
+                >
+                  + New group
+                </button>
+                <button
+                  onClick={() => setSelectedBoxes(new Set())}
+                  className="px-3 py-1.5 text-white/50 hover:text-white text-xs transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             <div className="space-y-4">
               {packingOrders.map((po, i) => {
@@ -2176,11 +2323,43 @@ export default function AdminShipmentDetailPage() {
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>
                         <p className="text-white text-sm font-medium">
-                          Packing List: {po.label}
+                          {boxMode ? `Group ${po.label}` : `Packing List: ${po.label}`}
                         </p>
                         <p className="text-white/40 text-xs mt-0.5">
                           {po.items.length} items
+                          {boxMode && (
+                            <> · {po.items.reduce((s, it) => s + it.quantity, 0)} qty</>
+                          )}
                         </p>
+                        {boxMode && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {(boxesByGroup.get(po.label) || []).map((bi) => {
+                              const box = packingBoxes[bi];
+                              const sel = selectedBoxes.has(bi);
+                              return (
+                                <button
+                                  key={bi}
+                                  type="button"
+                                  onClick={() => toggleBoxSelect(bi)}
+                                  title={`${box.label}${box.code ? ` · ${box.code}` : ""} — ${box.items.reduce((s, it) => s + it.quantity, 0)} fish`}
+                                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors ${sel ? "bg-[#0984E3]/25 border-[#0984E3]/50 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:border-white/20"}`}
+                                >
+                                  <span
+                                    className={`w-3 h-3 rounded-[3px] border flex items-center justify-center ${sel ? "bg-[#0984E3] border-[#0984E3]" : "border-white/30"}`}
+                                  >
+                                    {sel && (
+                                      <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                                        <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                  {box.label}
+                                  <span className="text-white/30">{box.items.reduce((s, it) => s + it.quantity, 0)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       {/* Mode tabs */}
                       <div className="inline-flex bg-white/5 border border-white/10 rounded-lg p-0.5 text-xs">

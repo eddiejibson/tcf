@@ -7,6 +7,7 @@ const NAME_PATTERNS = [
   /english[\s_-]*name/i, /common[\s_-]*name/i, /como?n[\s_-]*name/i,
   /^name$/i, /^item$/i, /^product$/i, /^description$/i, /^species$/i,
   /^title$/i, /^coral$/i, /^fish$/i, /^livestock$/i,
+  /^variety$/i, /^varieties$/i, /^type$/i,
   /item[\s_-]*name/i, /product[\s_-]*name/i, /species[\s_-]*name/i,
   /desc/i,
   /culture[\s_-]*coral/i, /coral[\s_-]*name/i,
@@ -65,7 +66,7 @@ const QTY_PER_BOX_PATTERNS = [
   /quantity[\s_-]*of[\s_-]*each/i, /qty[\s_-]*of[\s_-]*each/i,
   /quantity[\s_-]*per[\s_-]*pack/i, /qty[\s_-]*per[\s_-]*pack/i,
   /pieces[\s_-]*per/i,
-  /pack[\s_/-]*box/i, /box[\s_/-]*pack/i,
+  /pack\b.*\bbox/i, /box[\s_/-]*pack/i,
 ];
 
 // Pack-fraction column detection lives in @/app/lib/bags so the client column-remap shares it.
@@ -356,16 +357,22 @@ function extractMetadata(data: unknown[][]): { name: string | null; shipmentDate
 }
 
 function findHeaderRow(data: unknown[][]): number {
-  const headerPatterns = [/name/i, /price/i, /item/i, /product/i, /code/i, /description/i, /cost/i, /qty/i, /size/i, /species/i, /stock/i, /common/i, /scientific/i, /units/i];
+  const headerPatterns = [/name/i, /price/i, /item/i, /product/i, /code/i, /description/i, /cost/i, /qty/i, /size/i, /species/i, /stock/i, /common/i, /scientific/i, /units/i, /variety/i, /grade/i];
   let bestRow = 0;
   let bestScore = 0;
   for (let i = 0; i < Math.min(40, data.length); i++) {
     const row = data[i];
     if (!row) continue;
-    const rowStr = row.map((c) => String(c || "")).join(" ");
-    const matchCount = headerPatterns.filter((p) => p.test(rowStr)).length;
-    if (matchCount > bestScore) {
-      bestScore = matchCount;
+    const matched = new Set<number>();
+    for (let j = 0; j < row.length; j++) {
+      const cell = String(row[j] || "").trim();
+      if (!cell || cell.length > 60) continue;
+      for (let p = 0; p < headerPatterns.length; p++) {
+        if (!matched.has(p) && headerPatterns[p].test(cell)) matched.add(p);
+      }
+    }
+    if (matched.size > bestScore) {
+      bestScore = matched.size;
       bestRow = i;
     }
   }

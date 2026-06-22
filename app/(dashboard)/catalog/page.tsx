@@ -292,7 +292,7 @@ export default function CatalogPage() {
                 const inCart = cart.find((i) => i.catalogProductId === p.id);
                 return (
                   <AnimatedListItem key={p.id}>
-                  <div className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col h-full ${oos ? "opacity-40" : "hover:border-white/20 hover:bg-white/[0.07]"}`}>
+                  <div className={`bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all flex flex-col h-full ${oos ? "opacity-40" : "hover:border-white/20"}`}>
                     <div className="aspect-[4/3] bg-white/5 relative">
                       <ProductImageCarousel images={p.images} alt={p.name} />
                       <div className="absolute top-2 right-2 flex items-center gap-1 z-10">

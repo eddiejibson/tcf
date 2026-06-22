@@ -874,7 +874,7 @@ export default function ShipmentDetailPage() {
                 <React.Fragment key={product.id}>
                   {header}
                   <div
-                    className={`min-w-[420px] hidden md:block px-5 py-3 transition-colors ${unavail ? "opacity-30" : qty > 0 ? "bg-[#0984E3]/5" : "hover:bg-white/[0.02]"}`}
+                    className={`min-w-[420px] hidden md:block px-5 py-3 transition-colors ${unavail ? "opacity-30" : qty > 0 ? "bg-[#0984E3]/5" : ""}`}
                   >
                     <div className="flex items-center gap-4">
                       <div className="min-w-0 flex-1">

@@ -155,7 +155,7 @@ export default function AdminDoaPage() {
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 overflow-hidden">
               <div
                 onClick={() => toggleShipment(group.shipment.id, group.reports[0]?.id ?? null)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors cursor-pointer"
+                className="w-full px-6 py-4 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
                   <svg
@@ -186,7 +186,7 @@ export default function AdminDoaPage() {
                     <div key={claim.id} className="border-b border-white/5 last:border-b-0">
                       <button
                         onClick={() => toggleClaim(claim.id)}
-                        className="w-full px-6 py-3 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+                        className="w-full px-6 py-3 flex items-center justify-between transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <svg

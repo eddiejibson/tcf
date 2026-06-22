@@ -71,7 +71,7 @@ export default function OrdersPage() {
         <AnimatedList className="space-y-4">
           {orders.map((o) => (
             <AnimatedListItem key={o.id}>
-            <Link href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 hover:bg-white/[0.07] transition-all block">
+            <Link href={`/orders/${o.id}`} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl shadow-black/40 p-4 md:p-6 transition-all block">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">

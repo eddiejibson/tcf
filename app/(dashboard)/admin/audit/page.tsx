@@ -162,7 +162,7 @@ export default function AdminAuditPage() {
                 <div key={l.id}>
                   <div
                     onClick={() => setExpanded(expanded === l.id ? null : l.id)}
-                    className="px-4 md:px-6 py-3 grid grid-cols-[10rem_2.5fr_2fr_1.5fr_3fr] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
+                    className="px-4 md:px-6 py-3 grid grid-cols-[10rem_2.5fr_2fr_1.5fr_3fr] items-center gap-4 border-b border-white/5 cursor-pointer transition-colors"
                   >
                     <div>
                       <p className="text-white/60 text-xs tabular-nums">

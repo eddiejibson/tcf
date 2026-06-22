@@ -318,7 +318,7 @@ export default function AdminCompaniesPage() {
         <div className="relative">
           <button
             onClick={() => setTagFilterOpen((o) => !o)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${tagFilter.length ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${tagFilter.length ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
@@ -387,7 +387,7 @@ export default function AdminCompaniesPage() {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <button
           onClick={() => setTrafficFilter("ALL")}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === "ALL" ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === "ALL" ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}
         >
           All
           <span className="text-white/40 tabular-nums">{companies.length}</span>
@@ -396,7 +396,7 @@ export default function AdminCompaniesPage() {
           <button
             key={t.value}
             onClick={() => setTrafficFilter(t.value)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === t.value ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${trafficFilter === t.value ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}
           >
             <TrafficLightDot value={t.value} size="sm" />
             {t.label}
@@ -426,7 +426,7 @@ export default function AdminCompaniesPage() {
             {visibleCompanies.map((company) => (
               <div
                 key={company.id}
-                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px_56px] gap-2 md:gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors items-center"
+                className="grid grid-cols-1 md:grid-cols-[1fr_80px_100px_120px_120px_80px_56px] gap-2 md:gap-4 px-6 py-4 transition-colors items-center"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <TrafficLightPicker

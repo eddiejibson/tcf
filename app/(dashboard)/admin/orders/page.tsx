@@ -115,7 +115,7 @@ export default function AdminOrdersPage() {
           <AnimatedList>
           {orders.map((o) => (
             <AnimatedListItem key={o.id}>
-            <div className="min-w-[760px] border-b border-white/5 hover:bg-white/[0.02] transition-colors flex items-center">
+            <div className="min-w-[760px] border-b border-white/5 transition-colors flex items-center">
               <Link href={`/admin/orders/${o.id}`} className="flex-1 px-4 md:px-6 py-4 flex items-center gap-4">
                 <div className="w-24"><p className="text-white/60 text-sm font-mono">#{o.id.slice(0, 8).toUpperCase()}</p></div>
                 <div className="flex-1">

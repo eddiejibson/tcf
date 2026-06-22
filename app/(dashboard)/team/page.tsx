@@ -285,7 +285,7 @@ export default function TeamPage() {
             <AnimatedList>
             {members.map((m) => (
               <AnimatedListItem key={m.id}>
-              <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+              <div className="min-w-[640px] px-4 md:px-6 py-4 grid grid-cols-[2fr_1fr_2fr_1.5fr_auto] items-center gap-4 border-b border-white/5 transition-colors">
                 <div className="min-w-0">
                   <p className="text-white/90 text-sm font-medium truncate">{m.email}</p>
                   <p className="text-white/40 text-xs">Joined {new Date(m.createdAt).toLocaleDateString("en-GB")}</p>

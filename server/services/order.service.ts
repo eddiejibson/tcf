@@ -190,7 +190,7 @@ export async function updateOrderItems(orderId: string, items: { productId?: str
   const db = await getDb();
   const itemRepo = db.getRepository(OrderItem);
 
-  await itemRepo.delete({ orderId });
+  await itemRepo.softDelete({ orderId });
 
   const newItems = items.map((item) =>
     itemRepo.create({
@@ -415,7 +415,7 @@ export async function updateAcceptedOrderItems(
     }
   }
 
-  await itemRepo.delete({ orderId });
+  await itemRepo.softDelete({ orderId });
   const savedItems = await itemRepo.save(
     newItems.map((item) =>
       itemRepo.create({
@@ -737,7 +737,7 @@ export async function updateAdminDraftOrder(
   if (changed) await orderRepo.save(order);
 
   // Replace items
-  await itemRepo.delete({ orderId });
+  await itemRepo.softDelete({ orderId });
 
   const effectiveUserId = (userId !== undefined ? userId : order.userId) || null;
   const discountPct = effectiveUserId ? await getUserDiscount(effectiveUserId) : 0;

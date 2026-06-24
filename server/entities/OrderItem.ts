@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Relation, DeleteDateColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Order } from "./Order";
 import { Product } from "./Product";
@@ -56,6 +56,9 @@ export class OrderItem extends BaseEntity {
   @ManyToOne(() => CatalogProduct, { nullable: true })
   @JoinColumn({ name: "catalogProductId" })
   catalogProduct: Relation<CatalogProduct> | null;
+
+  @DeleteDateColumn({ type: "timestamp", nullable: true })
+  deletedAt: Date | null;
 }
 
 export type OrderItemType = Omit<OrderItem, "order" | "product" | "substituteProduct" | "catalogProduct">;

@@ -188,7 +188,18 @@ export default function ShipmentDetailPage() {
   useEffect(() => {
     fetchShipment();
     if (adminMode) {
-      fetch("/api/admin/users?role=USER&limit=100").then((r) => r.ok ? r.json() : { users: [] }).then((d) => setAdminUsers(d.users || []));
+      (async () => {
+        const collected: typeof adminUsers = [];
+        for (let page = 1; page <= 50; page++) {
+          const res = await fetch(`/api/admin/users?role=USER&limit=100&page=${page}`);
+          if (!res.ok) break;
+          const data = await res.json();
+          if (!data?.users?.length) break;
+          collected.push(...data.users);
+          if (page >= (data.totalPages ?? 1)) break;
+        }
+        setAdminUsers(collected);
+      })().catch(() => {});
     }
   }, [fetchShipment, adminMode]);
 

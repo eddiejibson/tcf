@@ -147,10 +147,19 @@ export default function AdminOrderDetailPage() {
   useEffect(() => {
     if (order?.status !== "DRAFT") return;
     if (users.length > 0) return;
-    fetch("/api/admin/users?role=USER&limit=100")
-      .then((r) => (r.ok ? r.json() : { users: [] }))
-      .then((data: { users?: UserListItem[] }) => setUsers(data.users || []))
-      .catch(() => {});
+    const load = async () => {
+      const collected: UserListItem[] = [];
+      for (let page = 1; page <= 50; page++) {
+        const res = await fetch(`/api/admin/users?role=USER&limit=100&page=${page}`);
+        if (!res.ok) break;
+        const data = await res.json();
+        if (!data?.users?.length) break;
+        collected.push(...data.users);
+        if (page >= (data.totalPages ?? 1)) break;
+      }
+      setUsers(collected);
+    };
+    load().catch(() => {});
   }, [order?.status, users.length]);
 
   const updateItem = (index: number, field: string, value: string | number) => {

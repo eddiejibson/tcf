@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { UserListItem } from "@/app/lib/types";
 
 interface CustomerPickerProps {
@@ -13,8 +13,10 @@ interface CustomerPickerProps {
 export default function CustomerPicker({ users, value, onChange, placeholder = "Select customer..." }: CustomerPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [serverResults, setServerResults] = useState<UserListItem[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -28,16 +30,32 @@ export default function CustomerPicker({ users, value, onChange, placeholder = "
     if (open && inputRef.current) inputRef.current.focus();
   }, [open]);
 
+  const searchApi = useCallback((q: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!q.trim()) { setServerResults([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const res = await fetch(`/api/admin/users?role=USER&limit=100&search=${encodeURIComponent(q.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setServerResults(data.users || []);
+      }
+    }, 250);
+  }, []);
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
   const selected = users.find((u) => u.id === value);
   const selectedLabel = selected
     ? selected.companyName ? `${selected.companyName} (${selected.email})` : selected.email
     : "";
 
   const q = search.toLowerCase();
-  const filtered = users.filter((u) =>
+  const clientFiltered = users.filter((u) =>
     u.email.toLowerCase().includes(q) ||
     (u.companyName && u.companyName.toLowerCase().includes(q))
   );
+  const seenIds = new Set(clientFiltered.map((u) => u.id));
+  const filtered = [...clientFiltered, ...serverResults.filter((u) => !seenIds.has(u.id))];
 
   const handleSelect = (id: string) => {
     onChange(id);
@@ -71,7 +89,7 @@ export default function CustomerPicker({ users, value, onChange, placeholder = "
                 ref={inputRef}
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); searchApi(e.target.value); }}
                 placeholder="Search by name or email..."
                 className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-[#0984E3]/40"
               />

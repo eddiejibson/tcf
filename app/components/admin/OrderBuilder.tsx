@@ -117,11 +117,16 @@ export default function OrderBuilder({ mode, initialDraftId = null, initialItems
   }, [initialDraftId]);
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users?role=USER&limit=100");
-    if (res.ok) {
+    const collected: typeof users = [];
+    for (let page = 1; page <= 50; page++) {
+      const res = await fetch(`/api/admin/users?role=USER&limit=100&page=${page}`);
+      if (!res.ok) break;
       const data = await res.json();
-      setUsers(data.users);
+      if (!data?.users?.length) break;
+      collected.push(...data.users);
+      if (page >= (data.totalPages ?? 1)) break;
     }
+    setUsers(collected);
   }, []);
 
   const fetchCategories = useCallback(async () => {

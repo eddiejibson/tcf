@@ -377,7 +377,10 @@ export async function updateAcceptedOrderItems(
   const itemRepo = db.getRepository(OrderItem);
 
   const order = await getOrderById(orderId);
-  if (!order || (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_FULFILLMENT && order.status !== OrderStatus.AWAITING_PAYMENT)) return null;
+  if (!order || (order.status !== OrderStatus.ACCEPTED && order.status !== OrderStatus.AWAITING_FULFILLMENT && order.status !== OrderStatus.AWAITING_PAYMENT)) {
+    log.error("updateAcceptedOrderItems: cannot update", { orderId, found: !!order, status: order?.status, newItemCount: newItems.length });
+    return null;
+  }
 
   const oldItems = order.items;
   const changes: string[] = [];

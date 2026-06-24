@@ -1495,6 +1495,7 @@ export default function AdminShipmentDetailPage() {
     setApplying(true);
     setApplyProgress({ done: 0, total: queued.length });
     const accepted = new Set<string>();
+    const failed: string[] = [];
 
     for (let i = 0; i < queued.length; i++) {
       const { mapping, items, freightCharge, includeShipping, boxCount, freightPerBox, deliveryMethod, deliveryMiles, deliveryCharge } = queued[i];
@@ -1529,6 +1530,8 @@ export default function AdminShipmentDetailPage() {
             }),
           });
           if (!createRes.ok) {
+            const err = await createRes.json().catch(() => ({}));
+            failed.push(`Create #${(mapping.userId || "?").slice(0, 8)}: ${(err as Record<string, string>).error || createRes.statusText}`);
             setApplyProgress({ done: i + 1, total: queued.length });
             continue;
           }
@@ -1561,11 +1564,20 @@ export default function AdminShipmentDetailPage() {
             ...(!sendEmails || isNewOrder ? { skipEmail: true } : {}),
           }),
         });
-        if (res.ok) accepted.add(targetOrderId);
-      } catch {
-        // Per-order failures don't halt the batch.
+        if (res.ok) {
+          accepted.add(targetOrderId);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          failed.push(`#${targetOrderId.slice(0, 8).toUpperCase()}: ${(err as Record<string, string>).error || res.statusText}`);
+        }
+      } catch (e) {
+        failed.push(`Order ${i + 1}: ${e instanceof Error ? e.message : "Unknown error"}`);
       }
       setApplyProgress({ done: i + 1, total: queued.length });
+    }
+
+    if (failed.length > 0) {
+      alert(`${failed.length} order(s) failed to apply:\n\n${failed.join("\n")}`);
     }
 
     setAcceptedOrderIds(accepted);
